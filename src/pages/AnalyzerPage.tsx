@@ -52,7 +52,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
 
         <div className="analyzer-page__footer">
           <TransportControls />
-          <TempoControl />
+          <TempoControl detectedBpm={song.detectedBpm} />
         </div>
       </div>
     </div>

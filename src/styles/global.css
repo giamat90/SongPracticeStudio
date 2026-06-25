@@ -444,7 +444,7 @@ body,
 /* Time ruler above the waveform tracks */
 .time-ruler {
   position: relative;
-  height: 1.6rem;
+  height: 2.8rem;
   width: 100%;
 }
 
@@ -583,6 +583,12 @@ body,
   gap: 0.4rem;
 }
 
+.tempo-control__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .tempo-control__label {
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -590,19 +596,53 @@ body,
   letter-spacing: 0.05em;
 }
 
+.tempo-control__tabs {
+  display: flex;
+  gap: 0.15rem;
+  background: var(--bg-surface);
+  border-radius: 4px;
+  padding: 0.1rem;
+}
+
+.tempo-control__tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tempo-control__tab--active {
+  background: var(--accent);
+  color: var(--text-primary);
+}
+
+.tempo-control__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .tempo-control__slider {
-  width: 160px;
+  flex: 1;
   accent-color: var(--accent);
 }
 
 .tempo-control__value {
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+  min-width: 3rem;
+  text-align: right;
 }
 
 .tempo-control__presets {
   display: flex;
   gap: 0.3rem;
+  flex-wrap: wrap;
 }
 
 .tempo-control__preset {
@@ -625,6 +665,45 @@ body,
 .tempo-control__preset--active {
   background: var(--accent);
   color: var(--text-primary);
+}
+
+.tempo-control__bpm-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tempo-control__bpm-orig {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tempo-control__bpm-input {
+  width: 4.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.2rem 0.4rem;
+  text-align: center;
+  font-family: inherit;
+}
+
+.tempo-control__bpm-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.tempo-control__bpm-unit {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.tempo-control__bpm-rate {
+  margin-left: auto;
 }
 
 /* Key Transpose */

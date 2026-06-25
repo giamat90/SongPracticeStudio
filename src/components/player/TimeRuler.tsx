@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { usePlayerStore } from "../../stores/player";
 
-const HANDLE_HIT_PX = 8; // pixels around a handle boundary that counts as a hit
+const HANDLE_HIT_PX = 12;
 
 function tickInterval(duration: number, widthPx: number): number {
   const raw = (duration / widthPx) * 80;
@@ -74,7 +74,8 @@ export default function TimeRuler() {
 
       // Time ticks
       const interval = tickInterval(duration, W);
-      ctx.font = "10px monospace";
+      const fontSize = Math.max(10, Math.round(H * 0.42));
+      ctx.font = `${fontSize}px monospace`;
       for (let t = 0; t <= duration + 0.001; t += interval) {
         const x = Math.round(tX(t));
         ctx.strokeStyle = "#3a4a5e";
@@ -86,7 +87,7 @@ export default function TimeRuler() {
         if (x + 3 < W) {
           ctx.fillStyle = "#7a8a9e";
           ctx.textAlign = "left";
-          ctx.fillText(fmt(t), x + 3, H * 0.55);
+          ctx.fillText(fmt(t), x + 3, H * 0.62);
         }
       }
 
