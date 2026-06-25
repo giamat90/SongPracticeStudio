@@ -1,8 +1,8 @@
 import { useState } from "react";
 import LibraryPage from "./pages/LibraryPage";
-import PracticeRoom from "./pages/PracticeRoom";
+import AnalyzerPage from "./pages/AnalyzerPage";
 
-type Route = { page: "library" } | { page: "practice"; songId: string };
+type Route = { page: "library" } | { page: "analyzer"; songId: string };
 
 function App() {
   const [route, setRoute] = useState<Route>({ page: "library" });
@@ -11,10 +11,10 @@ function App() {
     <div className="app">
       {route.page === "library" ? (
         <LibraryPage
-          onSelectSong={(songId) => setRoute({ page: "practice", songId })}
+          onSelectSong={(songId) => setRoute({ page: "analyzer", songId })}
         />
       ) : (
-        <PracticeRoom
+        <AnalyzerPage
           songId={route.songId}
           onBack={() => setRoute({ page: "library" })}
         />

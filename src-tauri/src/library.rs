@@ -8,12 +8,13 @@ use std::fs;
 pub struct Song {
     pub id: String,
     pub title: String,
-    pub artist: Option<String>,
     pub duration: f64,
     pub detected_key: Option<String>,
     pub detected_bpm: Option<f64>,
     pub processed_at: String,
     pub directory: String,
+    #[serde(default)]
+    pub stems: Vec<String>,
 }
 
 fn library_path() -> std::path::PathBuf {

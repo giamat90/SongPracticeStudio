@@ -24,7 +24,6 @@ export default function TimeRuler() {
   const duration    = usePlayerStore((s) => s.duration);
   const punchIn     = usePlayerStore((s) => s.punchIn);
   const punchOut    = usePlayerStore((s) => s.punchOut);
-  const isRecording = usePlayerStore((s) => s.isRecording);
   const punchLoop   = usePlayerStore((s) => s.punchLoop);
   const setPunchIn  = usePlayerStore((s) => s.setPunchIn);
   const setPunchOut = usePlayerStore((s) => s.setPunchOut);
@@ -146,7 +145,7 @@ export default function TimeRuler() {
   // ── mouse handlers ───────────────────────────────────────────────────────
 
   const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isRecording || duration <= 0) return;
+    if (duration <= 0) return;
     e.preventDefault();
     const { offsetX } = e.nativeEvent;
     const mode = modeForOffset(offsetX);
@@ -171,7 +170,7 @@ export default function TimeRuler() {
 
     if (!mode) {
       // Hover: update cursor to signal draggable handles
-      if (!isRecording && punchIn !== null && punchOut !== null) {
+      if (punchIn !== null && punchOut !== null) {
         const m = modeForOffset(offsetX);
         setCursor(m !== "create" ? "ew-resize" : "crosshair");
       }
@@ -215,7 +214,7 @@ export default function TimeRuler() {
     }
 
     // Restore hover cursor
-    setCursor(isRecording || duration <= 0 ? "default" : "crosshair");
+    setCursor(duration <= 0 ? "default" : "crosshair");
   };
 
   const onMouseLeave = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -232,9 +231,9 @@ export default function TimeRuler() {
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseLeave}
-        style={{ cursor: isRecording || duration <= 0 ? "default" : "crosshair" }}
+        style={{ cursor: duration <= 0 ? "default" : "crosshair" }}
       />
-      {punchIn !== null && punchOut !== null && !isRecording && (
+      {punchIn !== null && punchOut !== null && (
         <button
           className={`time-ruler__loop-btn${punchLoop ? " time-ruler__loop-btn--active" : ""}`}
           title={punchLoop ? "Disable loop" : "Loop region"}

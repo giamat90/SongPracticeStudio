@@ -40,7 +40,6 @@ pub async fn process_song(
     let song_id = uuid::Uuid::new_v4().to_string();
     let output_dir = storage::song_dir(&song_id);
 
-    // Copy source file into the song directory
     let src = std::path::Path::new(&file_path);
     if !src.exists() {
         return Err(format!("File not found: {file_path}"));
@@ -59,20 +58,17 @@ pub async fn process_song(
     let output_dir_str = output_dir.to_string_lossy().to_string();
     let dest_str = dest.to_string_lossy().to_string();
 
-    // Send process command to sidecar
     let cmd = serde_json::json!({
         "cmd": "process",
         "filePath": dest_str,
         "outputDir": output_dir_str,
     });
 
-    // Hold the lock for the duration of the processing to prevent concurrent jobs
     let guard = ensure_sidecar(&state)?;
     let sidecar = guard.as_ref().ok_or("Sidecar not available")?;
     sidecar.send_command(&cmd)?;
 
-    // Read messages until we get a result or error
-    let timeout = Duration::from_secs(600); // 10 min max for long songs
+    let timeout = Duration::from_secs(600);
     loop {
         let msg = sidecar.recv_timeout(timeout)?;
         match msg {
@@ -100,48 +96,34 @@ pub async fn process_song(
                     },
                 );
 
-                // Extract metadata from result
                 let detected_bpm = data.get("detectedBpm").and_then(|v| v.as_f64());
                 let detected_key = data
                     .get("detectedKey")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
-
                 let duration = data
-                    .get("pitchData")
-                    .and_then(|v| v.as_array())
-                    .and_then(|arr| arr.last())
-                    .and_then(|p| p.get("time"))
-                    .and_then(|t| t.as_f64())
+                    .get("duration")
+                    .and_then(|v| v.as_f64())
                     .unwrap_or(0.0);
+                let stems: Vec<String> = data
+                    .get("stems")
+                    .and_then(|v| v.as_object())
+                    .map(|o| o.keys().cloned().collect())
+                    .unwrap_or_default();
 
                 let now = chrono::Utc::now().to_rfc3339();
-
                 let song = Song {
                     id: song_id,
                     title,
-                    artist: None,
                     duration,
                     detected_key,
                     detected_bpm,
                     processed_at: now,
                     directory: output_dir_str,
+                    stems,
                 };
 
-                // Save analysis data to analysis.json
-                let analysis = serde_json::json!({
-                    "pitchData": data.get("pitchData").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                    "onsets":    data.get("onsets").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                    "dynamics":  data.get("dynamics").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                });
-                let analysis_path = output_dir.join("analysis.json");
-                if let Ok(json) = serde_json::to_string_pretty(&analysis) {
-                    let _ = std::fs::write(&analysis_path, json);
-                }
-
-                // Persist to library.json
                 library::add(song.clone())?;
-
                 return Ok(song);
             }
             SidecarMessage::Error {
@@ -167,49 +149,6 @@ pub async fn process_song(
 }
 
 #[tauri::command]
-pub async fn pitch_shift_song(
-    state: State<'_, SidecarState>,
-    song_dir: String,
-    n_steps: i32,
-) -> Result<serde_json::Value, String> {
-    let cache_dir = std::path::Path::new(&song_dir)
-        .join("pitched")
-        .join(n_steps.to_string());
-    let vocals_cache = cache_dir.join("vocals.wav");
-    let instr_cache = cache_dir.join("instrumental.wav");
-
-    // Return cached result without touching the sidecar
-    if vocals_cache.exists() && instr_cache.exists() {
-        return Ok(serde_json::json!({
-            "vocalsPath": vocals_cache.to_string_lossy(),
-            "instrumentalPath": instr_cache.to_string_lossy(),
-        }));
-    }
-
-    std::fs::create_dir_all(&cache_dir).map_err(|e| format!("mkdir: {e}"))?;
-
-    let cmd = serde_json::json!({
-        "cmd": "pitch_shift",
-        "songDir": song_dir,
-        "cacheDir": cache_dir.to_string_lossy(),
-        "nSteps": n_steps,
-    });
-    let guard = ensure_sidecar(&state)?;
-    let sidecar = guard.as_ref().ok_or("Sidecar not available")?;
-    sidecar.send_command(&cmd)?;
-
-    let timeout = Duration::from_secs(300);
-    loop {
-        let msg = sidecar.recv_timeout(timeout)?;
-        match msg {
-            SidecarMessage::Result { data, .. } => return Ok(data),
-            SidecarMessage::Error { message, .. } => return Err(message),
-            _ => {}
-        }
-    }
-}
-
-#[tauri::command]
 pub async fn list_songs() -> Result<Vec<Song>, String> {
     library::load()
 }
@@ -217,153 +156,6 @@ pub async fn list_songs() -> Result<Vec<Song>, String> {
 #[tauri::command]
 pub async fn delete_song(song_id: String) -> Result<(), String> {
     library::remove(&song_id)
-}
-
-// --- Take commands ---
-
-/// Take metadata for frontend (includes optional analysis data).
-#[derive(Clone, Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Take {
-    pub id: String,
-    pub song_id: String,
-    pub recorded_at: String,
-    pub filepath: String,
-    /// Song position (seconds) where recording started; 0 for full-song takes.
-    #[serde(default)]
-    pub start_position: f64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pitch_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub onsets: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dynamics: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub vibrato: Option<serde_json::Value>,
-}
-
-fn takes_json_path(song_id: &str) -> std::path::PathBuf {
-    storage::song_dir(song_id).join("takes.json")
-}
-
-fn load_takes(song_id: &str) -> Result<Vec<Take>, String> {
-    let path = takes_json_path(song_id);
-    if !path.exists() {
-        return Ok(vec![]);
-    }
-    let data = std::fs::read_to_string(&path).map_err(|e| format!("Read takes: {e}"))?;
-    serde_json::from_str(&data).map_err(|e| format!("Parse takes: {e}"))
-}
-
-fn save_takes(song_id: &str, takes: &[Take]) -> Result<(), String> {
-    let path = takes_json_path(song_id);
-    let data = serde_json::to_string_pretty(takes).map_err(|e| format!("Serialize: {e}"))?;
-    std::fs::write(&path, data).map_err(|e| format!("Write takes: {e}"))
-}
-
-#[tauri::command]
-pub async fn save_take(
-    state: State<'_, SidecarState>,
-    song_id: String,
-    audio_data: Vec<u8>,
-    start_position: f64,
-) -> Result<Take, String> {
-    let take_id = uuid::Uuid::new_v4().to_string();
-    let takes_dir = storage::song_dir(&song_id).join("takes");
-    std::fs::create_dir_all(&takes_dir).map_err(|e| format!("Create takes dir: {e}"))?;
-
-    let file_path = takes_dir.join(format!("{take_id}.webm"));
-    std::fs::write(&file_path, &audio_data).map_err(|e| format!("Write take: {e}"))?;
-
-    let file_path_str = file_path.to_string_lossy().to_string();
-    let output_dir_str = takes_dir.to_string_lossy().to_string();
-
-    // Analyze the recording via sidecar
-    let (pitch_data, onsets, dynamics, vibrato) = {
-        let guard = ensure_sidecar(&state);
-        if let Ok(guard) = guard {
-            if let Some(sidecar) = guard.as_ref() {
-                let cmd = serde_json::json!({
-                    "cmd": "analyze",
-                    "recordingPath": file_path_str,
-                    "outputDir": output_dir_str,
-                });
-                let _ = sidecar.send_command(&cmd);
-                let timeout = std::time::Duration::from_secs(300);
-                let mut result = (None, None, None, None);
-                loop {
-                    match sidecar.recv_timeout(timeout) {
-                        Ok(SidecarMessage::Result { data, .. }) => {
-                            result = (
-                                data.get("pitchData").cloned(),
-                                data.get("onsets").cloned(),
-                                data.get("dynamics").cloned(),
-                                data.get("vibrato").cloned(),
-                            );
-                            break;
-                        }
-                        Ok(SidecarMessage::Error { message, .. }) => {
-                            log::warn!("Take analysis error: {message}");
-                            break;
-                        }
-                        Ok(SidecarMessage::Progress { .. }) => continue,
-                        _ => break,
-                    }
-                }
-                result
-            } else {
-                (None, None, None, None)
-            }
-        } else {
-            (None, None, None, None)
-        }
-    };
-
-    let take = Take {
-        id: take_id,
-        song_id: song_id.clone(),
-        recorded_at: chrono::Utc::now().to_rfc3339(),
-        filepath: file_path_str,
-        start_position,
-        pitch_data,
-        onsets,
-        dynamics,
-        vibrato,
-    };
-
-    let mut takes = load_takes(&song_id)?;
-    takes.push(take.clone());
-    save_takes(&song_id, &takes)?;
-
-    Ok(take)
-}
-
-#[tauri::command]
-pub async fn load_analysis(song_id: String) -> Result<serde_json::Value, String> {
-    let path = storage::song_dir(&song_id).join("analysis.json");
-    if !path.exists() {
-        return Ok(serde_json::json!({"pitchData": [], "onsets": [], "dynamics": []}));
-    }
-    let data = std::fs::read_to_string(&path).map_err(|e| format!("Read analysis: {e}"))?;
-    serde_json::from_str(&data).map_err(|e| format!("Parse analysis: {e}"))
-}
-
-#[tauri::command]
-pub async fn list_takes(song_id: String) -> Result<Vec<Take>, String> {
-    load_takes(&song_id)
-}
-
-#[tauri::command]
-pub async fn delete_take(song_id: String, take_id: String) -> Result<(), String> {
-    let takes = load_takes(&song_id)?;
-    if let Some(take) = takes.iter().find(|t| t.id == take_id) {
-        let path = std::path::Path::new(&take.filepath);
-        if path.exists() {
-            std::fs::remove_file(path).map_err(|e| format!("Delete take file: {e}"))?;
-        }
-    }
-    let filtered: Vec<Take> = takes.into_iter().filter(|t| t.id != take_id).collect();
-    save_takes(&song_id, &filtered)
 }
 
 #[tauri::command]
@@ -429,33 +221,25 @@ pub async fn import_youtube(
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
                 let duration = data
-                    .get("pitchData")
-                    .and_then(|v| v.as_array())
-                    .and_then(|arr| arr.last())
-                    .and_then(|p| p.get("time"))
-                    .and_then(|t| t.as_f64())
+                    .get("duration")
+                    .and_then(|v| v.as_f64())
                     .unwrap_or(0.0);
+                let stems: Vec<String> = data
+                    .get("stems")
+                    .and_then(|v| v.as_object())
+                    .map(|o| o.keys().cloned().collect())
+                    .unwrap_or_default();
 
                 let song = Song {
                     id: song_id,
                     title,
-                    artist: None,
                     duration,
                     detected_key,
                     detected_bpm,
                     processed_at: chrono::Utc::now().to_rfc3339(),
                     directory: output_dir_str,
+                    stems,
                 };
-
-                let analysis = serde_json::json!({
-                    "pitchData": data.get("pitchData").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                    "onsets":    data.get("onsets").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                    "dynamics":  data.get("dynamics").cloned().unwrap_or(serde_json::Value::Array(vec![])),
-                });
-                let analysis_path = output_dir.join("analysis.json");
-                if let Ok(json) = serde_json::to_string_pretty(&analysis) {
-                    let _ = std::fs::write(&analysis_path, json);
-                }
 
                 library::add(song.clone())?;
                 return Ok(song);

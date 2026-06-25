@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VPS Python Sidecar
+Song Analyzer Python Sidecar
 Communicates with Tauri shell via JSON lines on stdin/stdout.
 Commands execute synchronously on the main thread to avoid GIL/numpy
 deadlocks that occur with background threads on Windows.
@@ -11,7 +11,6 @@ import json
 import traceback
 
 from processor import process
-from analysis import analyze_recording
 
 
 def send(msg: dict):
@@ -47,24 +46,6 @@ def main():
                     on_progress=make_progress_callback("process"),
                 )
                 send({"type": "result", "cmd": "process", "data": result})
-
-            elif cmd.get("cmd") == "analyze":
-                result = analyze_recording(
-                    cmd["recordingPath"],
-                    cmd["outputDir"],
-                    on_progress=make_progress_callback("analyze"),
-                )
-                send({"type": "result", "cmd": "analyze", "data": result})
-
-            elif cmd.get("cmd") == "pitch_shift":
-                from processor import pitch_shift_song
-                result = pitch_shift_song(
-                    cmd["songDir"],
-                    cmd["cacheDir"],
-                    cmd["nSteps"],
-                    on_progress=make_progress_callback("pitch_shift"),
-                )
-                send({"type": "result", "cmd": "pitch_shift", "data": result})
 
             elif cmd.get("cmd") == "import_yt":
                 from yt_importer import import_yt

@@ -1173,3 +1173,157 @@ body,
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+/* Analyzer Page */
+.analyzer-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  min-height: 0;
+}
+
+.analyzer-page__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.analyzer-page__back {
+  background: none;
+  border: 1px solid var(--bg-surface);
+  color: var(--text-primary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.analyzer-page__back:hover {
+  background: var(--bg-surface);
+}
+
+.analyzer-page__song-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.analyzer-page__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.analyzer-page__meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+}
+
+.analyzer-page__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.analyzer-page__stems {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.analyzer-page__footer {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* Stem View */
+.stem-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stem-view__error {
+  color: var(--accent);
+  font-size: 0.85rem;
+  padding: 0.4rem;
+}
+
+/* Stem Track */
+.stem-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stem-track__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.1rem;
+}
+
+.stem-track__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+  min-width: 5rem;
+}
+
+.stem-track__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stem-track__volume {
+  width: 7rem;
+  accent-color: var(--accent);
+}
+
+.stem-track__download {
+  background: var(--bg-surface);
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.stem-track__download:hover {
+  color: var(--text-primary);
+  background: var(--accent);
+}
+
+.stem-track__body {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.stem-track__wave {
+  width: 100%;
+}

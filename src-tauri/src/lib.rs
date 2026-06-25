@@ -14,13 +14,8 @@ pub fn run() {
             commands::process_song,
             commands::import_youtube,
             commands::export_stem,
-            commands::pitch_shift_song,
             commands::list_songs,
             commands::delete_song,
-            commands::save_take,
-            commands::list_takes,
-            commands::delete_take,
-            commands::load_analysis,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
