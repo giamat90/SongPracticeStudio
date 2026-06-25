@@ -1,0 +1,42 @@
+# Node
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# Vite
+.vite/
+
+# Rust
+/target/
+Cargo.lock
+*.pdb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+sidecar/.venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# App data (local)
+~/.vps/
+.vps/
+
+# Logs
+*.log
