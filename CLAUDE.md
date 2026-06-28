@@ -62,7 +62,7 @@ interface Song {
   stems: StemName[];   // e.g. ["vocals","drums","bass","guitar","piano","other"]
 }
 ```
-Persisted in `~/.local/share/song-analyzer/library.json` (managed by `src-tauri/src/library.rs`).
+Persisted in `~/.songanalyzer/library.json`; stem WAVs in `~/.songanalyzer/library/{song_id}/` (managed by `src-tauri/src/storage.rs` + `library.rs`).
 
 ---
 
@@ -126,6 +126,12 @@ Defined in `src/audio/engine.ts → STEM_COLORS`:
 
 ## Common tasks
 
+**Set up dev environment (run once per terminal session):**
+```
+dev.bat
+```
+Opens a `cmd` shell with `cargo`, `node`, and the Python venv all on PATH. Required before any `cargo` or `npm run tauri` commands.
+
 **Run in dev mode:**
 ```
 npm run tauri dev
@@ -136,7 +142,22 @@ npm run tauri dev
 npx tsc --noEmit
 ```
 
-**Build sidecar (needed for release):**
+**Build for release (Windows):**
+```powershell
+# 1. Build the Python sidecar (first time or after sidecar changes)
+cd sidecar
+python build.py
+copy dist\song-analyzer-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
+
+# 2. Build the Tauri app
+cd ..
+npm run tauri build
+```
+Output: `src-tauri/target/release/bundle/msi/` and `nsis/` — both produce an installer named "Song Analyzer".
+
+> Bundle identifier `com.songanalyzer.app` ends with `.app` — harmless on Windows but conflicts with macOS app bundles. Change to `com.songanalyzer.desktop` before any macOS build.
+
+**Build sidecar only:**
 ```
 cd sidecar && python build.py
 ```

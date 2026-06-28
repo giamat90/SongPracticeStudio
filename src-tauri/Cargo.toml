@@ -1,8 +1,8 @@
 [package]
-name = "app"
+name = "song-analyzer"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Stem separation player — split any song into instrument tracks"
+authors = ["GiaMat90"]
 license = ""
 repository = ""
 edition = "2021"

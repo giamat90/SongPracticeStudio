@@ -2,12 +2,12 @@
 
 ## Overview
 
-VPS is a three-tier desktop application:
+Song Analyzer is a three-tier desktop application:
 
 ```
 ┌─────────────────────────────────────────────┐
 │  React 19 + TypeScript (WebView2 / Vite)    │  UI layer
-│  WaveSurfer.js · Zustand · MediaRecorder    │
+│  WaveSurfer.js · Zustand                    │
 └──────────────────┬──────────────────────────┘
                    │  tauri::invoke()  (async IPC)
                    │  Tauri events     (push: processing-progress)
@@ -18,7 +18,7 @@ VPS is a three-tier desktop application:
                    │  JSON lines on stdin / stdout
 ┌──────────────────▼──────────────────────────┐
 │  Python sidecar (subprocess)                │  Heavy compute
-│  Demucs · SRH · librosa · soundfile        │
+│  Demucs · librosa · soundfile               │
 └─────────────────────────────────────────────┘
 ```
 
@@ -33,9 +33,9 @@ VPS is a three-tier desktop application:
 | State management | Zustand | latest |
 | Backend language | Rust | 1.94.1+ |
 | Compute sidecar | Python | 3.10+ |
-| Stem separation | Demucs | htdemucs model |
-| Pitch detection | SRH (custom, Drugman & Dutoit 2011) | — |
-| Pitch shifting | librosa | — |
+| Stem separation | Demucs | htdemucs_6s (6 stems) |
+| BPM detection | librosa | beat.tempo on full mix |
+| Key detection | librosa | chroma_cqt + Krumhansl-Kessler |
 
 ## IPC Layers
 
@@ -45,23 +45,23 @@ All frontend→backend calls use `invoke()` from `@tauri-apps/api/core`. The bin
 
 ### Tauri ↔ Python (JSON lines)
 
-The Rust backend spawns the Python sidecar as a child process (`SidecarManager` in `src-tauri/src/sidecar.rs`). Communication is newline-delimited JSON on stdin/stdout. The sidecar runs a synchronous dispatch loop to avoid GIL/numpy deadlocks on Windows. See [Python Sidecar](python-sidecar.md) for the message format.
+The Rust backend spawns the Python sidecar as a child process (`SidecarManager` in `src-tauri/src/commands.rs`). Communication is newline-delimited JSON on stdin/stdout. The sidecar runs a synchronous dispatch loop to avoid GIL/numpy deadlocks on Windows. See [Python Sidecar](python-sidecar.md) for the message format.
 
 ## Startup Sequence
 
-1. Tauri starts; `main.rs` registers commands and creates `SidecarState` (initially empty).
+1. Tauri starts; `lib.rs` registers commands and creates `SidecarState` (initially empty).
 2. WebView2 renders the React app via the Vite dev server (dev) or bundled `dist/` (release).
 3. The Python sidecar is spawned **lazily** on the first command that needs it (e.g., `process_song`). It sends `{"type": "ready"}` when ready.
-4. The user drops an audio file → `processSong` invoke → Rust sends `process` command to Python → Python runs Demucs, saves `vocals.wav` + `instrumental.wav` into `~/.vps/library/{songId}/`, responds with song metadata.
+4. The user drops an audio file → `processSong` invoke → Rust sends `process` command to Python → Python runs Demucs `htdemucs_6s`, writes `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav` into `~/.songanalyzer/library/{songId}/`, then detects BPM and key, and responds with song metadata.
 
 ## Asset Serving
 
-Audio files stored in `~/.vps/` are served to the frontend via Tauri's asset protocol (`tauri://localhost/...`). The scope is configured in `tauri.conf.json`:
+Audio files stored in `~/.songanalyzer/` are served to the frontend via Tauri's asset protocol (`tauri://localhost/...`). The scope is configured in `tauri.conf.json`:
 
 ```json
 "assetProtocol": {
   "enable": true,
-  "scope": ["$HOME/.vps/**", "$HOME\\.vps\\**"]
+  "scope": ["$HOME/.songanalyzer/**", "$HOME\\.songanalyzer\\**"]
 }
 ```
 

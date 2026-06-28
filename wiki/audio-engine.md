@@ -2,113 +2,53 @@
 
 **File:** `src/audio/engine.ts` — `AudioEngine` class
 
-## Design: Three WaveSurfer Instances
+## Design: Dynamic Stems Map
 
-The engine holds up to three WaveSurfer instances running in lockstep:
-
-| Instance | Role |
-|----------|------|
-| `vocals` | Original vocals track; always loaded, never replaced |
-| `instrumental` | Full backing instrumental; always the full song |
-| `take` | Recorded take; loaded on demand, null when no take is selected |
-
-The **instrumental is the time reference** for everything: duration, `getCurrentTime()`, and the `finish` event. This ensures partial takes (recorded mid-song) do not prematurely end playback.
+The engine holds a `Map<string, WaveSurfer>` — one entry per loaded stem. The map is populated by `StemView.tsx` when a song is selected, calling `engine.loadStem(name, filePath, container)` for each stem in `song.stems`.
 
 ```
-instrumental.getDuration()     →  _duration (song length)
-instrumental.getCurrentTime()  →  current playback position
-instrumental.on("finish")      →  fires _finishCb
-```
-
-## Partial-Take Sync
-
-Both the vocals and take WaveSurfer instances may start at a non-zero point in the song. Four fields handle the mapping:
-
-| Field | Meaning |
-|-------|---------|
-| `_vocalsOffset` | Song time (seconds) where the vocals file begins |
-| `_vocalsDuration` | Duration of the vocals file |
-| `_takeOffset` | Song time (seconds) where the take file begins |
-| `_takeDuration` | Duration of the take file |
-
-`_seekVocals` / `_seekTake` convert a song-time to a file-time before calling `seekTo`:
-
-```ts
-private _seekTake(instrTime: number): void {
-  const dur = this._takeDuration > 0 ? this._takeDuration : this._duration;
-  const takeTime = Math.max(0, instrTime - this._takeOffset);
-  this.take.seekTo(Math.min(1, takeTime / dur));
+Map {
+  "vocals"  → WaveSurfer instance
+  "drums"   → WaveSurfer instance
+  "bass"    → WaveSurfer instance
+  "guitar"  → WaveSurfer instance
+  "piano"   → WaveSurfer instance
+  "other"   → WaveSurfer instance
 }
 ```
 
-## Take Track Visual Alignment
-
-`loadTakeTrack(filePath, container, startOffset)` positions the WaveSurfer container so it lines up visually with the other tracks. After the `"ready"` event:
-
-```ts
-const railWidth = container.offsetWidth;          // full rail width before resize
-const widthPx   = Math.round((this._takeDuration / this._duration) * railWidth);
-const marginPx  = Math.round((startOffset        / this._duration) * railWidth);
-container.style.marginLeft = `${marginPx}px`;
-container.style.width      = `${widthPx}px`;
-this.take.setOptions({ width: widthPx });         // forces WaveSurfer to redraw
-```
-
-`setOptions({ width })` is required because WaveSurfer renders its canvas at creation time and does not reliably redraw via ResizeObserver when the container CSS is changed after the fact.
+The **first stem loaded** (vocals if present, otherwise the first in the array) becomes the **master clock**: `getCurrentTime()`, `getDuration()`, and the `"finish"` event are all read from the master instance.
 
 ## Click-to-Seek Sync
 
-WaveSurfer's `"interaction"` event fires only on user clicks (not programmatic `seekTo`). The engine cross-links all three waveforms:
-
-- Click on vocals → convert vocals-file-time to song-time, seek instrumental + take
-- Click on instrumental → call `_seekVocals` + `_seekTake`
-- Click on take → convert take-file-time to song-time, seek instrumental + vocals
-
-The older `"seeking"` event (HTML5 proxied) caused an infinite async loop: each `seekTo()` triggered another `"seeking"` event on the other instance. `"interaction"` does not have this problem.
-
-## Seek Lock (Recording)
-
-`setInteract(enabled: boolean)` toggles WaveSurfer's `interact` option on both the vocals and instrumental instances. Called with `false` when recording starts, `true` when recording stops.
-
-The Zustand `seek` action adds a second guard:
-
-```ts
-seek: (time) => {
-  if (get().isRecording) return;
-  ...
-}
-```
-
-## Take Window Sync
-
-The take WaveSurfer instance is started and stopped automatically as the playhead enters and exits its time window `[_takeOffset, _takeOffset + _takeDuration)`. A private flag `_takeIsPlaying` tracks whether the take is currently playing; the rAF tick transitions on boundary crossings:
-
-```ts
-const inWindow = time >= this._takeOffset && time < this._takeOffset + this._takeDuration;
-if (inWindow && !this._takeIsPlaying)  { this.take.play();  this._takeIsPlaying = true;  }
-if (!inWindow && this._takeIsPlaying)  { this.take.pause(); this._takeIsPlaying = false; }
-```
-
-`play()` applies the same check before calling `take.play()` — so pressing Play from time 0 when the take starts at e.g. 30 s will not start the take immediately; the rAF tick starts it when the playhead reaches 30 s.
-
-`pause()` and `clearTakeTrack()` always reset `_takeIsPlaying = false`.
+WaveSurfer's `"interaction"` event fires only on user clicks (not programmatic `seekTo`). When the user clicks any stem waveform, the engine converts the click position to an absolute time and calls `seekTo()` on all other instances. The `"interaction"` event (rather than the older `"seeking"`) avoids the infinite seek loop that arises when each `seekTo` would trigger another event.
 
 ## Time Update Loop
 
-`_startTimeUpdate()` runs a `requestAnimationFrame` loop at 60 fps. Three concerns are handled in each tick:
+`_startTimeUpdate()` runs a `requestAnimationFrame` loop at 60 fps. Each tick:
 
-- **Loop detection** — checked every frame for accurate loop-point enforcement
-- **Take window sync** — transitions `_takeIsPlaying` on every frame (see above)
+- **Loop detection** — if `currentTime >= _loopEnd`, seeks all stems to `_loopStart`
 - **UI notifications** — throttled to ~30 fps (33 ms gate) via `_lastNotifyTime`, halving React re-render rate
 
-## Output Device Routing
+## Stem Colors
 
-`setOutputDevice(deviceId)` calls WaveSurfer's `setSinkId()` on all three instances (vocals, instrumental, take). On Windows with WebView2, specifying `""` routes audio to the current Windows default output device (which may change when a microphone is opened — see [Recording Flow](recording-flow.md)).
+Stem waveform colors are defined in `STEM_COLORS` at the top of `engine.ts`:
 
-## `loadTakeTrack` / `clearTakeTrack`
+| Stem | Color |
+|------|-------|
+| vocals | `rgba(74,158,255,0.85)` blue |
+| drums | `rgba(180,80,220,0.85)` purple |
+| bass | `rgba(60,200,100,0.85)` green |
+| guitar | `rgba(255,140,30,0.85)` orange |
+| piano | `rgba(255,220,50,0.85)` yellow |
+| other | `rgba(160,160,160,0.85)` gray |
 
-`loadTakeTrack(filePath, container, startOffset)` creates the take WaveSurfer instance inside a given DOM container, waits for `"ready"`, then sizes and positions the container proportionally. `clearTakeTrack()` destroys the instance and resets offsets. Called from `Waveform.tsx` whenever `activeTakeId` changes.
+## Playback Rate
 
-## `loadVocalsFromPath`
+`setPlaybackRate(rate)` calls `setPlaybackRate()` on every instance in the map simultaneously. The rate is persisted in the player store and re-applied whenever new stems are loaded.
 
-Async method that reloads the vocals WaveSurfer instance with a different audio file without destroying the instrumental. Used for **transpose** only — load pitch-shifted WAV after Python processing. After loading, it re-syncs the vocals position to the instrumental's current time.
+## Lifecycle
+
+`loadStem(name, filePath, container)` — creates a WaveSurfer instance for one stem, attaches the `"interaction"` handler, and wires the `"finish"` event on the master stem to call `_finishCb`.
+
+`destroy()` — destroys all WaveSurfer instances and clears the map. Called by `StemView` when the song changes or the component unmounts.

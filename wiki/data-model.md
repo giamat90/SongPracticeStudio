@@ -10,59 +10,22 @@
 interface Song {
   id: string;           // UUID
   title: string;
-  artist?: string;
   duration: number;     // seconds
-  detectedKey?: string; // e.g. "C minor"
   detectedBpm?: number;
+  detectedKey?: string; // e.g. "C minor"
   processedAt: string;  // ISO timestamp
-  directory: string;    // absolute path to ~/.vps/library/{id}/
+  directory: string;    // absolute path to ~/.songanalyzer/library/{id}/
+  stems: StemName[];    // e.g. ["vocals","drums","bass","guitar","piano","other"]
 }
 ```
 
-### Take
+### StemName
 
 ```ts
-interface Take {
-  id: string;
-  songId: string;
-  recordedAt: string;     // ISO timestamp
-  filepath: string;       // absolute path to the recording file
-  startPosition: number;  // song time (seconds) where recording began; 0 for full-song takes
-  pitchData?: PitchPoint[];
-  onsets?: number[];
-  dynamics?: DynamicsPoint[];
-  vibrato?: VibratoMetrics;
-}
+type StemName = "vocals" | "drums" | "bass" | "guitar" | "piano" | "other";
 ```
 
-### PitchPoint
-
-```ts
-interface PitchPoint {
-  time: number;       // seconds from start of take
-  frequency: number;  // Hz
-  confidence: number; // 0–1
-}
-```
-
-### DynamicsPoint
-
-```ts
-interface DynamicsPoint {
-  time: number; // seconds
-  rms: number;  // RMS amplitude 0–1
-}
-```
-
-### VibratoMetrics
-
-```ts
-interface VibratoMetrics {
-  rate: number;       // Hz (typical: 4–7 Hz for healthy vibrato)
-  depth: number;      // semitones peak-to-peak
-  regularity: number; // 0–1
-}
-```
+All six stems are produced by `htdemucs_6s`. The `stems` array on `Song` lists only the stems that were successfully written to disk.
 
 ### ProcessingStatus (event payload)
 
@@ -70,41 +33,28 @@ interface VibratoMetrics {
 interface ProcessingStatus {
   songId: string;
   progress: number;  // 0–1
-  stage: string;     // e.g. "separating", "detecting pitch"
+  stage: string;     // e.g. "separating", "detecting bpm", "detecting key"
   isComplete: boolean;
   error?: string;
 }
 ```
 
-### CoachingTip
-
-```ts
-interface CoachingTip {
-  category: "pitch" | "timing" | "vibrato" | "dynamics" | "general";
-  title: string;
-  detail: string;
-}
-```
-
 ## Storage Layout
 
-All data lives under `~/.vps/` (Windows: `C:\Users\{user}\.vps\`).
+All data lives under `~/.songanalyzer/` (`C:\Users\{user}\.songanalyzer\` on Windows).
 
 ```
-~/.vps/
+~/.songanalyzer/
+├── library.json           master index of all Song records
 └── library/
-    └── {songId}/              UUID directory per song
-        ├── {original}.mp3     copy of the source file
-        ├── vocals.wav         separated vocals (Demucs)
-        ├── instrumental.wav   separated instrumental (Demucs)
-        ├── pitch.json         CREPE pitch data
-        ├── onsets.json        onset times
-        ├── dynamics.json      RMS curve
-        ├── song.json          Song metadata
-        ├── cache/             pitch-shifted WAV cache
-        │   └── vocals_+2.wav  shifted files keyed by semitone delta
-        └── takes/
-            └── {takeId}.webm  recorded take audio files
+    └── {songId}/          UUID directory per song
+        ├── {original}.mp3 copy of the source file (or source.wav for YouTube imports)
+        ├── vocals.wav     separated vocals stem
+        ├── drums.wav      separated drums stem
+        ├── bass.wav       separated bass stem
+        ├── guitar.wav     separated guitar stem
+        ├── piano.wav      separated piano stem
+        └── other.wav      separated other/residual stem
 ```
 
 ## Tauri Commands
@@ -112,13 +62,10 @@ All data lives under `~/.vps/` (Windows: `C:\Users\{user}\.vps\`).
 | Command | Arguments | Returns |
 |---------|-----------|---------|
 | `process_song` | `filePath: string` | `Song` |
+| `import_youtube` | `url: string` | `Song` |
 | `list_songs` | — | `Song[]` |
 | `delete_song` | `songId: string` | `void` |
-| `save_take` | `songId, audioData: number[], startPosition: f64` | `Take` |
-| `list_takes` | `songId: string` | `Take[]` |
-| `delete_take` | `songId, takeId: string` | `void` |
-| `load_analysis` | `songId: string` | `{ pitchData, onsets, dynamics }` |
-| `pitch_shift_song` | `songDir: string, nSteps: number` | `{ vocalsPath, instrumentalPath }` |
+| `export_stem` | `songId, stemName: string` | `void` (native Save-As dialog) |
 
 All commands are async and return a `Promise`. Errors are thrown as strings.
 

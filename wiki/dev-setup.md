@@ -9,17 +9,19 @@
 | Python | 3.10+ | For the sidecar |
 | WebView2 | — | Pre-installed on Windows 11 |
 
-### Rust on Windows (PATH note)
+## Environment Setup — `dev.bat`
 
-When running Rust tools via bash (e.g., in a script or CI), `cargo` may not be on PATH. Add it explicitly:
+Run `dev.bat` at the start of every terminal session. It adds `cargo`, `npm`, and the Python venv to PATH, sets `PYTHONWARNINGS=ignore` and `TOKENIZERS_PARALLELISM=false`, then opens a `cmd` shell ready to go:
 
-```bash
-export PATH="$HOME/.cargo/bin:$PATH"
+```
+dev.bat
 ```
 
-PowerShell automatically has it after a normal rustup install.
+Without this, `npm run tauri build` / `npm run tauri dev` will fail with `cargo not found`.
 
 ## Python Sidecar Setup
+
+One-time setup (after cloning or on a new machine):
 
 ```powershell
 cd sidecar
@@ -29,16 +31,6 @@ pip install -r requirements.txt
 ```
 
 The sidecar is **not started by `npm run tauri dev`**. It is spawned lazily by Rust on the first command that needs it (e.g., when you drop a song file). In dev mode the sidecar runs as a raw Python process; in release mode it is a PyInstaller-bundled executable.
-
-### Building the sidecar executable
-
-```powershell
-cd sidecar
-.\.venv\Scripts\activate
-python build.py
-```
-
-The output executable is written to the path Tauri expects (see `tauri.conf.json` `externalBin`).
 
 ## Running in Development
 
@@ -55,51 +47,65 @@ Hot reload works for React/TypeScript changes. Rust changes require a full resta
 
 ## Building for Release
 
+Build the Python sidecar first (required — Tauri bundles it into the installer):
+
+```powershell
+cd sidecar
+python build.py
+copy dist\song-analyzer-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
+cd ..
+```
+
+Then build the Tauri app:
+
 ```powershell
 npm run tauri build
 ```
 
-Output installers are placed in `src-tauri/target/release/bundle/`. Ensure the sidecar executable is built first.
+Output installers are placed in `src-tauri/target/release/bundle/`:
+
+```
+msi\Song Analyzer_0.1.0_x64_en-US.msi
+nsis\Song Analyzer_0.1.0_x64-setup.exe
+```
+
+The NSIS installer bundles the WebView2 redistributable and is the safer choice for distribution. The MSI does not include WebView2.
+
+> If you get `cargo not found`, run `dev.bat` first.
 
 ## Project Structure
 
 ```
-VPS/
+SongAnalyzer/
 ├── src/                   React + TypeScript frontend
-│   ├── audio/             AudioEngine + VocalRecorder
-│   ├── components/        UI components (see Components wiki page)
-│   ├── lib/               Tauri bindings + shared types
-│   └── stores/            Zustand player store
+│   ├── audio/             AudioEngine (dynamic stems Map, rAF loop)
+│   ├── components/        UI components (player/, upload/)
+│   ├── lib/               Tauri IPC bindings + shared types
+│   ├── pages/             LibraryPage, AnalyzerPage
+│   └── stores/            Zustand player + library stores
 ├── src-tauri/             Rust backend
 │   ├── src/
-│   │   ├── main.rs        Tauri setup, command registration
+│   │   ├── main.rs        Tauri entry point
+│   │   ├── lib.rs         Command registration
 │   │   ├── commands.rs    Tauri command handlers
-│   │   ├── sidecar.rs     Python sidecar process manager
-│   │   ├── library.rs     Song library management
-│   │   └── storage.rs     Path helpers (~/.vps/)
+│   │   ├── library.rs     Song library CRUD + library.json
+│   │   └── storage.rs     Path helpers (~/.songanalyzer/)
+│   ├── binaries/          Compiled sidecar executable (git-ignored)
 │   └── tauri.conf.json    App config (window size, asset scope)
 ├── sidecar/               Python compute sidecar
 │   ├── main.py            JSON-lines dispatch loop
-│   ├── processor.py       Demucs separation + analysis
-│   ├── analysis.py        Take analysis (pitch, onsets, dynamics)
-│   └── build.py           PyInstaller build script
+│   ├── processor.py       Demucs separation + BPM + key detection
+│   ├── yt_importer.py     yt-dlp download → processor.process()
+│   ├── build.py           PyInstaller build script
+│   └── requirements.txt
+├── dev.bat                Dev environment setup (PATH + venv)
 └── wiki/                  This documentation
 ```
 
-## Audio Device Testing
-
-To test recording with a USB audio interface (e.g., Behringer UM2):
-
-1. Plug in the interface before starting the app.
-2. In the app, open the microphone selector and choose the UM2 input (e.g., `"Line In (2-Behringer USB WDM Audio)"`).
-3. Start recording — the app will automatically pin audio output to the UM2's headphone output to avoid the Windows Communications Device routing issue.
-
-If you hear silence during recording, check the browser console for `[recording]` log lines showing which output device was selected.
-
 ## Tauri Permissions
 
-The app uses these Tauri plugins / permissions (configured in `src-tauri/capabilities/`):
+The app uses these Tauri plugins / permissions:
 
 - `shell` — to spawn the Python sidecar
-- `fs` — to read/write `~/.vps/`
+- `fs` — to read/write `~/.songanalyzer/`
 - Asset protocol scope — to serve audio files to WebView2 via `tauri://localhost/`

@@ -1,15 +1,15 @@
-# VPS Wiki
+# Song Analyzer Wiki
 
-**Vocal Practice Studio** — Tauri v2 desktop app for singers to practice against separated instrumental tracks, record takes, and analyze their performance.
+**Song Analyzer** — Tauri v2 desktop app that separates songs into stems using Demucs and provides a multi-track player for analysis and practice.
 
 ## Pages
 
 | Page | Description |
 |------|-------------|
 | [Architecture](architecture.md) | 3-tier system overview: React → Tauri → Python sidecar |
-| [Audio Engine](audio-engine.md) | Dual WaveSurfer playback, sync, looping, device routing |
-| [Recording Flow](recording-flow.md) | Recording lifecycle and Windows WASAPI audio routing quirks |
+| [Audio Engine](audio-engine.md) | Dynamic stems Map, click-to-seek sync, rAF loop |
+| [Loop Region & Playback](recording-flow.md) | TimeRuler punch region: draw, edit, loop |
 | [Data Model](data-model.md) | TypeScript interfaces, Rust structs, and library storage layout |
-| [Python Sidecar](python-sidecar.md) | JSON-lines IPC, stem separation, pitch detection, pitch shifting |
-| [Components](components.md) | Frontend component reference and Zustand store |
-| [Dev Setup](dev-setup.md) | Prerequisites, build commands, and local development notes |
+| [Python Sidecar](python-sidecar.md) | JSON-lines IPC, stem separation, BPM + key detection |
+| [Components](components.md) | Frontend component reference and Zustand stores |
+| [Dev Setup](dev-setup.md) | Prerequisites, dev.bat, build commands, and local dev notes |
