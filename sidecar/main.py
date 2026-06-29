@@ -43,6 +43,7 @@ def main():
                 result = process(
                     cmd["filePath"],
                     cmd["outputDir"],
+                    stems_to_extract=cmd.get("stemsToExtract"),
                     on_progress=make_progress_callback("process"),
                 )
                 send({"type": "result", "cmd": "process", "data": result})
@@ -52,6 +53,7 @@ def main():
                 result = import_yt(
                     cmd["url"],
                     cmd["outputDir"],
+                    stems_to_extract=cmd.get("stemsToExtract"),
                     on_progress=make_progress_callback("import_yt"),
                 )
                 send({"type": "result", "cmd": "import_yt", "data": result})

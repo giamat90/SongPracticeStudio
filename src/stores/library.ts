@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ProcessingStatus, Song } from "../lib/types";
+import type { ProcessingStatus, Song, StemName } from "../lib/types";
 import {
   deleteSong as apiDeleteSong,
   importYoutube as importYoutubeApi,
@@ -15,8 +15,8 @@ interface LibraryState {
   error: string | null;
 
   fetchSongs: () => Promise<void>;
-  uploadSong: (filePath: string) => Promise<void>;
-  importYoutube: (url: string) => Promise<void>;
+  uploadSong: (filePath: string, stems?: StemName[]) => Promise<void>;
+  importYoutube: (url: string, stems?: StemName[]) => Promise<void>;
   deleteSong: (songId: string) => Promise<void>;
   clearError: () => void;
   initProgressListener: () => Promise<() => void>;
@@ -75,10 +75,10 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     }
   },
 
-  uploadSong: async (filePath: string) => {
+  uploadSong: async (filePath: string, stems?: StemName[]) => {
     set({ error: null });
     try {
-      const song = await processSong(filePath);
+      const song = await processSong(filePath, stems);
       set((state) => ({
         songs: [...state.songs, song],
         processing: null,
@@ -89,10 +89,10 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     }
   },
 
-  importYoutube: async (url: string) => {
+  importYoutube: async (url: string, stems?: StemName[]) => {
     set({ error: null });
     try {
-      const song = await importYoutubeApi(url);
+      const song = await importYoutubeApi(url, stems);
       set((state) => ({
         songs: [...state.songs, song],
         processing: null,

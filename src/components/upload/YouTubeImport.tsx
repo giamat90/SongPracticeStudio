@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useLibraryStore } from "../../stores/library";
+import StemPicker, { DEFAULT_STEMS } from "./StemPicker";
+import type { StemName } from "../../lib/types";
 
 const YT_PATTERN = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//;
 
 function YouTubeImport() {
-  const [url, setUrl] = useState("");
+  const [url, setUrl]     = useState("");
+  const [stems, setStems] = useState<StemName[]>(DEFAULT_STEMS);
   const [error, setError] = useState<string | null>(null);
-  const importYoutube = useLibraryStore((s) => s.importYoutube);
-  const isProcessing = useLibraryStore((s) => s.processing !== null);
+  const importYoutube     = useLibraryStore((s) => s.importYoutube);
+  const isProcessing      = useLibraryStore((s) => s.processing !== null);
 
   const handleImport = async () => {
     if (!YT_PATTERN.test(url)) {
@@ -15,28 +18,32 @@ function YouTubeImport() {
       return;
     }
     setError(null);
-    await importYoutube(url);
+    await importYoutube(url, stems);
     setUrl("");
+    setStems(DEFAULT_STEMS);
   };
 
   return (
     <div className="yt-import">
-      <input
-        className="yt-import__input"
-        type="url"
-        placeholder="Paste YouTube URL…"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        disabled={isProcessing}
-        onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleImport()}
-      />
-      <button
-        className="yt-import__btn"
-        onClick={handleImport}
-        disabled={isProcessing || !url.trim()}
-      >
-        Import
-      </button>
+      <div className="yt-import__row">
+        <input
+          className="yt-import__input"
+          type="url"
+          placeholder="Paste YouTube URL…"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={isProcessing}
+          onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleImport()}
+        />
+        <button
+          className="yt-import__btn"
+          onClick={handleImport}
+          disabled={isProcessing || !url.trim()}
+        >
+          Import
+        </button>
+      </div>
+      <StemPicker value={stems} onChange={setStems} disabled={isProcessing} />
       {error && <p className="yt-import__error">{error}</p>}
     </div>
   );

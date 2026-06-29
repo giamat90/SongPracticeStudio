@@ -11,7 +11,7 @@ from processor import process
 _BROWSERS = ["chrome", "firefox", "edge", "brave", "opera"]
 
 
-def import_yt(url: str, output_dir: str, on_progress=None) -> dict:
+def import_yt(url: str, output_dir: str, stems_to_extract=None, on_progress=None) -> dict:
     """
     Progress: download occupies 0.0–0.15, existing pipeline fills 0.15–1.0.
     Returns the same dict as processor.process(), with 'title' added.
@@ -79,6 +79,6 @@ def import_yt(url: str, output_dir: str, on_progress=None) -> dict:
     def remapped(value: float, stage: str):
         on_progress(0.15 + value * 0.85, stage)
 
-    result = process(source_wav, output_dir, on_progress=remapped)
+    result = process(source_wav, output_dir, stems_to_extract=stems_to_extract, on_progress=remapped)
     result["title"] = title
     return result

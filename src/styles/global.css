@@ -180,6 +180,182 @@ body,
   transition: width 0.3s ease;
 }
 
+/* DropZone pending state */
+.dropzone--pending {
+  cursor: default;
+  border-color: var(--accent);
+  min-height: auto;
+  padding: 1rem;
+}
+
+.dropzone__pending {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dropzone__pending-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.dropzone__pending-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.dropzone__btn-cancel {
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dropzone__btn-cancel:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.dropzone__btn-process {
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dropzone__btn-process:hover {
+  background: var(--accent-hover);
+}
+
+/* StemPicker */
+.stem-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.stem-picker__label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.stem-picker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.stem-picker__chip {
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.stem-picker__chip:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.stem-picker__chip--on {
+  background: var(--chip-color, var(--accent));
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+
+.stem-picker__chip--on:hover:not(:disabled) {
+  filter: brightness(1.15);
+  color: #fff;
+}
+
+.stem-picker__chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* YouTubeImport */
+.yt-import {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.yt-import__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.yt-import__input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--bg-surface);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.yt-import__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.yt-import__input:disabled {
+  opacity: 0.5;
+}
+
+.yt-import__btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.yt-import__btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.yt-import__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.yt-import__error {
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
 /* Song Card */
 .song-card {
   display: flex;

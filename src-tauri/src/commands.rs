@@ -36,6 +36,7 @@ pub async fn process_song(
     app: AppHandle,
     state: State<'_, SidecarState>,
     file_path: String,
+    stems_to_extract: Option<Vec<String>>,
 ) -> Result<Song, String> {
     let song_id = uuid::Uuid::new_v4().to_string();
     let output_dir = storage::song_dir(&song_id);
@@ -58,11 +59,14 @@ pub async fn process_song(
     let output_dir_str = output_dir.to_string_lossy().to_string();
     let dest_str = dest.to_string_lossy().to_string();
 
-    let cmd = serde_json::json!({
+    let mut cmd = serde_json::json!({
         "cmd": "process",
         "filePath": dest_str,
         "outputDir": output_dir_str,
     });
+    if let Some(ref stems) = stems_to_extract {
+        cmd["stemsToExtract"] = serde_json::json!(stems);
+    }
 
     let guard = ensure_sidecar(&state)?;
     let sidecar = guard.as_ref().ok_or("Sidecar not available")?;
@@ -163,6 +167,7 @@ pub async fn import_youtube(
     app: AppHandle,
     state: State<'_, SidecarState>,
     url: String,
+    stems_to_extract: Option<Vec<String>>,
 ) -> Result<Song, String> {
     if !url.contains("youtube.com/") && !url.contains("youtu.be/") {
         return Err("Not a valid YouTube URL".to_string());
@@ -172,11 +177,14 @@ pub async fn import_youtube(
     let output_dir = storage::song_dir(&song_id);
     let output_dir_str = output_dir.to_string_lossy().to_string();
 
-    let cmd = serde_json::json!({
+    let mut cmd = serde_json::json!({
         "cmd": "import_yt",
         "url": url,
         "outputDir": output_dir_str,
     });
+    if let Some(ref stems) = stems_to_extract {
+        cmd["stemsToExtract"] = serde_json::json!(stems);
+    }
 
     let guard = ensure_sidecar(&state)?;
     let sidecar = guard.as_ref().ok_or("Sidecar not available")?;
