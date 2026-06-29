@@ -3,8 +3,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { BassTabData, ProcessingStatus, Song, StemName } from "./types";
 
 /** Process a song file through the Python sidecar */
-export async function processSong(filePath: string, stemsToExtract?: StemName[]): Promise<Song> {
-  return invoke<Song>("process_song", { filePath, stemsToExtract });
+export async function processSong(filePath: string, stemsToExtract?: StemName[], highQuality?: boolean): Promise<Song> {
+  return invoke<Song>("process_song", { filePath, stemsToExtract, highQuality });
 }
 
 /** List all songs in the library */
@@ -18,8 +18,8 @@ export async function deleteSong(songId: string): Promise<void> {
 }
 
 /** Import a YouTube URL through yt-dlp + Demucs pipeline */
-export async function importYoutube(url: string, stemsToExtract?: StemName[]): Promise<Song> {
-  return invoke<Song>("import_youtube", { url, stemsToExtract });
+export async function importYoutube(url: string, stemsToExtract?: StemName[], highQuality?: boolean): Promise<Song> {
+  return invoke<Song>("import_youtube", { url, stemsToExtract, highQuality });
 }
 
 /** Open a native Save As dialog and copy a stem WAV to user-chosen location */

@@ -245,9 +245,8 @@ body,
 /* StemPicker */
 .stem-picker {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
 .stem-picker__label {
@@ -295,6 +294,45 @@ body,
 .stem-picker__chip:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.stem-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.stem-picker__hq {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.stem-picker__hq--disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.stem-picker__hq input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 0.9rem;
+  height: 0.9rem;
+  cursor: inherit;
+  flex-shrink: 0;
+}
+
+.stem-picker__hq-label {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.stem-picker__hq-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 /* YouTubeImport */

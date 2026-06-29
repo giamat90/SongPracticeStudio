@@ -11,30 +11,31 @@ function DropZone() {
   const processing   = useLibraryStore((s) => s.processing);
   const isProcessing = processing !== null;
 
-  const [pendingFile, setPendingFile] = useState<string | null>(null);
-  const [stems, setStems]             = useState<StemName[]>(DEFAULT_STEMS);
+  const [pendingFile,  setPendingFile]  = useState<string | null>(null);
+  const [stems,        setStems]        = useState<StemName[]>(DEFAULT_STEMS);
+  const [highQuality,  setHighQuality]  = useState(false);
 
   const handleClick = async () => {
     if (isProcessing || pendingFile) return;
-
     const selected = await open({
       multiple: false,
       filters: [{ name: "Audio", extensions: AUDIO_EXTENSIONS }],
     });
-
     if (selected) setPendingFile(selected);
   };
 
   const handleProcess = () => {
     if (!pendingFile) return;
-    uploadSong(pendingFile, stems);
+    uploadSong(pendingFile, stems, highQuality);
     setPendingFile(null);
     setStems(DEFAULT_STEMS);
+    setHighQuality(false);
   };
 
   const handleCancel = () => {
     setPendingFile(null);
     setStems(DEFAULT_STEMS);
+    setHighQuality(false);
   };
 
   if (isProcessing) {
@@ -62,7 +63,12 @@ function DropZone() {
       <div className="dropzone dropzone--pending">
         <div className="dropzone__pending">
           <div className="dropzone__pending-name" title={pendingFile}>{fileName}</div>
-          <StemPicker value={stems} onChange={setStems} />
+          <StemPicker
+            value={stems}
+            onChange={setStems}
+            highQuality={highQuality}
+            onHighQualityChange={setHighQuality}
+          />
           <div className="dropzone__pending-actions">
             <button className="dropzone__btn-cancel" type="button" onClick={handleCancel}>
               Cancel
@@ -77,11 +83,7 @@ function DropZone() {
   }
 
   return (
-    <button
-      className="dropzone"
-      onClick={handleClick}
-      disabled={isProcessing}
-    >
+    <button className="dropzone" onClick={handleClick} disabled={isProcessing}>
       <div className="dropzone__idle">
         <div className="dropzone__icon">+</div>
         <div className="dropzone__label">Upload a song</div>

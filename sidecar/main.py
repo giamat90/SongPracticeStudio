@@ -44,6 +44,7 @@ def main():
                     cmd["filePath"],
                     cmd["outputDir"],
                     stems_to_extract=cmd.get("stemsToExtract"),
+                    high_quality=bool(cmd.get("highQuality", False)),
                     on_progress=make_progress_callback("process"),
                 )
                 send({"type": "result", "cmd": "process", "data": result})
@@ -54,6 +55,7 @@ def main():
                     cmd["url"],
                     cmd["outputDir"],
                     stems_to_extract=cmd.get("stemsToExtract"),
+                    high_quality=bool(cmd.get("highQuality", False)),
                     on_progress=make_progress_callback("import_yt"),
                 )
                 send({"type": "result", "cmd": "import_yt", "data": result})

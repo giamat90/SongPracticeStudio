@@ -37,6 +37,7 @@ pub async fn process_song(
     state: State<'_, SidecarState>,
     file_path: String,
     stems_to_extract: Option<Vec<String>>,
+    high_quality: Option<bool>,
 ) -> Result<Song, String> {
     let song_id = uuid::Uuid::new_v4().to_string();
     let output_dir = storage::song_dir(&song_id);
@@ -66,6 +67,9 @@ pub async fn process_song(
     });
     if let Some(ref stems) = stems_to_extract {
         cmd["stemsToExtract"] = serde_json::json!(stems);
+    }
+    if let Some(hq) = high_quality {
+        cmd["highQuality"] = serde_json::json!(hq);
     }
 
     let guard = ensure_sidecar(&state)?;
@@ -168,6 +172,7 @@ pub async fn import_youtube(
     state: State<'_, SidecarState>,
     url: String,
     stems_to_extract: Option<Vec<String>>,
+    high_quality: Option<bool>,
 ) -> Result<Song, String> {
     if !url.contains("youtube.com/") && !url.contains("youtu.be/") {
         return Err("Not a valid YouTube URL".to_string());
@@ -184,6 +189,9 @@ pub async fn import_youtube(
     });
     if let Some(ref stems) = stems_to_extract {
         cmd["stemsToExtract"] = serde_json::json!(stems);
+    }
+    if let Some(hq) = high_quality {
+        cmd["highQuality"] = serde_json::json!(hq);
     }
 
     let guard = ensure_sidecar(&state)?;
