@@ -110,6 +110,7 @@ pub async fn process_song(
                     .and_then(|v| v.as_object())
                     .map(|o| o.keys().cloned().collect())
                     .unwrap_or_default();
+                let bass_tab = data.get("bassTab").and_then(|v| v.as_bool()).unwrap_or(false);
 
                 let now = chrono::Utc::now().to_rfc3339();
                 let song = Song {
@@ -121,6 +122,8 @@ pub async fn process_song(
                     processed_at: now,
                     directory: output_dir_str,
                     stems,
+                    source_file: Some(file_name.to_string()),
+                    bass_tab,
                 };
 
                 library::add(song.clone())?;
@@ -229,6 +232,7 @@ pub async fn import_youtube(
                     .and_then(|v| v.as_object())
                     .map(|o| o.keys().cloned().collect())
                     .unwrap_or_default();
+                let bass_tab = data.get("bassTab").and_then(|v| v.as_bool()).unwrap_or(false);
 
                 let song = Song {
                     id: song_id,
@@ -239,6 +243,8 @@ pub async fn import_youtube(
                     processed_at: chrono::Utc::now().to_rfc3339(),
                     directory: output_dir_str,
                     stems,
+                    source_file: Some("source.wav".to_string()),
+                    bass_tab,
                 };
 
                 library::add(song.clone())?;
@@ -279,6 +285,12 @@ pub async fn export_stem(
         return Err(format!("Stem not found: {stem_path}"));
     }
 
+    let ext = src
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("wav")
+        .to_lowercase();
+
     let dest = tauri::async_runtime::spawn_blocking({
         let app = app.clone();
         let suggested_name = suggested_name.clone();
@@ -286,7 +298,7 @@ pub async fn export_stem(
             app.dialog()
                 .file()
                 .set_file_name(&suggested_name)
-                .add_filter("Audio", &["wav"])
+                .add_filter("Audio", &[ext.as_str()])
                 .blocking_save_file()
         }
     })
@@ -298,4 +310,14 @@ pub async fn export_stem(
             .map_err(|e| format!("Copy failed: {e}"))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn read_bass_tab(song_id: String) -> Result<serde_json::Value, String> {
+    let path = storage::song_dir(&song_id).join("bass_tab.json");
+    if !path.exists() {
+        return Err(format!("bass_tab.json not found for song {song_id}"));
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| format!("Read bass tab: {e}"))?;
+    serde_json::from_str(&data).map_err(|e| format!("Parse bass tab: {e}"))
 }

@@ -35,8 +35,11 @@ build/
 .DS_Store
 
 # App data (local)
-~/.vps/
-.vps/
+~/.songanalyzer/
+.songanalyzer/
+
+# Sidecar binary (built by CI; not committed)
+src-tauri/binaries/*.exe
 
 # Logs
 *.log

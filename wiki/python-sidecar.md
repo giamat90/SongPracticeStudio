@@ -61,11 +61,15 @@ Separates a mixed audio file and extracts BPM and key.
 ```
 
 Steps (`processor.py`):
-1. Demucs `htdemucs_6s` → writes `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav` (progress 0→0.78)
-2. BPM detection via `librosa.beat.tempo` on the original file (0.78→0.90)
-3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.90→1.0)
+1. Demucs `htdemucs_6s` → writes `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav` (progress 0→0.75)
+2. BPM detection via `librosa.beat.tempo` on the original file (0.75→0.86)
+3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
+4. Bass tab transcription on `bass.wav` → `bass_tab.json` (0.92→1.0)
+   - Primary: CREPE neural monophonic pitch tracker (`model_capacity='medium'`, 10 ms hop, Viterbi decoding, confidence threshold 0.5)
+   - Fallback: `librosa.pyin` if CREPE is unavailable
+   - Per-frame Hz→MIDI, note segmentation (±1.5-semitone merge window, 40 ms minimum), fret assignment on standard 4-string bass
 
-Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey }`.
+Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, bassTab: bool }`.
 
 ### `import_yt`
 
@@ -95,10 +99,11 @@ Returns the same dict as `process`, with `"title"` added (from yt-dlp metadata).
 | Library | Use |
 |---------|-----|
 | Demucs | Stem separation (`htdemucs_6s`, CPU or GPU) |
-| librosa | BPM detection, key detection (chroma_cqt) |
+| librosa | BPM detection, key detection (chroma_cqt), pyin fallback pitch tracker |
 | soundfile | Audio file I/O |
 | numpy / scipy | Numerical operations |
 | torch | Required by Demucs |
+| crepe | Primary bass pitch tracker (neural, monophonic, `medium` model ~20 MB) |
 | yt-dlp | YouTube audio download with browser-cookie fallback |
 
 ## Synchronous Execution

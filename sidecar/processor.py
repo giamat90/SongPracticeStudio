@@ -1,8 +1,9 @@
 """
 Core processing pipeline for Song Analyzer.
-Demucs htdemucs_6s stem separation → BPM → key detection.
+Demucs htdemucs_6s stem separation → BPM → key detection → bass tab transcription.
 """
 
+import json
 import os
 import sys
 import gc
@@ -16,6 +17,10 @@ SAMPLE_RATE = 22050
 MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+# Standard 4-string bass open-string MIDI pitches: E1, A1, D2, G2
+BASS_OPEN_MIDI = [28, 33, 38, 43]
+BASS_MAX_FRET  = 24
 
 
 def _log(msg: str):
@@ -48,8 +53,123 @@ def _detect_key_chroma(input_path: str) -> str:
         return "Unknown"
 
 
+def _assign_fret(midi_pitch: int, prev_string: int, prev_fret: int) -> tuple:
+    """
+    Return (string_index, fret) for a MIDI pitch on standard 4-string bass.
+    Scores candidates by position_jump + fret * 0.1 (prefer lower fret as tie-breaker).
+    string_index: 0=E, 1=A, 2=D, 3=G
+    """
+    candidates = []
+    for s, open_midi in enumerate(BASS_OPEN_MIDI):
+        fret = midi_pitch - open_midi
+        if 0 <= fret <= BASS_MAX_FRET:
+            position_jump = abs(fret - prev_fret) + abs(s - prev_string) * 2
+            cost = position_jump + fret * 0.1
+            candidates.append((cost, s, fret))
+    if not candidates:
+        # Pitch out of range: clamp to low E string
+        return 0, max(0, min(BASS_MAX_FRET, midi_pitch - BASS_OPEN_MIDI[0]))
+    candidates.sort()
+    _, best_string, best_fret = candidates[0]
+    return best_string, best_fret
+
+
+def _transcribe_bass(bass_path: str) -> list:
+    """
+    Transcribe bass stem to note events, then assign fret positions.
+    Tries CREPE (neural monophonic tracker, ~20MB model) first; falls back to
+    librosa pyin if CREPE is unavailable. The note segmentation logic below is
+    identical regardless of which backend supplies the frames.
+    Returns [{time, duration, pitch, string, fret}].
+    """
+    y, sr = librosa.load(bass_path, sr=SAMPLE_RATE, mono=True)
+
+    # --- Frame-level pitch extraction ---
+    try:
+        import crepe
+        _log("Running CREPE pitch tracking (medium)...")
+        time_arr, freq_arr, conf_arr, _ = crepe.predict(
+            y, sr,
+            model_capacity='medium',
+            viterbi=True,    # Viterbi decoding smooths the pitch contour
+            step_size=10,    # 10 ms hop
+            verbose=0,
+        )
+        voiced_flag = conf_arr >= 0.5
+        f0        = freq_arr
+        times     = time_arr
+        frame_dur = 0.010   # 10 ms
+
+        def _midi_float(f: float) -> float:
+            return 12.0 * np.log2(f / 440.0) + 69.0
+
+    except Exception as e:
+        _log(f"CREPE unavailable, falling back to pyin: {e}")
+        HOP = 512
+        frame_dur = HOP / sr
+        f0, voiced_flag, _ = librosa.pyin(
+            y,
+            fmin=librosa.note_to_hz("E1"),
+            fmax=librosa.note_to_hz("G4"),
+            sr=sr,
+            frame_length=2048,
+            hop_length=HOP,
+            fill_na=None,
+        )
+        times = librosa.times_like(f0, sr=sr, hop_length=HOP)
+
+        def _midi_float(f: float) -> float:
+            return float(librosa.hz_to_midi(f))
+
+    # --- Note segmentation (unchanged logic, shared by both backends) ---
+    notes = []
+    prev_string, prev_fret = 0, 0
+    n = len(f0)
+    i = 0
+
+    while i < n:
+        if not voiced_flag[i] or f0[i] is None or np.isnan(f0[i]) or f0[i] <= 0:
+            i += 1
+            continue
+
+        start_i  = i
+        midi_ref = _midi_float(f0[i])        # float for comparison
+        pitch    = int(round(midi_ref))       # integer for storage
+
+        # Extend while voiced and within ±1.5 semitones of the onset pitch
+        while (
+            i < n
+            and voiced_flag[i]
+            and f0[i] is not None
+            and not np.isnan(f0[i])
+            and f0[i] > 0
+            and abs(_midi_float(f0[i]) - midi_ref) <= 1.5
+        ):
+            i += 1
+
+        note_start = float(times[start_i])
+        note_end   = float(times[i - 1]) + frame_dur
+        note_dur   = note_end - note_start
+
+        if note_dur < 0.04:  # discard < 40 ms (noise / transient)
+            continue
+
+        string_idx, fret = _assign_fret(pitch, prev_string, prev_fret)
+        prev_string, prev_fret = string_idx, fret
+
+        notes.append({
+            "time":     round(note_start, 4),
+            "duration": round(note_dur,   4),
+            "pitch":    pitch,
+            "string":   string_idx,
+            "fret":     fret,
+        })
+
+    return notes
+
+
 def process(input_path: str, output_dir: str, on_progress=None) -> dict:
-    """Full pipeline: separate all stems, detect BPM and key."""
+    """Full pipeline: separate all stems, detect BPM and key, transcribe bass tab."""
     if on_progress is None:
         on_progress = lambda v, s: None
 
@@ -80,7 +200,7 @@ def process(input_path: str, output_dir: str, on_progress=None) -> dict:
     _log("Running Demucs separation...")
     with torch.no_grad():
         sources = apply_model(model, wav[None], progress=False)[0]
-    on_progress(0.72, "stem-separation")
+    on_progress(0.70, "stem-separation")
 
     stem_paths = {}
     for i, name in enumerate(model.sources):
@@ -90,7 +210,7 @@ def process(input_path: str, output_dir: str, on_progress=None) -> dict:
         stem_paths[name] = path
         _log(f"Wrote {name}.wav")
 
-    on_progress(0.78, "stem-separation")
+    on_progress(0.75, "stem-separation")
 
     # Duration from the first stem file (fast metadata read)
     first_stem_path = next(iter(stem_paths.values()))
@@ -103,9 +223,9 @@ def process(input_path: str, output_dir: str, on_progress=None) -> dict:
         torch.cuda.empty_cache()
 
     # ===================================================================
-    # Stage 2: BPM detection (0.78 – 0.90)
+    # Stage 2: BPM detection (0.75 – 0.86)
     # ===================================================================
-    on_progress(0.78, "bpm-detection")
+    on_progress(0.75, "bpm-detection")
     _log("Estimating BPM...")
     detected_bpm = None
     try:
@@ -116,20 +236,40 @@ def process(input_path: str, output_dir: str, on_progress=None) -> dict:
         gc.collect()
     except Exception as e:
         _log(f"BPM error: {e}\n{traceback.format_exc()}")
-    on_progress(0.90, "bpm-detection")
+    on_progress(0.86, "bpm-detection")
 
     # ===================================================================
-    # Stage 3: Key detection (0.90 – 1.00)
+    # Stage 3: Key detection (0.86 – 0.92)
     # ===================================================================
-    on_progress(0.90, "key-detection")
+    on_progress(0.86, "key-detection")
     _log("Detecting key...")
     detected_key = _detect_key_chroma(input_path)
+    on_progress(0.92, "key-detection")
+
+    # ===================================================================
+    # Stage 4: Bass tab transcription (0.92 – 1.00)
+    # ===================================================================
+    on_progress(0.92, "bass-tab")
+    _log("Transcribing bass tab...")
+    bass_tab_written = False
+    if "bass" in stem_paths:
+        try:
+            notes = _transcribe_bass(stem_paths["bass"])
+            tab_data = {"version": 1, "duration": duration, "notes": notes}
+            tab_path = os.path.join(output_dir, "bass_tab.json")
+            with open(tab_path, "w", encoding="utf-8") as f:
+                json.dump(tab_data, f)
+            _log(f"Bass tab written: {len(notes)} notes → {tab_path}")
+            bass_tab_written = True
+        except Exception as e:
+            _log(f"Bass tab error (non-fatal): {e}\n{traceback.format_exc()}")
     on_progress(1.0, "complete")
     _log("Processing complete.")
 
     return {
-        "stems": {name: str(p) for name, p in stem_paths.items()},
-        "duration": duration,
+        "stems":       {name: str(p) for name, p in stem_paths.items()},
+        "duration":    duration,
         "detectedBpm": detected_bpm,
         "detectedKey": detected_key,
+        "bassTab":     bass_tab_written,
     }

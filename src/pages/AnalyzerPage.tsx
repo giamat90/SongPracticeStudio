@@ -4,6 +4,7 @@ import TransportControls from "../components/player/TransportControls";
 import TempoControl from "../components/player/TempoControl";
 import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
+import { exportStem } from "../lib/tauri";
 
 interface AnalyzerPageProps {
   songId: string;
@@ -30,6 +31,15 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
     );
   }
 
+  const handleDownloadSource = () => {
+    if (!song.sourceFile) return;
+    const path = `${song.directory.replace(/\\/g, "/")}/${song.sourceFile}`;
+    const ext = song.sourceFile.split(".").pop() ?? "wav";
+    exportStem(path, `${song.title}.${ext}`).catch((e) =>
+      console.error("[AnalyzerPage] source export failed:", e)
+    );
+  };
+
   return (
     <div className="analyzer-page">
       <header className="analyzer-page__header">
@@ -43,6 +53,15 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
             {song.detectedKey && <span>{song.detectedKey}</span>}
           </div>
         </div>
+        {song.sourceFile && (
+          <button
+            className="analyzer-page__download-source"
+            onClick={handleDownloadSource}
+            title="Download full track"
+          >
+            ↓ Full Track
+          </button>
+        )}
       </header>
 
       <div className="analyzer-page__body">

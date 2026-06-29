@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  VPS — Vocal Practice Studio  |  Dev environment setup
+REM  Song Analyzer  |  Dev environment setup
 REM ============================================================
 
 REM ── Rust / Cargo ────────────────────────────────────────────
@@ -24,14 +24,14 @@ set CUDA_VISIBLE_DEVICES=-1
 
 REM ── Verify key tools are reachable ─────────────────────────
 echo.
-echo [VPS] Checking tools...
+echo [Song Analyzer] Checking tools...
 where cargo  >nul 2>&1 && echo   cargo   : OK || echo   cargo   : NOT FOUND — check Rust install
 where node   >nul 2>&1 && echo   node    : OK || echo   node    : NOT FOUND — check Node install
 where python >nul 2>&1 && echo   python  : OK || echo   python  : NOT FOUND — check venv path
 echo.
 
 REM ── Launch ──────────────────────────────────────────────────
-echo [VPS] Starting dev server...
+echo [Song Analyzer] Starting dev server...
 echo       Run:  npm run tauri dev
 echo.
 cmd /k "cd /d %~dp0"

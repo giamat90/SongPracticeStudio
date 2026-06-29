@@ -1287,6 +1287,25 @@ body,
   background: var(--bg-surface);
 }
 
+.analyzer-page__download-source {
+  background: none;
+  border: 1px solid var(--bg-surface);
+  color: var(--text-secondary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.analyzer-page__download-source:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
 .analyzer-page__song-info {
   flex: 1;
   min-width: 0;
@@ -1378,6 +1397,44 @@ body,
   accent-color: var(--accent);
 }
 
+.stem-track__mute,
+.stem-track__solo {
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.stem-track__mute:hover {
+  color: #f0a050;
+  border-color: #f0a050;
+}
+
+.stem-track__mute--active {
+  color: #f0a050;
+  background: rgba(240, 160, 80, 0.18);
+  border-color: #f0a050;
+}
+
+.stem-track__solo:hover {
+  color: #f0e050;
+  border-color: #f0e050;
+}
+
+.stem-track__solo--active {
+  color: #f0e050;
+  background: rgba(240, 224, 80, 0.18);
+  border-color: #f0e050;
+}
+
 .stem-track__download {
   background: var(--bg-surface);
   border: none;
@@ -1405,4 +1462,57 @@ body,
 
 .stem-track__wave {
   width: 100%;
+}
+
+/* Bass Tab — time-linear tab roll rendered below the bass StemTrack */
+.bass-tab {
+  display: flex;
+  flex-direction: row;
+  height: 10rem;
+  background: var(--bg-secondary);
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+  margin-top: -6px; /* attach flush to bass StemTrack body above */
+}
+
+.bass-tab__strings {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 1.5rem;
+  flex-shrink: 0;
+  background: var(--bg-surface, #0f1923);
+  padding: 0.15rem 0;
+}
+
+.bass-tab__string-label {
+  font-family: monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1;
+}
+
+.bass-tab__body {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.bass-tab__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bass-tab__cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e94560;
+  pointer-events: none;
+  transform: translateX(-1px);
+  will-change: left;
 }

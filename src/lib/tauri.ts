@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { ProcessingStatus, Song } from "./types";
+import type { BassTabData, ProcessingStatus, Song } from "./types";
 
 /** Process a song file through the Python sidecar */
 export async function processSong(filePath: string): Promise<Song> {
@@ -28,6 +28,11 @@ export async function exportStem(
   suggestedName: string,
 ): Promise<void> {
   return invoke("export_stem", { stemPath, suggestedName });
+}
+
+/** Read the bass tab JSON for a song (transcribed during processing) */
+export async function readBassTab(songId: string): Promise<BassTabData> {
+  return invoke<BassTabData>("read_bass_tab", { songId });
 }
 
 /** Listen for processing progress events */

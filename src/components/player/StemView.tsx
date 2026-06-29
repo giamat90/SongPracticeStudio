@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
 import TimeRuler from "./TimeRuler";
 import StemTrack from "./StemTrack";
-import type { Song } from "../../lib/types";
+import BassTab from "./BassTab";
+import { readBassTab } from "../../lib/tauri";
+import type { BassTabData, Song } from "../../lib/types";
 
 interface StemViewProps {
   song: Song;
@@ -13,6 +15,7 @@ function StemView({ song }: StemViewProps) {
   const stemRefs    = useRef<Record<string, HTMLDivElement | null>>({});
   const isLoading   = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [bassTabData, setBassTabData] = useState<BassTabData | null>(null);
 
   useEffect(() => {
     if (isLoading.current) return;
@@ -36,17 +39,32 @@ function StemView({ song }: StemViewProps) {
     return () => { isLoading.current = false; };
   }, [song.id]);
 
+  useEffect(() => {
+    setBassTabData(null);
+    if (song.bassTab && song.stems.includes("bass")) {
+      readBassTab(song.id)
+        .then(setBassTabData)
+        .catch((e: unknown) =>
+          console.warn("[StemView] bass tab load failed:", e)
+        );
+    }
+  }, [song.id]);
+
   return (
     <div className="stem-view">
       {loadError && <div className="stem-view__error">{loadError}</div>}
       <TimeRuler />
       {song.stems.map((name) => (
-        <StemTrack
-          key={name}
-          name={name}
-          song={song}
-          containerRef={(el) => { stemRefs.current[name] = el; }}
-        />
+        <Fragment key={name}>
+          <StemTrack
+            name={name}
+            song={song}
+            containerRef={(el) => { stemRefs.current[name] = el; }}
+          />
+          {name === "bass" && bassTabData !== null && (
+            <BassTab tabData={bassTabData} />
+          )}
+        </Fragment>
       ))}
     </div>
   );

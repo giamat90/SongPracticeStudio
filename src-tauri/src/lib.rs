@@ -16,6 +16,7 @@ pub fn run() {
             commands::export_stem,
             commands::list_songs,
             commands::delete_song,
+            commands::read_bass_tab,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

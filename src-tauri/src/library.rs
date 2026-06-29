@@ -15,6 +15,10 @@ pub struct Song {
     pub directory: String,
     #[serde(default)]
     pub stems: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_file: Option<String>,
+    #[serde(default)]
+    pub bass_tab: bool,
 }
 
 fn library_path() -> std::path::PathBuf {

@@ -1,5 +1,13 @@
 # Song Analyzer — Claude Code Context
 
+## Session rules
+
+1. **Read the wiki before acting.** At the start of every session (or before any non-trivial task), read the relevant files under `wiki/` to get current context. The wiki is the source of truth for architecture decisions, component contracts, and ongoing work.
+
+2. **Update the wiki before merging to master.** Any branch being merged must have its wiki pages updated first — new features documented, changed behaviour reflected, open-work entries resolved or added. Do not merge until the wiki is current.
+
+---
+
 ## What this project is
 
 A Tauri v2 + React + TypeScript + Python desktop app.  
