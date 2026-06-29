@@ -36,10 +36,16 @@ function PunchOverlay() {
 
 function StemTrack({ name, song, containerRef }: StemTrackProps) {
   const volume       = usePlayerStore((s) => s.stemVolumes[name] ?? 1.0);
+  const isMuted      = usePlayerStore((s) => !!s.mutedStems[name]);
+  const soloedStem   = usePlayerStore((s) => s.soloedStem);
+  const isSoloed     = soloedStem === name;
   const setStemVolume = usePlayerStore((s) => s.setStemVolume);
-  const stemPath     = `${song.directory.replace(/\\/g, "/")}/${name}.wav`;
-  const icon         = STEM_ICONS[name] ?? "🎵";
-  const label        = name.charAt(0).toUpperCase() + name.slice(1);
+  const toggleMute   = usePlayerStore((s) => s.toggleMute);
+  const toggleSolo   = usePlayerStore((s) => s.toggleSolo);
+
+  const stemPath = `${song.directory.replace(/\\/g, "/")}/${name}.wav`;
+  const icon     = STEM_ICONS[name] ?? "🎵";
+  const label    = name.charAt(0).toUpperCase() + name.slice(1);
 
   const handleDownload = () => {
     exportStem(stemPath, `${song.title} - ${label}.wav`).catch((e) =>
@@ -52,6 +58,20 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
       <div className="stem-track__header">
         <span className="stem-track__label">{icon} {label}</span>
         <div className="stem-track__controls">
+          <button
+            className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
+            onClick={() => toggleMute(name)}
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            M
+          </button>
+          <button
+            className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
+            onClick={() => toggleSolo(name)}
+            title={isSoloed ? "Unsolo" : "Solo"}
+          >
+            S
+          </button>
           <input
             type="range"
             min={0}

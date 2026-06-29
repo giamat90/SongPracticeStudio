@@ -16,6 +16,8 @@ interface PlayerState {
   duration: number;
   playbackRate: number;
   stemVolumes: Record<string, number>;
+  mutedStems: Record<string, boolean>;
+  soloedStem: string | null;
   // Punch-in / punch-out region
   punchIn: number | null;
   punchOut: number | null;
@@ -31,12 +33,33 @@ interface PlayerActions {
   seek: (time: number) => void;
   setPlaybackRate: (rate: number) => void;
   setStemVolume: (name: StemName | string, volume: number) => void;
+  toggleMute: (name: string) => void;
+  toggleSolo: (name: string) => void;
   cleanup: () => void;
   // Punch region actions
   setPunchIn: (t: number) => void;
   setPunchOut: (t: number) => void;
   clearPunch: () => void;
   setPunchLoop: (v: boolean) => void;
+}
+
+// Compute and push effective volume for every loaded stem.
+function applyEffectiveVolumes(
+  eng: AudioEngine,
+  stems: readonly string[],
+  stemVolumes: Record<string, number>,
+  mutedStems: Record<string, boolean>,
+  soloedStem: string | null,
+) {
+  for (const name of stems) {
+    let vol = stemVolumes[name] ?? 1.0;
+    if (soloedStem !== null) {
+      vol = name === soloedStem ? vol : 0;
+    } else if (mutedStems[name]) {
+      vol = 0;
+    }
+    eng.setStemVolume(name, vol);
+  }
 }
 
 export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => ({
@@ -46,6 +69,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   duration: 0,
   playbackRate: 1.0,
   stemVolumes: {},
+  mutedStems: {},
+  soloedStem: null,
   punchIn: null,
   punchOut: null,
   punchLoop: false,
@@ -77,6 +102,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       isPlaying: false,
       playbackRate: 1.0,
       stemVolumes: initialVolumes,
+      mutedStems: {},
+      soloedStem: null,
     });
   },
 
@@ -117,8 +144,30 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   },
 
   setStemVolume: (name, volume) => {
-    getEngine().setStemVolume(name, volume);
-    set((state) => ({ stemVolumes: { ...state.stemVolumes, [name]: volume } }));
+    const { mutedStems, soloedStem, stemVolumes, song } = get();
+    const newVolumes = { ...stemVolumes, [name]: volume };
+    set({ stemVolumes: newVolumes });
+    if (song) {
+      applyEffectiveVolumes(getEngine(), song.stems, newVolumes, mutedStems, soloedStem);
+    }
+  },
+
+  toggleMute: (name) => {
+    const { mutedStems, soloedStem, stemVolumes, song } = get();
+    const newMuted = { ...mutedStems, [name]: !mutedStems[name] };
+    set({ mutedStems: newMuted });
+    if (song) {
+      applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, newMuted, soloedStem);
+    }
+  },
+
+  toggleSolo: (name) => {
+    const { soloedStem, mutedStems, stemVolumes, song } = get();
+    const newSolo = soloedStem === name ? null : name;
+    set({ soloedStem: newSolo });
+    if (song) {
+      applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, newSolo);
+    }
   },
 
   cleanup: () => {
@@ -129,6 +178,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       currentTime: 0,
       duration: 0,
       stemVolumes: {},
+      mutedStems: {},
+      soloedStem: null,
     });
   },
 
