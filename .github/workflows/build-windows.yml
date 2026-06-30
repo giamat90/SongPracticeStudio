@@ -95,15 +95,9 @@ jobs:
       - name: Build Tauri app (NSIS)
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_HTTP_MULTIPLEXING: false
         with:
           args: --bundles nsis
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Song Practice Studio ${{ github.ref_name }}'
-          releaseBody: 'Windows build — see CHANGELOG for details.'
-          releaseDraft: true
-          prerelease: false
 
       # ── 10. Smoke test ────────────────────────────────────────────────────
       - name: Smoke test
@@ -128,10 +122,13 @@ jobs:
             exit 1
           }
 
-      # ── 11. Upload NSIS artifact ──────────────────────────────────────────
-      - name: Upload NSIS artifact
-        uses: actions/upload-artifact@v4
+      # ── 11. Publish to GitHub Release (create or update) ─────────────────
+      # softprops/action-gh-release handles parallel jobs: whichever build
+      # finishes first creates the release; the other just appends its file.
+      - name: Upload NSIS to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: sps-windows-nsis
-          path: src-tauri/target/release/bundle/nsis/*.exe
-          retention-days: 14
+          name: Song Practice Studio ${{ github.ref_name }}
+          body: See CHANGELOG for details.
+          draft: false
+          files: src-tauri/target/release/bundle/nsis/*.exe

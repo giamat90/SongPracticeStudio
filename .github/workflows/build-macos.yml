@@ -92,7 +92,6 @@ jobs:
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_HTTP_MULTIPLEXING: false
           # Code signing (optional — omit if distributing outside Mac App Store)
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -101,12 +100,6 @@ jobs:
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Song Practice Studio ${{ github.ref_name }}'
-          releaseBody: 'macOS build — see CHANGELOG for details.'
-          releaseDraft: true
-          prerelease: false
 
       # ── 10. Smoke test ────────────────────────────────────────────────────
       - name: Smoke test .dmg
@@ -131,10 +124,11 @@ jobs:
           fi
           hdiutil detach /tmp/sps-dmg -quiet || true
 
-      # ── 11. Upload .dmg artifact ──────────────────────────────────────────
-      - name: Upload .dmg artifact
-        uses: actions/upload-artifact@v4
+      # ── 11. Publish to GitHub Release (create or update) ─────────────────
+      - name: Upload DMG to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: sps-macos-dmg
-          path: src-tauri/target/release/bundle/dmg/*.dmg
-          retention-days: 14
+          name: Song Practice Studio ${{ github.ref_name }}
+          body: See CHANGELOG for details.
+          draft: false
+          files: src-tauri/target/release/bundle/dmg/*.dmg
