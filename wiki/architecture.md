@@ -61,7 +61,7 @@ Audio files stored in `~/.songpracticestudio/` are served to the frontend via Ta
 ```json
 "assetProtocol": {
   "enable": true,
-  "scope": ["$HOME/.songpracticestudio/**", "$HOME\\.songpracticestudio\\**"]
+  "scope": ["$HOME/.songpracticestudio/**"]
 }
 ```
 
