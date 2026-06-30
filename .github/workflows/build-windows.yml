@@ -1,0 +1,137 @@
+name: Build Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 1b. Sync version from git tag into all manifest files ────────────
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Stamping version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
+          jq --arg v "$VERSION" '.version = $v' package.json > tmp.json && mv tmp.json package.json
+          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # ── 3. Rust ──────────────────────────────────────────────────────────
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ── 4. Python ────────────────────────────────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # ── 5. Install Python sidecar dependencies ────────────────────────────
+      - name: Install Python dependencies
+        working-directory: sidecar
+        run: |
+          pip install --upgrade pip
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install demucs librosa soundfile numpy yt-dlp pyinstaller
+
+      # ── 6. Freeze the Python sidecar with PyInstaller ────────────────────
+      - name: Build Python sidecar (PyInstaller)
+        working-directory: sidecar
+        shell: bash
+        run: |
+          pyinstaller main.py \
+            --onefile \
+            --name song-practice-studio-sidecar-x86_64-pc-windows-msvc \
+            --hidden-import=demucs \
+            --hidden-import=demucs.api \
+            --hidden-import=demucs.pretrained \
+            --hidden-import=librosa \
+            --hidden-import=soundfile \
+            --hidden-import=numpy \
+            --collect-data=demucs \
+            --collect-all=yt_dlp \
+            --noconfirm \
+            --clean
+
+      # ── 7. Stage sidecar binary ───────────────────────────────────────────
+      - name: Stage sidecar binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force src-tauri/binaries | Out-Null
+          Copy-Item sidecar/dist/song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe src-tauri/binaries/
+
+      # ── 8. Install Node dependencies ──────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # ── 9. Build the Tauri app (NSIS installer) ───────────────────────────
+      - name: Build Tauri app (NSIS)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_HTTP_MULTIPLEXING: false
+        with:
+          args: --bundles nsis
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Song Practice Studio ${{ github.ref_name }}'
+          releaseBody: 'Windows build — see CHANGELOG for details.'
+          releaseDraft: true
+          prerelease: false
+
+      # ── 10. Smoke test ────────────────────────────────────────────────────
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter "*.exe" | Select-Object -First 1
+          if (-not $installer) {
+            Write-Host "NSIS installer not found — build may have failed"
+            exit 1
+          }
+          Write-Host "NSIS installer built: $($installer.Name)"
+
+          $binary = "src-tauri/target/release/song-practice-studio.exe"
+          Write-Host "Launching: $binary"
+          $proc = Start-Process -FilePath $binary -PassThru
+          Start-Sleep 15
+          if (-not $proc.HasExited) {
+            Write-Host "App is running (PID $($proc.Id)) — smoke test passed"
+            $proc.Kill()
+          } else {
+            Write-Host "App exited immediately (exit code $($proc.ExitCode)) — smoke test failed"
+            exit 1
+          }
+
+      # ── 11. Upload NSIS artifact ──────────────────────────────────────────
+      - name: Upload NSIS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sps-windows-nsis
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          retention-days: 14
