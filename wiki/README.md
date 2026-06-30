@@ -1,6 +1,6 @@
-# Song Analyzer Wiki
+# Song Practice Studio Wiki
 
-**Song Analyzer** — Tauri v2 desktop app that separates songs into stems using Demucs and provides a multi-track player for analysis and practice.
+**Song Practice Studio** — Tauri v2 desktop app that separates songs into stems using Demucs and provides a multi-track player for analysis and practice.
 
 ## Pages
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Song Analyzer is a three-tier desktop application:
+Song Practice Studio is a three-tier desktop application:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -52,16 +52,16 @@ The Rust backend spawns the Python sidecar as a child process (`SidecarManager` 
 1. Tauri starts; `lib.rs` registers commands and creates `SidecarState` (initially empty).
 2. WebView2 renders the React app via the Vite dev server (dev) or bundled `dist/` (release).
 3. The Python sidecar is spawned **lazily** on the first command that needs it (e.g., `process_song`). It sends `{"type": "ready"}` when ready.
-4. The user drops an audio file → `processSong` invoke → Rust sends `process` command to Python → Python runs Demucs `htdemucs_6s`, writes `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav` into `~/.songanalyzer/library/{songId}/`, then detects BPM and key, and responds with song metadata.
+4. The user drops an audio file → `processSong` invoke → Rust sends `process` command to Python → Python runs Demucs `htdemucs_6s`, writes `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav` into `~/.songpracticestudio/library/{songId}/`, then detects BPM and key, and responds with song metadata.
 
 ## Asset Serving
 
-Audio files stored in `~/.songanalyzer/` are served to the frontend via Tauri's asset protocol (`tauri://localhost/...`). The scope is configured in `tauri.conf.json`:
+Audio files stored in `~/.songpracticestudio/` are served to the frontend via Tauri's asset protocol (`tauri://localhost/...`). The scope is configured in `tauri.conf.json`:
 
 ```json
 "assetProtocol": {
   "enable": true,
-  "scope": ["$HOME/.songanalyzer/**", "$HOME\\.songanalyzer\\**"]
+  "scope": ["$HOME/.songpracticestudio/**", "$HOME\\.songpracticestudio\\**"]
 }
 ```
 

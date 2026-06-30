@@ -1,11 +1,11 @@
-# Song Analyzer — Claude Code Context
+# Song Practice Studio — Claude Code Context
 
 ## What this project is
 
 A Tauri v2 + React + TypeScript + Python desktop app.  
 Drop any audio file (or paste a YouTube URL) → Demucs splits it into up to 6 instrument stems → multi-track player lets you listen, solo/mute via volume, loop a region, slow down, and download each stem as WAV.
 
-Forked from **VPS** (`C:\Workspace\GiaMat90\VPS`) which is a vocal practice studio. Song Analyzer strips all recording/analysis/coaching features and repurposes the infrastructure for stem separation.
+Forked from **VPS** (`C:\Workspace\GiaMat90\VPS`) which is a vocal practice studio. Song Practice Studio strips all recording/analysis/coaching features and repurposes the infrastructure for stem separation.
 
 ---
 
@@ -62,14 +62,14 @@ interface Song {
   stems: StemName[];   // e.g. ["vocals","drums","bass","guitar","piano","other"]
 }
 ```
-Persisted in `~/.songanalyzer/library.json`; stem WAVs in `~/.songanalyzer/library/{song_id}/` (managed by `src-tauri/src/storage.rs` + `library.rs`).
+Persisted in `~/.songpracticestudio/library.json`; stem WAVs in `~/.songpracticestudio/library/{song_id}/` (managed by `src-tauri/src/storage.rs` + `library.rs`).
 
 ---
 
 ## Project structure
 
 ```
-SongAnalyzer/
+SongPracticeStudio/
 ├── sidecar/
 │   ├── processor.py      ← Demucs 6s + BPM + key; main pipeline
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
@@ -147,15 +147,15 @@ npx tsc --noEmit
 # 1. Build the Python sidecar (first time or after sidecar changes)
 cd sidecar
 python build.py
-copy dist\song-analyzer-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
+copy dist\song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
 
 # 2. Build the Tauri app
 cd ..
 npm run tauri build
 ```
-Output: `src-tauri/target/release/bundle/msi/` and `nsis/` — both produce an installer named "Song Analyzer".
+Output: `src-tauri/target/release/bundle/msi/` and `nsis/` — both produce an installer named "Song Practice Studio".
 
-> Bundle identifier `com.songanalyzer.app` ends with `.app` — harmless on Windows but conflicts with macOS app bundles. Change to `com.songanalyzer.desktop` before any macOS build.
+> Bundle identifier `com.songpracticestudio.desktop` — use this for all platforms.
 
 **Build sidecar only:**
 ```

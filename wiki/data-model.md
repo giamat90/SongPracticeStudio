@@ -14,7 +14,7 @@ interface Song {
   detectedBpm?: number;
   detectedKey?: string; // e.g. "C minor"
   processedAt: string;  // ISO timestamp
-  directory: string;    // absolute path to ~/.songanalyzer/library/{id}/
+  directory: string;    // absolute path to ~/.songpracticestudio/library/{id}/
   stems: StemName[];    // e.g. ["vocals","drums","bass","guitar","piano","other"]
 }
 ```
@@ -41,10 +41,10 @@ interface ProcessingStatus {
 
 ## Storage Layout
 
-All data lives under `~/.songanalyzer/` (`C:\Users\{user}\.songanalyzer\` on Windows).
+All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestudio\` on Windows).
 
 ```
-~/.songanalyzer/
+~/.songpracticestudio/
 ├── library.json           master index of all Song records
 └── library/
     └── {songId}/          UUID directory per song

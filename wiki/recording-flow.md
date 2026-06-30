@@ -4,7 +4,7 @@
 
 ## Punch Region
 
-The `TimeRuler` (canvas strip above the waveform tracks) doubles as a loop region selector. There is no recording in Song Analyzer — the "punch" terminology is inherited from the VPS fork and refers only to the playback loop region.
+The `TimeRuler` (canvas strip above the waveform tracks) doubles as a loop region selector. There is no recording in Song Practice Studio — the "punch" terminology is inherited from the VPS fork and refers only to the playback loop region.
 
 ### Interactions
 

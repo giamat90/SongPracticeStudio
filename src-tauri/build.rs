@@ -7,11 +7,11 @@ fn main() {
         std::fs::create_dir_all(bin_dir).ok();
     }
     let sidecar_name = if cfg!(target_os = "windows") {
-        "song-analyzer-sidecar-x86_64-pc-windows-msvc.exe"
+        "song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe"
     } else if cfg!(target_arch = "aarch64") {
-        "song-analyzer-sidecar-aarch64-apple-darwin"
+        "song-practice-studio-sidecar-aarch64-apple-darwin"
     } else {
-        "song-analyzer-sidecar-x86_64-unknown-linux-gnu"
+        "song-practice-studio-sidecar-x86_64-unknown-linux-gnu"
     };
     let sidecar_path = bin_dir.join(sidecar_name);
     if !sidecar_path.exists() {

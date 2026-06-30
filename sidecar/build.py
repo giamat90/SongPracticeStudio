@@ -1,13 +1,13 @@
 """
 Build the Python sidecar into a standalone executable.
 Run: python build.py
-Output: dist/vps-sidecar-{platform}
+Output: dist/song-practice-studio-sidecar-{platform}
 """
 
 import PyInstaller.__main__
 import platform
 
-name = "vps-sidecar"
+name = "song-practice-studio-sidecar"
 system = platform.system().lower()
 
 if system == "darwin":

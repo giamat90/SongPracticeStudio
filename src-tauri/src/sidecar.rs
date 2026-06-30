@@ -65,7 +65,7 @@ impl SidecarManager {
             }
             c
         } else {
-            return Err("Sidecar not found: no main.py in source tree and no song-analyzer-sidecar binary next to exe".to_string());
+            return Err("Sidecar not found: no main.py in source tree and no song-practice-studio-sidecar binary next to exe".to_string());
         };
 
         // Suppress the console window that would otherwise flash on Windows.
@@ -162,24 +162,24 @@ impl SidecarManager {
 
     /// Look for the PyInstaller binary next to the running exe (installed-app path).
     /// Tauri strips the target-triple suffix when bundling, so the installed name is
-    /// just `song-analyzer-sidecar[.exe]`. We also check the triple-suffixed name as a fallback.
+    /// just `song-practice-studio-sidecar[.exe]`. We also check the triple-suffixed name as a fallback.
     fn find_sidecar_binary() -> Option<std::path::PathBuf> {
         let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
         let candidates: &[&str] = if cfg!(windows) {
             &[
-                "song-analyzer-sidecar.exe",
-                "song-analyzer-sidecar-x86_64-pc-windows-msvc.exe",
+                "song-practice-studio-sidecar.exe",
+                "song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe",
             ]
         } else if cfg!(target_os = "macos") {
             &[
-                "song-analyzer-sidecar",
-                "song-analyzer-sidecar-aarch64-apple-darwin",
-                "song-analyzer-sidecar-x86_64-apple-darwin",
+                "song-practice-studio-sidecar",
+                "song-practice-studio-sidecar-aarch64-apple-darwin",
+                "song-practice-studio-sidecar-x86_64-apple-darwin",
             ]
         } else {
             &[
-                "song-analyzer-sidecar",
-                "song-analyzer-sidecar-x86_64-unknown-linux-gnu",
+                "song-practice-studio-sidecar",
+                "song-practice-studio-sidecar-x86_64-unknown-linux-gnu",
             ]
         };
         candidates.iter().map(|n| exe_dir.join(n)).find(|p| p.exists())

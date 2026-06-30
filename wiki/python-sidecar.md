@@ -112,7 +112,7 @@ The sidecar runs all commands on the main thread without background threads. Thi
 ```powershell
 cd sidecar
 python build.py
-copy dist\song-analyzer-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
+copy dist\song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
 ```
 
 In development the sidecar runs as a raw Python process — Tauri spawns it lazily on first use.

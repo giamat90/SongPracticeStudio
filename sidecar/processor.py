@@ -1,5 +1,5 @@
 """
-Core processing pipeline for Song Analyzer.
+Core processing pipeline for Song Practice Studio.
 Demucs stem separation → BPM → key detection → bass tab transcription.
 
 Separation strategy (chosen automatically from user's stem selection):

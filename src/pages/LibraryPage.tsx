@@ -70,7 +70,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   return (
     <div className="library-page">
       <header className="library-page__header">
-        <h1>Song Analyzer</h1>
+        <h1>Song Practice Studio</h1>
       </header>
 
       <div className="library-page__import">

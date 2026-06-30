@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Song Analyzer Python Sidecar
+Song Practice Studio Python Sidecar
 Communicates with Tauri shell via JSON lines on stdin/stdout.
 Commands execute synchronously on the main thread to avoid GIL/numpy
 deadlocks that occur with background threads on Windows.

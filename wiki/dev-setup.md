@@ -52,7 +52,7 @@ Build the Python sidecar first (required — Tauri bundles it into the installer
 ```powershell
 cd sidecar
 python build.py
-copy dist\song-analyzer-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
+copy dist\song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\binaries\
 cd ..
 ```
 
@@ -65,8 +65,8 @@ npm run tauri build
 Output installers are placed in `src-tauri/target/release/bundle/`:
 
 ```
-msi\Song Analyzer_0.1.0_x64_en-US.msi
-nsis\Song Analyzer_0.1.0_x64-setup.exe
+msi\Song Practice Studio_0.1.0_x64_en-US.msi
+nsis\Song Practice Studio_0.1.0_x64-setup.exe
 ```
 
 The NSIS installer bundles the WebView2 redistributable and is the safer choice for distribution. The MSI does not include WebView2.
@@ -76,7 +76,7 @@ The NSIS installer bundles the WebView2 redistributable and is the safer choice 
 ## Project Structure
 
 ```
-SongAnalyzer/
+SongPracticeStudio/
 ├── src/                   React + TypeScript frontend
 │   ├── audio/             AudioEngine (dynamic stems Map, rAF loop)
 │   ├── components/        UI components (player/, upload/)
@@ -89,7 +89,7 @@ SongAnalyzer/
 │   │   ├── lib.rs         Command registration
 │   │   ├── commands.rs    Tauri command handlers
 │   │   ├── library.rs     Song library CRUD + library.json
-│   │   └── storage.rs     Path helpers (~/.songanalyzer/)
+│   │   └── storage.rs     Path helpers (~/.songpracticestudio/)
 │   ├── binaries/          Compiled sidecar executable (git-ignored)
 │   └── tauri.conf.json    App config (window size, asset scope)
 ├── sidecar/               Python compute sidecar
@@ -107,5 +107,5 @@ SongAnalyzer/
 The app uses these Tauri plugins / permissions:
 
 - `shell` — to spawn the Python sidecar
-- `fs` — to read/write `~/.songanalyzer/`
+- `fs` — to read/write `~/.songpracticestudio/`
 - Asset protocol scope — to serve audio files to WebView2 via `tauri://localhost/`
