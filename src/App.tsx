@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LibraryPage from "./pages/LibraryPage";
 import AnalyzerPage from "./pages/AnalyzerPage";
+import UpdateDialog from "./components/updater/UpdateDialog";
+import { useUpdaterStore } from "./stores/updater";
 
 type Route = { page: "library" } | { page: "analyzer"; songId: string };
 
 function App() {
   const [route, setRoute] = useState<Route>({ page: "library" });
+  const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+
+  useEffect(() => {
+    checkForUpdates();
+  }, [checkForUpdates]);
 
   return (
     <div className="app">
@@ -19,6 +26,7 @@ function App() {
           onBack={() => setRoute({ page: "library" })}
         />
       )}
+      <UpdateDialog />
     </div>
   );
 }
