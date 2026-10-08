@@ -6,6 +6,9 @@ export type TimeUpdateCallback = (currentTime: number) => void;
 export type FinishCallback = () => void;
 export type ScrollChangeCallback = (minPxPerSec: number, scrollTime: number) => void;
 
+const DRIFT_TOLERANCE_S = 0.05;
+const DRIFT_CHECK_INTERVAL_MS = 250;
+
 export const STEM_COLORS: Record<string, string> = {
   vocals: "rgba(74,158,255,0.85)",
   drums:  "rgba(180,80,220,0.85)",
@@ -36,6 +39,13 @@ export class AudioEngine {
   // rate a freshly loaded take silently reset to 1x even while playing at a
   // non-default speed.
   private _lastPlaybackRate = 1;
+
+  // A volume-0 <audio> element is not guaranteed to stay locked to the audio-device
+  // clock like an audible one, so a muted stem drifts ahead of the audible ones.
+  // Tracked so _correctDrift uses an audible stem as the reference and pulls the
+  // silent ones toward it, never the other way round.
+  private _silentStems = new Set<string>();
+  private _lastDriftCheckAt = 0;
 
   // Recorded take — separate from the stems map since its duration/start
   // position can differ from the shared song timeline (e.g. punch-in takes).
@@ -198,6 +208,8 @@ export class AudioEngine {
   }
 
   setStemVolume(name: string, volume: number): void {
+    if (volume <= 0) this._silentStems.add(name);
+    else this._silentStems.delete(name);
     this._stems.get(name)?.setVolume(volume);
   }
 
@@ -446,6 +458,11 @@ export class AudioEngine {
         }
       }
 
+      if (performance.now() - this._lastDriftCheckAt >= DRIFT_CHECK_INTERVAL_MS) {
+        this._lastDriftCheckAt = performance.now();
+        this._correctDrift();
+      }
+
       // Auto-follow: while zoomed in and playing, keep the playhead from
       // scrolling out of view, without fighting a just-made manual pan/zoom.
       const baseline = this.getMinPxPerSec();
@@ -477,6 +494,29 @@ export class AudioEngine {
       this._rafId = requestAnimationFrame(tick);
     };
     this._rafId = requestAnimationFrame(tick);
+  }
+
+  private _correctDrift(): void {
+    if (!this._master) return;
+    const masterEntry = [...this._stems].find(([, ws]) => ws === this._master);
+    let ref = this._master;
+    if (masterEntry && this._silentStems.has(masterEntry[0])) {
+      const audible = [...this._stems].find(([name]) => !this._silentStems.has(name));
+      if (audible) ref = audible[1];
+    }
+    const refTime = ref.getCurrentTime();
+    for (const ws of this._stems.values()) {
+      if (ws !== ref && Math.abs(ws.getCurrentTime() - refTime) > DRIFT_TOLERANCE_S) {
+        ws.setTime(refTime);
+      }
+    }
+
+    if (this._take && this._takeIsPlaying) {
+      const expectedTake = this._takeAudioOffset + Math.max(0, refTime - (this._takeOffset + this._takeManualOffset));
+      if (Math.abs(this._take.getCurrentTime() - expectedTake) > DRIFT_TOLERANCE_S) {
+        this._take.setTime(expectedTake);
+      }
+    }
   }
 
   private _stopTimeUpdate(): void {

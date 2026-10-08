@@ -53,6 +53,7 @@ WaveSurfer's `"interaction"` event fires only on user clicks (not programmatic `
 
 - **Loop detection** — if `currentTime >= _loopEnd`, seeks all stems to `_loopStart`
 - **UI notifications** — throttled to ~30 fps (33 ms gate) via `_lastNotifyTime`, halving React re-render rate
+- **Drift correction** — every 250 ms (`DRIFT_CHECK_INTERVAL_MS`) `_correctDrift()` re-seeks (`setTime()`) any stem more than 50 ms (`DRIFT_TOLERANCE_S`) from the reference stem. A volume-0 (muted) `<audio>` element does not stay locked to the audio-device clock and runs ahead, so the reference is the master unless it is silent (`_silentStems`, set in `setStemVolume`), in which case the first audible stem is used. A playing take is re-synced to the same reference.
 
 ## Stem Colors
 
