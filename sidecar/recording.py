@@ -20,6 +20,8 @@ PEAK_CEILING_DBFS = -1.0
 
 
 def _rms_dbfs(samples: np.ndarray) -> float:
+    if samples.size == 0:
+        return -120.0
     rms = np.sqrt(np.mean(samples.astype(np.float64) ** 2))
     return 20 * np.log10(rms) if rms > 0 else -120.0
 
@@ -30,8 +32,12 @@ def normalize_take(recording_path: str, output_path: str, reference_path: str = 
     so it doesn't sound quiet next to the other stems at unity volume.
     Falls back to a fixed target loudness when no reference stem exists.
     """
-    take_audio, take_sr = librosa.load(recording_path, sr=None, mono=True, offset=audio_offset_s)
-    take_rms_db = _rms_dbfs(take_audio)
+    take_audio, take_sr = librosa.load(recording_path, sr=None, mono=True)
+    # Loudness is judged on the audible part only, but the whole file is written
+    # back: the player skips `audio_offset_s` into it itself, so trimming it here
+    # would skip that much twice.
+    audible = take_audio[min(len(take_audio), int(round(audio_offset_s * take_sr))):]
+    take_rms_db = _rms_dbfs(audible)
     take_peak = float(np.max(np.abs(take_audio))) if take_audio.size else 0.0
 
     if reference_path and os.path.exists(reference_path):
@@ -90,6 +96,9 @@ def _load_source_slice(source: dict, start_sec: float, end_sec: float) -> tuple:
     path = source["path"]
     window_len = end_sec - start_sec
 
+    # The first `audio_offset` seconds of a take's file are latency padding that
+    # playback skips, so the file only becomes audible from that point on.
+    first_audible = 0.0
     if source.get("isTake"):
         # fileTime = projectTime - (startPosition + manualOffset) + audioOffset (see player.ts).
         start_position = float(source.get("startPosition", 0.0))
@@ -98,12 +107,13 @@ def _load_source_slice(source: dict, start_sec: float, end_sec: float) -> tuple:
         effective_start = start_position + manual_offset
         file_start = start_sec - effective_start + audio_offset
         file_end = end_sec - effective_start + audio_offset
+        first_audible = audio_offset
     else:
         file_start = start_sec
         file_end = end_sec
 
     duration, sr, full_samples = _probe_source(path)
-    clipped_start = max(0.0, file_start)
+    clipped_start = max(first_audible, file_start)
     clipped_end = min(duration, file_end)
 
     if clipped_end <= clipped_start:
@@ -123,9 +133,9 @@ def _load_source_slice(source: dict, start_sec: float, end_sec: float) -> tuple:
             audio = audio[np.newaxis, :]
         samples = audio.T  # (n, channels)
 
-    # Position this slice within the full window (front/back silence for
-    # the part of the window this source doesn't cover).
-    lead_silence = max(0.0, clipped_start - max(0.0, file_start))
+    # Position this slice within the full window: the part of the window that
+    # precedes the source's first audible sample is silence.
+    lead_silence = clipped_start - file_start
     lead_samples = int(round(lead_silence * sr))
     target_samples = int(round(window_len * sr))
 

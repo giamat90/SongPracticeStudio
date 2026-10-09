@@ -48,7 +48,8 @@ def make_progress_callback(cmd_name: str):
 def main():
     try:
         advisory = check_yt_dlp_freshness()
-    except Exception:
+    except Exception as e:
+        print(f"yt-dlp freshness check failed: {e}", file=sys.stderr, flush=True)
         advisory = None
     send({"type": "ready", "advisory": advisory})
 

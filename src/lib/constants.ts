@@ -21,7 +21,7 @@ export function frequencyToNote(freq: number): { note: string; cents: number } {
   const midi = frequencyToMidi(freq);
   const rounded = Math.round(midi);
   const cents = Math.round((midi - rounded) * 100);
-  const note = NOTE_NAMES[rounded % 12];
+  const note = NOTE_NAMES[((rounded % 12) + 12) % 12];
   const octave = Math.floor(rounded / 12) - 1;
   return { note: `${note}${octave}`, cents };
 }

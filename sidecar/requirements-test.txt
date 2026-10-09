@@ -1,0 +1,10 @@
+# Lightweight set for `pytest` (CI and local). Deliberately excludes torch /
+# demucs, so the Demucs separation itself is never run: the pipeline tests
+# replace `_run_demucs` with a fake that returns synthetic stems.
+pytest
+numpy
+scipy
+librosa
+resampy
+soundfile
+yt-dlp>=2026.8.19

@@ -256,3 +256,227 @@ impl Drop for SidecarManager {
         self.shutdown();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::test_support::TestHome;
+    use crate::test_util::sidecar_unavailable;
+
+    fn parse(line: &str) -> Result<SidecarMessage, serde_json::Error> {
+        serde_json::from_str(line)
+    }
+
+    // ── wire format ───────────────────────────────────────────────────────
+
+    #[test]
+    fn parses_ready_with_and_without_an_advisory() {
+        assert!(matches!(parse(r#"{"type":"ready"}"#).unwrap(), SidecarMessage::Ready { advisory: None }));
+        assert!(matches!(parse(r#"{"type":"ready","advisory":null}"#).unwrap(), SidecarMessage::Ready { advisory: None }));
+        match parse(r#"{"type":"ready","advisory":"yt-dlp is old"}"#).unwrap() {
+            SidecarMessage::Ready { advisory } => assert_eq!(advisory.as_deref(), Some("yt-dlp is old")),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_progress() {
+        match parse(r#"{"type":"progress","cmd":"process","stage":"stem-separation","value":0.25}"#).unwrap() {
+            SidecarMessage::Progress { cmd, value, stage } => {
+                assert_eq!(cmd.as_deref(), Some("process"));
+                assert_eq!(stage, "stem-separation");
+                assert!((value - 0.25).abs() < 1e-6);
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_result_with_arbitrary_data() {
+        match parse(r#"{"type":"result","cmd":"process","data":{"stems":{"vocals":"/v.wav"},"duration":3.5}}"#).unwrap() {
+            SidecarMessage::Result { cmd, data } => {
+                assert_eq!(cmd, "process");
+                assert_eq!(data["duration"], 3.5);
+                assert_eq!(data["stems"]["vocals"], "/v.wav");
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_errors_with_optional_command_and_traceback() {
+        match parse(r#"{"type":"error","message":"Invalid JSON: x"}"#).unwrap() {
+            SidecarMessage::Error { cmd, message, traceback } => {
+                assert!(cmd.is_none() && traceback.is_none());
+                assert_eq!(message, "Invalid JSON: x");
+            }
+            other => panic!("{other:?}"),
+        }
+        match parse(r#"{"type":"error","cmd":"process","message":"boom","traceback":"Traceback..."}"#).unwrap() {
+            SidecarMessage::Error { cmd, traceback, .. } => {
+                assert_eq!(cmd.as_deref(), Some("process"));
+                assert_eq!(traceback.as_deref(), Some("Traceback..."));
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_pong_and_bye() {
+        assert!(matches!(parse(r#"{"type":"pong"}"#).unwrap(), SidecarMessage::Pong));
+        assert!(matches!(parse(r#"{"type":"bye"}"#).unwrap(), SidecarMessage::Bye));
+    }
+
+    #[test]
+    fn rejects_unknown_types_and_malformed_lines() {
+        assert!(parse(r#"{"type":"mystery"}"#).is_err());
+        assert!(parse(r#"{"no_type":1}"#).is_err());
+        assert!(parse("not json").is_err());
+        assert!(parse(r#"{"type":"progress","stage":"x"}"#).is_err(), "value is required");
+    }
+
+    #[test]
+    fn every_message_the_python_side_sends_is_known_to_rust() {
+        let main_py = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../sidecar/main.py")).unwrap();
+        let mut sent: Vec<String> = main_py
+            .split("\"type\": \"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap().to_string())
+            .collect();
+        sent.sort();
+        sent.dedup();
+        assert!(!sent.is_empty());
+        for kind in sent {
+            let line = match kind.as_str() {
+                "progress" => r#"{"type":"progress","value":0.0,"stage":"s"}"#.to_string(),
+                "result" => r#"{"type":"result","cmd":"c","data":{}}"#.to_string(),
+                "error" => r#"{"type":"error","message":"m"}"#.to_string(),
+                other => format!(r#"{{"type":"{other}"}}"#),
+            };
+            assert!(parse(&line).is_ok(), "Rust cannot parse the \"{kind}\" message main.py sends");
+        }
+    }
+
+    #[test]
+    fn messages_survive_a_serde_round_trip() {
+        let m = SidecarMessage::Progress { cmd: None, value: 0.5, stage: "x".into() };
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(json.contains(r#""type":"progress""#));
+        assert!(matches!(parse(&json).unwrap(), SidecarMessage::Progress { .. }));
+    }
+
+    // ── interpreter discovery ─────────────────────────────────────────────
+
+    #[test]
+    fn find_python_prefers_the_venv_interpreter() {
+        let home = TestHome::new();
+        let bin = if cfg!(windows) { home.path().join(".venv/Scripts") } else { home.path().join(".venv/bin") };
+        std::fs::create_dir_all(&bin).unwrap();
+        let exe = bin.join(if cfg!(windows) { "python.exe" } else { "python3" });
+        std::fs::write(&exe, b"").unwrap();
+        assert_eq!(SidecarManager::find_python(home.path()), exe);
+    }
+
+    #[test]
+    fn find_python_falls_back_to_the_system_interpreter() {
+        let home = TestHome::new();
+        assert_eq!(SidecarManager::find_python(home.path()), std::path::PathBuf::from("python"));
+    }
+
+    #[test]
+    fn the_source_tree_sidecar_is_found_from_the_test_binary() {
+        let dir = SidecarManager::find_sidecar_dir().expect("sidecar dir");
+        assert!(dir.join("main.py").exists());
+    }
+
+    // ── live process ──────────────────────────────────────────────────────
+
+    fn next_non_progress(m: &SidecarManager, secs: u64) -> SidecarMessage {
+        loop {
+            match m.recv_timeout(Duration::from_secs(secs)).expect("sidecar reply") {
+                SidecarMessage::Progress { .. } => continue,
+                other => return other,
+            }
+        }
+    }
+
+    fn send_raw(m: &SidecarManager, line: &str) {
+        let mut stdin = m.stdin.lock().unwrap();
+        writeln!(stdin, "{line}").unwrap();
+        stdin.flush().unwrap();
+    }
+
+    #[test]
+    fn the_real_sidecar_speaks_the_protocol_and_survives_bad_input() {
+        let home = TestHome::new();
+        // The sidecar caches its yt-dlp freshness check under ~; keep it out of the real home.
+        std::env::set_var("USERPROFILE", home.path());
+        std::env::set_var("HOME", home.path());
+
+        let m = match SidecarManager::spawn() {
+            Ok(m) => m,
+            Err(e) => return sidecar_unavailable(&e),
+        };
+
+        m.send_command(&serde_json::json!({"cmd": "ping"})).unwrap();
+        assert!(matches!(next_non_progress(&m, 30), SidecarMessage::Pong));
+
+        send_raw(&m, "this is not json");
+        match next_non_progress(&m, 30) {
+            SidecarMessage::Error { message, .. } => assert!(message.contains("Invalid JSON"), "{message}"),
+            other => panic!("expected an error, got {other:?}"),
+        }
+
+        m.send_command(&serde_json::json!({"cmd": "definitely_not_a_command"})).unwrap();
+        match next_non_progress(&m, 30) {
+            SidecarMessage::Error { message, .. } => assert!(message.contains("Unknown command"), "{message}"),
+            other => panic!("expected an error, got {other:?}"),
+        }
+
+        // A command that raises inside Python comes back as an error with the command name and a traceback,
+        // and does not take the loop down.
+        m.send_command(&serde_json::json!({"cmd": "convert_take", "recordingPath": "/no/such/file.webm", "outputPath": "/x.wav"})).unwrap();
+        match next_non_progress(&m, 60) {
+            SidecarMessage::Error { cmd, traceback, .. } => {
+                assert_eq!(cmd.as_deref(), Some("convert_take"));
+                assert!(traceback.is_some());
+            }
+            other => panic!("expected an error, got {other:?}"),
+        }
+
+        m.send_command(&serde_json::json!({"cmd": "convert_take"})).unwrap();
+        assert!(matches!(next_non_progress(&m, 30), SidecarMessage::Error { .. }), "missing argument is an error, not a crash");
+
+        m.send_command(&serde_json::json!({"cmd": "ping"})).unwrap();
+        assert!(matches!(next_non_progress(&m, 30), SidecarMessage::Pong), "still alive after the errors");
+
+        m.send_command(&serde_json::json!({"cmd": "quit"})).unwrap();
+        assert!(matches!(next_non_progress(&m, 30), SidecarMessage::Bye));
+    }
+
+    #[test]
+    fn non_ascii_paths_reach_the_sidecar_intact() {
+        let home = TestHome::new();
+        std::env::set_var("USERPROFILE", home.path());
+        std::env::set_var("HOME", home.path());
+        let m = match SidecarManager::spawn() {
+            Ok(m) => m,
+            Err(e) => return sidecar_unavailable(&e),
+        };
+        let dir = home.path().join("Música – 日本語");
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("tono.wav");
+        crate::test_util::write_wav(&wav, &crate::test_util::tones(&[(440.0, 0.5)], 22050, 1.0), 22050);
+        let out = dir.join("salida.wav");
+
+        m.send_command(&serde_json::json!({
+            "cmd": "convert_take", "recordingPath": wav.to_string_lossy(), "outputPath": out.to_string_lossy(),
+        }))
+        .unwrap();
+        match next_non_progress(&m, 120) {
+            SidecarMessage::Result { data, .. } => assert_eq!(data["path"], out.to_string_lossy().to_string()),
+            other => panic!("a UTF-8 path must round-trip (PYTHONUTF8 is forced by spawn): {other:?}"),
+        }
+        assert!(out.exists());
+    }
+}

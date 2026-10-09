@@ -422,6 +422,7 @@ export class AudioEngine {
     this._master = null;
     this._isPlaying = false;
     this._duration = 0;
+    this._silentStems.clear();
     this._loopStart = null;
     this._loopEnd = null;
     this.clearTakeTrack();

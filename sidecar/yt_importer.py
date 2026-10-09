@@ -5,6 +5,7 @@ Requires ffmpeg on PATH for the WAV post-processing step.
 """
 
 import os
+import re
 import yt_dlp
 from processor import process
 from version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
@@ -122,7 +123,7 @@ def import_yt(
             is_cookie_attempt = "cookiesfrombrowser" in extra or "cookiefile" in extra
             is_retryable = isinstance(exc, yt_dlp.utils.DownloadError) and (
                 "Sign in to confirm" in str(exc)
-                or "bot" in str(exc).lower()
+                or re.search(r"\bbot\b", str(exc).lower())
                 or "403" in str(exc)
                 or "forbidden" in str(exc).lower()
             )

@@ -14,3 +14,4 @@
 | [Components](components.md) | Frontend component reference and Zustand stores |
 | [Dev Setup](dev-setup.md) | Prerequisites, dev.bat, build commands, and local dev notes |
 | [UI Polish](ui-polish.md) | Design tokens, `polish.css` layer, accessibility conventions |
+| [Testing](testing.md) | The three test suites (vitest, cargo, pytest), their fakes, what the cross-language tests assert, how to run them |
