@@ -64,6 +64,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
             className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
             onClick={() => toggleMute(name)}
             title={isMuted ? "Unmute" : "Mute"}
+            aria-label={isMuted ? "Unmute" : "Mute"}
           >
             M
           </button>
@@ -71,6 +72,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
             className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
             onClick={() => toggleSolo(name)}
             title={isSoloed ? "Unsolo" : "Solo"}
+            aria-label={isSoloed ? "Unsolo" : "Solo"}
           >
             S
           </button>
@@ -88,6 +90,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
             className="stem-track__download"
             onClick={handleDownload}
             title={`Download ${label}`}
+            aria-label={`Download ${label}`}
           >
             ↓
           </button>

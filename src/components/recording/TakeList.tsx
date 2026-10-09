@@ -104,6 +104,7 @@ function TakeList() {
               className="take-item__rename"
               onClick={(e) => startEditing(e, take, i)}
               title="Rename take"
+              aria-label="Rename take"
             >
               &#9998;
             </button>
@@ -112,6 +113,7 @@ function TakeList() {
               onClick={(e) => handleDownload(e, take, i)}
               disabled={exportingId === take.id}
               title="Download take as WAV"
+              aria-label="Download take as WAV"
             >
               {exportingId === take.id ? "…" : "↓"}
             </button>
@@ -122,6 +124,7 @@ function TakeList() {
                 deleteTake(take.id);
               }}
               title="Delete take"
+              aria-label="Delete take"
             >
               &times;
             </button>

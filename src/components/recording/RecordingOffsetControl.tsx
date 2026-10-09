@@ -358,6 +358,7 @@ function RecordingOffsetControl() {
                     className="rec-offset__row-calib-btn"
                     onClick={() => startCalibration(d.deviceId)}
                     title={`Calibrate latency for ${d.label || "this device"}`}
+                    aria-label={`Calibrate latency for ${d.label || "this device"}`}
                   >
                     Cal
                   </button>

@@ -16,6 +16,28 @@
   --accent-hover: #ff6b81;
   --success: #4ade80;
   --warning: #fbbf24;
+  --info: #4a9eff;
+
+  --bg-raised: #1d2a4d;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent-soft: rgba(233, 69, 96, 0.14);
+  --accent-ring: rgba(255, 107, 129, 0.75);
+
+  --radius-sm: 0.3rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 62.5rem;
+
+  --shadow-sm: 0 0.05rem 0.15rem rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 0.25rem 0.9rem rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 1rem rgba(233, 69, 96, 0.35);
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 0.12s;
+  --dur: 0.2s;
+
+  color-scheme: dark;
 }
 
 html,
@@ -41,7 +63,7 @@ body,
   flex-direction: column;
   padding: 2rem;
   gap: 1.5rem;
-  max-width: 800px;
+  max-width: 50rem;
   margin: 0 auto;
   width: 100%;
 }
@@ -380,7 +402,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px;
+  min-height: 7.5rem;
   border: 2px dashed var(--bg-surface);
   border-radius: 12px;
   background: transparent;
@@ -441,7 +463,7 @@ body,
 
 /* Progress Bar */
 .progress-bar {
-  height: 6px;
+  height: 0.375rem;
   background: var(--bg-surface);
   border-radius: 3px;
   overflow: hidden;
@@ -725,8 +747,8 @@ body,
   background: var(--bg-surface);
   border: none;
   color: var(--text-primary);
-  width: 22px;
-  height: 22px;
+  width: 1.375rem;
+  height: 1.375rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
@@ -749,7 +771,7 @@ body,
 
 .song-card__pitch-val {
   font-size: 0.78rem;
-  min-width: 36px;
+  min-width: 2.25rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
@@ -848,7 +870,7 @@ body,
 }
 
 .practice-room__sidebar {
-  width: 220px;
+  width: 13.75rem;
   flex-shrink: 0;
 }
 
@@ -1025,8 +1047,8 @@ body,
   background: var(--bg-surface);
   border: none;
   color: var(--text-primary);
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -1041,8 +1063,8 @@ body,
 }
 
 .transport__btn--play {
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   font-size: 1.1rem;
   background: var(--accent);
 }
@@ -1061,7 +1083,7 @@ body,
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  min-width: 90px;
+  min-width: 5.625rem;
 }
 
 /* Loop toggle — lives beside TransportControls, not the ruler; sized to match
@@ -1179,7 +1201,7 @@ body,
 }
 
 .transport__vol input[type="range"] {
-  width: 80px;
+  width: 5rem;
   accent-color: var(--accent);
 }
 
@@ -1333,7 +1355,7 @@ body,
   padding: 0.25rem 0.4rem;
   border-radius: 4px;
   cursor: pointer;
-  max-width: 180px;
+  max-width: 11.25rem;
 }
 
 .output-selector__select:disabled {
@@ -1366,7 +1388,7 @@ body,
   padding: 0.25rem 0.4rem;
   border-radius: 4px;
   cursor: pointer;
-  max-width: 180px;
+  max-width: 11.25rem;
 }
 
 .mic-selector__select:disabled {
@@ -1376,8 +1398,8 @@ body,
 
 /* Record Button */
 .record-btn {
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   border: 2px solid var(--accent);
   background: transparent;
@@ -1390,8 +1412,8 @@ body,
 }
 
 .record-btn__dot {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
   border-radius: 50%;
   background: var(--accent);
   transition: border-radius 0.15s, background 0.15s;
@@ -1587,8 +1609,8 @@ body,
 }
 
 .legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
   display: inline-block;
 }
@@ -1600,7 +1622,7 @@ body,
 
 .analysis-panel__canvas {
   width: 100%;
-  height: 120px;
+  height: 7.5rem;
   background: var(--bg-secondary);
   border-radius: 6px;
   display: block;

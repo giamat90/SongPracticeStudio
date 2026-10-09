@@ -59,7 +59,19 @@ interface SongCardProps {
 
 function SongCard({ song, onSelect, onDelete }: SongCardProps) {
   return (
-    <div className="song-card" onClick={onSelect}>
+    <div
+      className="song-card"
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+    >
       <div className="song-card__info">
         <div className="song-card__title">{song.title}</div>
         <div className="song-card__meta">
@@ -79,6 +91,7 @@ function SongCard({ song, onSelect, onDelete }: SongCardProps) {
           className="song-card__delete"
           onClick={onDelete}
           title="Delete song"
+          aria-label="Delete song"
         >
           &times;
         </button>
@@ -103,6 +116,7 @@ function DraggableSongRow({ song, onSelect, onDelete }: SongCardProps) {
         {...attributes}
         {...listeners}
         title="Drag to reorder or move to a folder"
+        aria-label="Drag to reorder or move to a folder"
       >
         ⠿
       </button>
@@ -169,6 +183,7 @@ function FolderSection({
           {...attributes}
           {...listeners}
           title="Drag to reorder folder"
+          aria-label="Drag to reorder folder"
         >
           ⠿
         </button>
@@ -176,6 +191,7 @@ function FolderSection({
           className="library-page__folder-toggle"
           onClick={() => setFolderCollapsed(folder.id, !collapsed)}
           title={collapsed ? "Expand" : "Collapse"}
+          aria-label={collapsed ? "Expand" : "Collapse"}
         >
           {collapsed ? "▸" : "▾"}
         </button>
@@ -206,6 +222,7 @@ function FolderSection({
           className="library-page__folder-rename"
           onClick={startEditingName}
           title="Rename folder"
+          aria-label="Rename folder"
         >
           &#9998;
         </button>
@@ -374,6 +391,8 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
             className={`library-page__settings-btn${showSettings ? " library-page__settings-btn--active" : ""}`}
             onClick={() => setShowSettings((v) => !v)}
             title="Recording settings"
+            aria-label="Recording settings"
+            aria-expanded={showSettings}
           >
             ⚙
           </button>
@@ -381,6 +400,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
             className="library-page__about-btn"
             onClick={() => setShowAbout(true)}
             title="About"
+            aria-label="About"
           >
             ⓘ
           </button>
@@ -465,7 +485,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
         </div>
       )}
 
-      {isLoading && <p className="library-page__loading">Loading...</p>}
+      {isLoading && <p className="library-page__loading" role="status">Loading…</p>}
 
       {!isLoading && songs.length === 0 && sortedFolders.length === 0 && (
         <p className="library-page__empty">

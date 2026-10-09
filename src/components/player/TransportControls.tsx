@@ -24,16 +24,18 @@ function TransportControls() {
           onClick={skipToStart}
           disabled={isRecording}
           title="Skip to start"
+          aria-label="Skip to start"
         >
           &#9198;
         </button>
-        <button className="transport__btn" onClick={stop} title="Stop">
+        <button className="transport__btn" onClick={stop} title="Stop" aria-label="Stop">
           &#9632;
         </button>
         <button
           className="transport__btn transport__btn--play"
           onClick={togglePlay}
           title={isPlaying ? "Pause" : "Play"}
+          aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? "❚❚" : "▶"}
         </button>
@@ -42,10 +44,11 @@ function TransportControls() {
           onClick={skipToEnd}
           disabled={isRecording}
           title="Skip to end"
+          aria-label="Skip to end"
         >
           &#9197;
         </button>
-        <span className="transport__time">
+        <span className="transport__time" role="timer" aria-label="Playback position">
           {formatTime(currentTime)} / {formatTime(duration)}
         </span>
       </div>

@@ -171,6 +171,7 @@ function TakeSyncControls({ take }: { take: Take }) {
         disabled={!take.manualOffset}
         onClick={() => setTakeManualOffset(take.id, 0)}
         title="Reset to auto-detected position"
+        aria-label="Reset to auto-detected position"
       >
         ↺
       </button>
@@ -217,6 +218,7 @@ function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
             className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
             onClick={() => toggleMute(TAKE_TRACK_KEY)}
             title={isMuted ? "Unmute" : "Mute"}
+            aria-label={isMuted ? "Unmute" : "Mute"}
           >
             M
           </button>
@@ -224,6 +226,7 @@ function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
             className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
             onClick={() => toggleSolo(TAKE_TRACK_KEY)}
             title={isSoloed ? "Unsolo" : "Solo"}
+            aria-label={isSoloed ? "Unsolo" : "Solo"}
           >
             S
           </button>
@@ -242,6 +245,7 @@ function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
             onClick={handleDownload}
             disabled={isExporting}
             title={`Download ${label}`}
+            aria-label={`Download ${label}`}
           >
             {isExporting ? "…" : "↓"}
           </button>

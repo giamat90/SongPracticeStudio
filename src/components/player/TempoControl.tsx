@@ -91,6 +91,7 @@ function TempoControl({ detectedBpm }: Props) {
           className={`metronome-btn${metronomeEnabled ? " metronome-btn--active" : ""}`}
           onClick={() => setMetronomeEnabled((v) => !v)}
           title={metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
+          aria-label={metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
         >
           🥁
         </button>
@@ -153,6 +154,7 @@ function TempoControl({ detectedBpm }: Props) {
                 className="tempo-control__downbeat-btn"
                 onClick={() => setMetronomeOffset(0)}
                 title="Reset downbeat to song start"
+                aria-label="Reset downbeat to song start"
               >
                 ↺
               </button>

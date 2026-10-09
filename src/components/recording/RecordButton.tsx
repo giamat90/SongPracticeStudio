@@ -54,6 +54,7 @@ function RecordButton() {
         onClick={handleClick}
         disabled={isSavingTake}
         title={isRecording ? "Stop recording" : isCountingIn ? "Cancel count-in" : "Record"}
+        aria-label={isRecording ? "Stop recording" : isCountingIn ? "Cancel count-in" : "Record"}
       >
         {isCountingIn ? (
           <span className="record-btn__countdown">{countInBeatsRemaining}</span>
@@ -61,8 +62,8 @@ function RecordButton() {
           <span className="record-btn__dot" />
         )}
       </button>
-      {isSavingTake && <span className="record-btn__saving-label">Saving…</span>}
-      {error && <span className="record-btn__error">{error}</span>}
+      {isSavingTake && <span className="record-btn__saving-label" role="status">Saving…</span>}
+      {error && <span className="record-btn__error" role="alert">{error}</span>}
     </div>
   );
 }

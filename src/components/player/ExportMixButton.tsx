@@ -35,6 +35,7 @@ function ExportMixButton() {
       onClick={() => void handleExport()}
       disabled={!mix || isExporting}
       title={mix ? "Export the currently audible mix as a WAV file" : "No audible tracks to export"}
+      aria-label={mix ? "Export the currently audible mix as a WAV file" : "No audible tracks to export"}
     >
       {isExporting ? "Exporting…" : "Export Mix"}
     </button>

@@ -1,0 +1,538 @@
+/* UI polish layer. Loaded after global.css; relies on the tokens in :root there.
+   Only visual refinements, no layout changes: every rule here can be deleted
+   without breaking the app. */
+
+html {
+  font-size: 100%;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-surface) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 0.6rem;
+  height: 0.6rem;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface);
+  border-radius: var(--radius-pill);
+  border: 0.15rem solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+  background-clip: padding-box;
+  border: 0.15rem solid transparent;
+}
+
+/* Keyboard focus: one consistent ring, mouse clicks stay clean */
+:where(button, select, input, textarea, [tabindex]):focus-visible {
+  outline: 0.125rem solid var(--accent-ring);
+  outline-offset: 0.15rem;
+}
+
+:where(input[type="text"], input:not([type]), input[type="url"], select, textarea):focus-visible {
+  outline-offset: 0;
+}
+
+/* Press feedback and smoother state changes on every button */
+button {
+  transition-property: background-color, background, color, border-color, box-shadow, transform, opacity, filter;
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease);
+}
+
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Inputs and selects */
+select,
+input[type="text"],
+input[type="url"],
+input:not([type]) {
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+select:hover:not(:disabled) {
+  background-color: var(--bg-raised);
+}
+
+.yt-import__input:focus,
+.library-page__new-folder-input:focus,
+.song-card__title-input:focus,
+.take-item__name-input:focus,
+.practice-room__title-input:focus,
+.library-page__folder-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem var(--accent-soft);
+}
+
+/* Range sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+  transform: scale(1.15);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
+input[type="range"]:focus-visible {
+  outline-offset: 0.35rem;
+}
+
+/* Page entrance */
+@keyframes polish-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.library-page,
+.practice-room,
+.analyzer-page {
+  animation: polish-rise 0.28s var(--ease) both;
+}
+
+/* Library */
+.library-page__header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.library-page__header h1::after {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 0.2rem;
+  margin-top: 0.35rem;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent), var(--info));
+}
+
+.library-page__empty,
+.library-page__loading {
+  border: 0.0625rem dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 1.5rem;
+  line-height: 1.6;
+}
+
+.library-page__error {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.library-page__folder {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+}
+
+.library-page__folder-toggle:hover {
+  color: var(--text-primary);
+}
+
+.library-page__exercise-btn,
+.library-page__new-folder-btn {
+  border-radius: var(--radius-md);
+}
+
+.library-page__exercise-btn:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.library-page__about-btn:hover,
+.library-page__settings-btn:hover {
+  background: var(--border);
+}
+
+.library-page__settings {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: polish-rise 0.2s var(--ease) both;
+}
+
+/* Song cards */
+.song-card {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.song-card:hover {
+  background: var(--bg-raised);
+  box-shadow: inset 0.2rem 0 0 var(--accent), inset 0 0 0 0.0625rem var(--border-strong), var(--shadow-sm);
+  transform: translateY(-0.0625rem);
+}
+
+.song-card__title {
+  font-weight: 600;
+}
+
+.song-card__rename,
+.song-card__delete {
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease), color var(--dur-fast), background var(--dur-fast);
+}
+
+.song-card:hover .song-card__rename,
+.song-card:hover .song-card__delete,
+.song-card:focus-within .song-card__rename,
+.song-card:focus-within .song-card__delete {
+  opacity: 1;
+}
+
+.song-card__badge {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.song-card__pitch-btn,
+.song-card__export-btn {
+  border-radius: var(--radius-sm);
+}
+
+/* Import */
+.dropzone {
+  border-radius: var(--radius-lg);
+  border-color: var(--border-strong);
+}
+
+.dropzone:hover:not(:disabled) {
+  box-shadow: inset 0 0 2rem var(--accent-soft);
+}
+
+.dropzone__btn-process,
+.yt-import__btn {
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+}
+
+.dropzone__btn-process:hover,
+.yt-import__btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--accent-hover), var(--accent-hover));
+  box-shadow: var(--shadow-glow);
+}
+
+.dropzone__btn-cancel {
+  border-radius: var(--radius-md);
+}
+
+.yt-import__input {
+  border-radius: var(--radius-md);
+}
+
+.stem-picker__chip {
+  border-radius: var(--radius-pill);
+}
+
+.stem-picker__chip--on {
+  box-shadow: var(--shadow-sm);
+}
+
+.progress-bar {
+  border-radius: var(--radius-pill);
+}
+
+.progress-bar__fill {
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Practice room */
+.practice-room__back {
+  border-radius: var(--radius-md);
+}
+
+.practice-room__back:hover {
+  border-color: var(--border-strong);
+}
+
+.practice-room__title {
+  letter-spacing: -0.01em;
+}
+
+.practice-room__meta span {
+  padding: 0.05rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-secondary);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+}
+
+.practice-room__download-all,
+.practice-room__export-mix {
+  border-radius: var(--radius-md);
+}
+
+.practice-room__topbar {
+  padding-bottom: 0.5rem;
+  box-shadow: 0 0.6rem 0.6rem -0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.practice-room__sidebar-bottom {
+  border-top-color: var(--border);
+}
+
+/* Transport and record cluster */
+.transport {
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 0.0625rem var(--border), var(--shadow-sm);
+}
+
+.transport__btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-sm);
+}
+
+.transport__btn--play {
+  box-shadow: 0 0 0.9rem rgba(233, 69, 96, 0.4);
+}
+
+.transport__btn--play:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+.transport__time {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.loop-btn--active {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 0.0625rem var(--accent);
+}
+
+.record-btn {
+  box-shadow: 0 0 0 0 rgba(233, 69, 96, 0);
+}
+
+.record-btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-glow);
+}
+
+.record-btn--active {
+  background: var(--accent-soft);
+  box-shadow: 0 0 1.1rem rgba(233, 69, 96, 0.5);
+}
+
+.monitor-btn {
+  border-color: var(--info);
+}
+
+.count-in-btn {
+  border-radius: var(--radius-sm);
+}
+
+.ab-toggle {
+  border-radius: var(--radius-md);
+}
+
+.output-selector__select,
+.mic-selector__select {
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+}
+
+.output-selector__label,
+.mic-selector__label {
+  font-weight: 600;
+}
+
+/* Takes */
+.take-item {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.take-item:hover {
+  background: var(--bg-raised);
+}
+
+.take-item--active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 0.0625rem var(--accent), var(--shadow-sm);
+}
+
+.take-item__rename,
+.take-item__download,
+.take-item__delete {
+  opacity: 0.55;
+}
+
+.take-item:hover .take-item__rename,
+.take-item:hover .take-item__download,
+.take-item:hover .take-item__delete,
+.take-item:focus-within .take-item__rename,
+.take-item:focus-within .take-item__download,
+.take-item:focus-within .take-item__delete,
+.take-item--active .take-item__rename,
+.take-item--active .take-item__download,
+.take-item--active .take-item__delete {
+  opacity: 1;
+}
+
+.take-list__title {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.take-list__empty {
+  padding: 1rem 0.75rem;
+  border: 0.0625rem dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Analysis */
+.analysis-tab {
+  border-radius: var(--radius-pill);
+  padding: 0.3rem 1rem;
+}
+
+.analysis-tab--active {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 0.0625rem var(--accent);
+}
+
+.analysis-panel__label {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.analysis-panel__canvas {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+}
+
+.vibrato-card,
+.coach-panel {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 0.0625rem var(--border);
+}
+
+/* Update dialog */
+.update-dialog__overlay {
+  backdrop-filter: blur(0.35rem);
+  animation: polish-fade 0.2s var(--ease) both;
+}
+
+.update-dialog__panel {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: polish-rise 0.25s var(--ease) both;
+}
+
+@keyframes polish-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:not(:disabled):active,
+  .song-card:hover {
+    transform: none;
+  }
+}
+
+/* SPS-specific */
+.analyzer-page__back {
+  border-radius: var(--radius-md);
+}
+
+.analyzer-page__back:hover {
+  border-color: var(--border-strong);
+}
+
+.analyzer-page__title {
+  letter-spacing: -0.01em;
+}
+
+.analyzer-page__topbar {
+  box-shadow: 0 0.6rem 0.6rem -0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.stem-track__label {
+  font-weight: 600;
+}
+
+.stem-track__download {
+  opacity: 0.6;
+}
+
+.stem-track:hover .stem-track__download,
+.stem-track:focus-within .stem-track__download {
+  opacity: 1;
+}
+
+.stem-picker__chip:hover:not(:disabled) {
+  box-shadow: var(--shadow-sm);
+}
+
+.chord-row__chip--active {
+  box-shadow: var(--shadow-glow);
+}

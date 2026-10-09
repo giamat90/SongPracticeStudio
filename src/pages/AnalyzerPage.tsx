@@ -31,7 +31,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   if (!song) {
     return (
       <div className="analyzer-page">
-        <button className="analyzer-page__back" onClick={onBack}>
+        <button className="analyzer-page__back" onClick={onBack} aria-label="Back to library">
           &larr; Back to Library
         </button>
         <p>Song not found.</p>
