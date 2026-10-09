@@ -342,6 +342,8 @@ def process(
         stems_to_extract = list(ALL_STEMS_6S)
 
     stems_set    = set(stems_to_extract)
+    if not stems_set & set(ALL_STEMS_6S):
+        raise ValueError(f"No valid stems requested: {stems_to_extract!r}")
     need_cascade = bool(stems_set & {"guitar", "piano"})
     first_model  = "htdemucs_ft" if high_quality else "htdemucs"
 
