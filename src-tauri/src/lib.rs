@@ -4,6 +4,11 @@ mod sidecar;
 mod storage;
 mod takes;
 
+#[cfg(test)]
+mod integration_tests;
+#[cfg(test)]
+mod test_util;
+
 use commands::SidecarState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
