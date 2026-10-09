@@ -65,11 +65,11 @@ Separates a mixed audio file and extracts BPM, key, chords, and (if a bass stem 
 {"cmd": "process", "filePath": "/path/to/song.mp3", "outputDir": "/path/to/output/", "stemsToExtract": ["vocals", "drums"], "highQuality": false}
 ```
 
-`stemsToExtract` (optional) — subset of stems to write; drives smart model selection: no guitar/piano requested → a single `htdemucs`(`_ft`) pass; guitar or piano requested → cascade, `htdemucs`(`_ft`) on the full mix followed by `htdemucs_6s` on the resulting "other" stem. `highQuality` (optional, default `false`) — use `htdemucs_ft` instead of `htdemucs` for the first pass.
+`stemsToExtract` (optional) — subset of stems to write; drives smart model selection: no guitar/piano requested → a single `htdemucs`(`_ft`) pass; guitar or piano requested → cascade, `htdemucs`(`_ft`) on the full mix followed by `htdemucs_6s` on the resulting "other" stem. `highQuality` (optional, default `false`) — use `htdemucs_ft` instead of `htdemucs` for the first pass. A request that names no valid stem (empty list, only unknown names) is rejected up front with `No valid stems requested` instead of failing later with an empty message.
 
 Steps (`processor.py`):
-1. Demucs (model per the cascade above) → writes each requested stem's WAV (progress 0→0.86)
-2. BPM detection via `librosa.beat.tempo` on the original file (0.86)
+1. Demucs (model per the cascade above) → writes each requested stem's WAV (progress 0→0.75)
+2. BPM detection via `librosa.beat.tempo` on the original file (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — windowed chroma → 24 major/minor chord-template matching (1s hops) over the whole song, writes `chords.json`; non-fatal on failure (0.92→0.96)
 5. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.96→1.0). **Backend-only as of this writing** — nothing in `commands.rs`/`library.rs` reads `bass_tab.json` back or persists a flag for it (unlike chords, which get `has_chords` on `Song` + the `read_song_chords` command), and no frontend component consumes it on `master`; a viewer exists only on the unmerged `feat/bass-tab` branch.
@@ -108,6 +108,8 @@ Decodes a take (webm/opus) via `librosa.load` and writes a WAV via `soundfile` �
 
 RMS-normalizes a recording's loudness against a reference stem (in practice `vocals.wav`), peak-capped so nothing clips, and writes the result as WAV (implemented in `recording.py`). Called by Rust's `save_take`; the normalized `{takeId}.wav` replaces the raw `.webm` on disk. This is why recorded takes match the mastered Demucs stems' loudness.
 
+`audioOffset` (seconds of latency padding at the start of the file) only decides which part of the take the loudness is measured on; the written WAV is **not** trimmed, because the player itself skips `audioOffset` into the file (`fileTime = songTime - startPosition + audioOffset`). Before 2026-10-09 the file was trimmed here as well, so a take recorded from the very start of a song was skipped twice and sounded about one round-trip latency early.
+
 ```json
 {"cmd": "normalize_take", "recordingPath": "/path/to/take.webm", "outputPath": "/path/to/take.wav", "referencePath": "/path/to/vocals.wav", "audioOffset": 0.0}
 ```
@@ -120,7 +122,7 @@ Renders a single mixdown WAV from a list of sources, honoring the frontend's liv
 {"cmd": "mix_export", "sources": [{"path": "...", "gain": 0.8, "isTake": false}, {"path": "...", "gain": 1.0, "isTake": true, "startPosition": 12.5, "audioOffset": 0.25}], "startSec": 10.0, "endSec": 42.0, "outputPath": "/path/to/mix.wav"}
 ```
 
-Each source is loaded only over the `[startSec, endSec)` window; takes are aligned via `fileTime = projectTime - startPosition + audioOffset`. Sources are resampled/upmixed to a common rate and channel count, summed with per-source gain, then peak-safe scaled before writing.
+Each source is loaded only over the `[startSec, endSec)` window; takes are aligned via `fileTime = projectTime - startPosition + audioOffset`. A take that begins *inside* the window is preceded by silence (before 2026-10-09 it slid to the window start whenever the window began before the take), and the first `audioOffset` seconds of its file are never played, matching live playback. Sources are resampled/upmixed to a common rate and channel count, summed with per-source gain, then peak-safe scaled before writing.
 
 ### `pitch_shift`
 

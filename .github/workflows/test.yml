@@ -1,0 +1,100 @@
+name: Tests
+
+# Runs the unit + integration suites on every push/PR. The release workflow
+# (release.yml) only builds installers and does not run any tests.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (type-check + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Unit + integration tests
+        run: npx vitest run --coverage
+
+  sidecar:
+    name: Sidecar (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: sidecar/requirements-test.txt
+
+      # ffmpeg authors the webm/opus fixtures for the take-decoding tests.
+      - name: System packages
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libsndfile1
+
+      - name: Install test dependencies
+        working-directory: sidecar
+        run: pip install -r requirements-test.txt
+
+      # torch / demucs are not installed here: the pipeline tests replace
+      # Demucs with a fake, so everything else runs.
+      - name: pytest
+        working-directory: sidecar
+        run: python -m pytest -q
+
+  rust:
+    name: Rust (cargo test, incl. Rust <-> Python integration)
+    runs-on: windows-latest
+    env:
+      # A missing sidecar environment must fail this job, not silently skip.
+      SPS_REQUIRE_SIDECAR: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: sidecar/requirements-test.txt
+
+      - name: Install sidecar test dependencies
+        working-directory: sidecar
+        run: pip install -r requirements-test.txt
+
+      # tauri::generate_context!() embeds frontendDist at compile time and fails
+      # if the directory is missing; the tests never serve it, so a stub is enough.
+      - name: Stub frontend build output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Set-Content dist/index.html '<!doctype html><title>stub</title>'
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --lib

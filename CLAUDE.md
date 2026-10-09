@@ -48,8 +48,8 @@ Timeline zoom/pan state: `minPxPerSec` (zoom level, WaveSurfer's own px-per-seco
 
 ### Processing pipeline (`sidecar/processor.py`)
 Five stages:
-1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.86)
-2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.86)
+1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.75)
+2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — chroma-template matching (24 major/minor triads, 1s hops) over the whole song → `chords.json`, non-fatal on failure (0.92→0.96)
 5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). **Backend-only**: no Rust command or frontend component reads it back yet on `master` (unlike chords — see below); a viewer exists only on the unmerged `feat/bass-tab` branch.
@@ -108,7 +108,9 @@ SongPracticeStudio/
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── version_check.py  ← proactive + reactive yt-dlp staleness checks (see MPS/wiki/known-issues.md)
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
+│   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
+├── tests/contract/    ← cross-language tests that read the TS and Rust sources (IPC command/argument contract)
 ├── src/
 │   ├── audio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
@@ -204,6 +206,13 @@ npm run tauri dev
 **Type-check only:**
 ```
 npx tsc --noEmit
+```
+
+**Tests** (details in `wiki/testing.md`):
+```
+npm test                                   # vitest: libs, audio engine, stores, IPC contract
+cd src-tauri && cargo test --lib           # Rust, incl. the real Python sidecar driven through the command bodies
+cd sidecar && python -m pytest             # sidecar DSP, pipeline (Demucs faked), stdio protocol
 ```
 
 **Build for release (Windows):**

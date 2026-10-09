@@ -53,7 +53,7 @@ The recorder builds a Web Audio **channel-fix graph** (channel splitter → per-
 
 **Auto-stop:** recording stops automatically when playback stops itself — the rAF `onTimeUpdate` handler calls `stopRecording()` at punch-out, and the `onFinish` handler does the same at song end — so the mic is never left running silently after the take should have ended.
 
-`stopRecording`: drains the `MediaRecorder`, releases the mic stream, applies latency compensation to `startPosition`/`audioOffset` (below), then `saveTake` writes the take via Tauri — where the sidecar `normalize_take` **RMS-matches the take's loudness against `vocals.wav`** (peak-capped) and the normalized `{takeId}.wav` replaces the raw `.webm`. Selecting the saved take mounts `TakeTrack`, which loads it into the engine aligned at its `startPosition`.
+`stopRecording`: drains the `MediaRecorder`, releases the mic stream, applies latency compensation to `startPosition`/`audioOffset` (below), then `saveTake` writes the take via Tauri — where the sidecar `normalize_take` **RMS-matches the take's loudness against `vocals.wav`** (peak-capped) and the normalized `{takeId}.wav` replaces the raw `.webm` (the whole file is kept, including any `audioOffset` padding at its start — the player does the skipping). Selecting the saved take mounts `TakeTrack`, which loads it into the engine aligned at its `startPosition`.
 
 ## Latency Compensation
 

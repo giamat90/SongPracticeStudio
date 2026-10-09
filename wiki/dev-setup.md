@@ -73,6 +73,17 @@ The NSIS installer bundles the WebView2 redistributable and is the safer choice 
 
 > If you get `cargo not found`, run `dev.bat` first.
 
+## Running the Tests
+
+```powershell
+npm test                                  # frontend (vitest)
+cd src-tauri; cargo test --lib            # Rust, incl. the real sidecar
+cd sidecar; .\.venv\Scripts\python -m pip install -r requirements-test.txt   # once
+.\.venv\Scripts\python -m pytest
+```
+
+See [Testing](testing.md) for what each suite covers. CI runs all three on every push and pull request.
+
 ## Project Structure
 
 ```
@@ -97,6 +108,7 @@ SongPracticeStudio/
 │   ├── processor.py       Demucs separation + BPM + key detection
 │   ├── yt_importer.py     yt-dlp download → processor.process()
 │   ├── build.py           PyInstaller build script
+│   ├── tests/             pytest suite
 │   └── requirements.txt
 ├── dev.bat                Dev environment setup (PATH + venv)
 └── wiki/                  This documentation
