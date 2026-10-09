@@ -41,7 +41,7 @@ function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFi
   if (msg.includes("known-good floor")) {
     return "The YouTube downloader (yt-dlp) is out of date and YouTube has changed something it can't handle. Update it: `pip install -U -r requirements.txt` in the sidecar venv (dev), or reinstall the app (installed build).";
   }
-  if (msg.includes("sign in to confirm") || msg.includes("not a bot") || msg.includes("bot")) {
+  if (msg.includes("sign in to confirm") || msg.includes("not a bot") || /\bbot\b/.test(msg)) {
     return hasCookiesFile
       ? "YouTube blocked the download even with your cookies file — it has likely expired. Re-export cookies.txt and update it in Settings → YouTube cookies file, then retry."
       : "YouTube blocked the download (bot detection). Fix: open Settings → YouTube cookies file and add one — it's the most reliable fix for this. A VPN can also trigger this; try disabling it too.";
