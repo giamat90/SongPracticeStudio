@@ -3717,7 +3717,7 @@ dependencies = [
 
 [[package]]
 name = "song-practice-studio"
-version = "0.0.38"
+version = "0.0.39"
 dependencies = [
  "chrono",
  "dirs",
