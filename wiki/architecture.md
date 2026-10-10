@@ -42,7 +42,7 @@ Song Practice Studio is a three-tier desktop application:
 
 ### Frontend ↔ Tauri (invoke)
 
-All frontend→backend calls use `invoke()` from `@tauri-apps/api/core`. The bindings live in `src/lib/tauri.ts`. Push events from Rust to frontend use `app.emit()` / `listen()` (e.g., `"processing-progress"`).
+All frontend→backend calls use `invoke()` from `@tauri-apps/api/core`. The bindings live in `src/lib/tauri.ts`. Push events from Rust to frontend use `app.emit()` / `listen()` (e.g., `"processing-progress"`, `"lyrics-progress"`).
 
 ### Tauri ↔ Python (JSON lines)
 

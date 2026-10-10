@@ -30,6 +30,7 @@ App
 │   │   ├── ChordRow        — chord segments as timeline chips, synced to zoom/scroll
 │   │   ├── StemTrack (×N)  — one row per stem: waveform + mute/solo + volume + download button
 │   │   └── TakeTrack       — recorded take row, aligned at its startPosition
+│   ├── LyricsPanel         — synced lyrics: paste / find online / sync, karaoke view, click a line to seek (above the stems list, outside its scroller; explains itself when the song has no vocals stem)
 │   └── TakeList            — take list with select/rename/delete
 │       └── RecordingOffsetControl — per-device latency calibration wizard
 └── UpdateDialog            — auto-update modal (tauri-plugin-updater)
@@ -52,6 +53,10 @@ Manages the song list, import/upload flow, and error state.
 Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. Note SPS has no `renameSong` action (unlike VPS) — no backend command backs one here. See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
 
 Errors from `importYoutube` and `uploadSong` are parsed by `friendlyError()` into human-readable messages.
+
+### Lyrics Store (`src/stores/lyrics.ts`)
+
+`{ songId, lyrics, draft, draftSource, status: "idle"|"loading"|"finding"|"syncing", progress, stage, error, notice }` with `load`, `setDraft`, `findOnline`, `sync`, `remove`, `clear`. Every async action re-checks `songId` before writing, so a result for a song that is no longer open is dropped. Pure timing logic (`activeLineIndex`, `activeWordIndex`, `lineSeekTime`, `canSyncLyrics`) is in `src/lib/lyrics.ts`. Ported from VPS, see [Lyrics Sync](lyrics.md).
 
 ### Player Store (`src/stores/player.ts`)
 
