@@ -287,7 +287,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
 
   loadSong: async (song, containers) => {
     const eng = getEngine();
-    await eng.load(song.directory, song.stems, containers);
+    if (!(await eng.load(song.directory, song.stems, containers))) return;
     eng.onScrollChange((minPxPerSec, scrollTime) => set({ minPxPerSec, scrollTime }));
     eng.onTimeUpdate((time) => {
       set({ currentTime: time, isPlaying: eng.isPlaying });

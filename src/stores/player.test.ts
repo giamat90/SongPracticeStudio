@@ -26,7 +26,7 @@ vi.mock("../audio/engine", () => ({
     timeCb: ((t: number) => void) | null = null;
     finishCb: (() => void) | null = null;
     scrollCb: ((px: number, t: number) => void) | null = null;
-    load = vi.fn(async () => {});
+    load = vi.fn(async () => true);
     play = vi.fn(() => { h.state.playing = true; });
     pause = vi.fn(() => { h.state.playing = false; });
     stop = vi.fn(() => { h.state.playing = false; });
@@ -243,6 +243,14 @@ describe("buildMixSources", () => {
 // ─── loading and transport ─────────────────────────────────────────────────
 
 describe("loadSong", () => {
+  it("leaves everything alone when the engine says a newer load replaced this one", async () => {
+    (mod.getEngine().load as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+    await loadedSong();
+    expect(eng().zoomAll).not.toHaveBeenCalled();
+    expect(eng().timeCb).toBeNull();
+    expect(store().getState()).toMatchObject({ song: null, duration: 0 });
+  });
+
   it("loads the engine with the song's stems and resets playback state", async () => {
     store().setState({ transpose: 3, playbackRate: 0.5, activeTakeId: "x", soloedStem: "drums", mutedStems: { vocals: true } });
     await loadedSong();

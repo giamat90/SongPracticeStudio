@@ -22,6 +22,7 @@ export class AudioEngine {
   private _stems: Map<string, WaveSurfer> = new Map();
   private _master: WaveSurfer | null = null;
   private _duration = 0;
+  private _loadToken = 0;
   private _isPlaying = false;
   private _loopStart: number | null = null;
   private _loopEnd: number | null = null;
@@ -68,8 +69,9 @@ export class AudioEngine {
     songDir: string,
     stemNames: string[],
     containers: Record<string, HTMLElement>,
-  ): Promise<void> {
+  ): Promise<boolean> {
     this.destroy();
+    const token = this._loadToken;
 
     const dir = songDir.replace(/\\/g, "/");
 
@@ -110,7 +112,12 @@ export class AudioEngine {
     });
 
     await Promise.all(promises);
-    if (this._stems.size === 0) return;
+    // destroy() or a newer load() replaced these stems during the await (React
+    // StrictMode runs the load effect twice). A non-empty stem map is not proof
+    // of that: the newer load's still-undecoded stems would pass, size the
+    // song to 0, and make zoom() throw "No audio loaded".
+    if (token !== this._loadToken) return false;
+    if (this._stems.size === 0) return true;
 
     // Master clock: prefer vocals, otherwise use first available stem
     const masterName = this._stems.has("vocals") ? "vocals" : stemNames.find((n) => this._stems.has(n))!;
@@ -133,6 +140,7 @@ export class AudioEngine {
       this._stopTimeUpdate();
       this._finishCb?.();
     });
+    return true;
   }
 
   // Swaps each already-loaded stem's underlying audio file in place (used by
@@ -416,6 +424,7 @@ export class AudioEngine {
   }
 
   destroy(): void {
+    this._loadToken++;
     this._stopTimeUpdate();
     for (const ws of this._stems.values()) ws.destroy();
     this._stems.clear();
