@@ -286,4 +286,4 @@ If any of these are needed, refer to `C:\Workspace\GiaMat90\MPS\VPS` for the imp
 
 ## Versioning
 
-Releases are tag-driven (`vX.Y.Z`; CI stamps the manifests). **Every version bump must add a `CHANGELOG.md` entry in the same `chore: release` commit** (package.json, src-tauri/tauri.conf.json, Cargo.toml, Cargo.lock, CHANGELOG.md).
+Releases are tag-driven (`vX.Y.Z`; CI stamps the manifests). **Every version bump must add a `CHANGELOG.md` entry in the same `chore: release` commit** (package.json, src-tauri/tauri.conf.json, Cargo.toml, Cargo.lock, CHANGELOG.md). The release workflow publishes that entry as the GitHub release body and the in-app updater notes (`scripts/release-notes.sh`); a tag with no entry fails the build.
