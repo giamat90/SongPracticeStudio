@@ -12,6 +12,7 @@ use crate::commands::{
     save_take_impl, MixSource, ProcessingStatus, SidecarState,
 };
 use crate::library;
+use crate::lyrics;
 use crate::sidecar::SidecarManager;
 use crate::storage::{self, test_support::TestHome};
 use crate::takes;
@@ -206,4 +207,71 @@ fn a_failed_song_job_reports_the_error_and_leaves_nothing_behind() {
 
     let youtube = import_youtube_impl(&state, "https://vimeo.com/1".into(), None, None, None, &|_| {}).unwrap_err();
     assert_eq!(youtube, "Not a valid YouTube URL");
+}
+
+#[test]
+fn lyrics_sync_goes_through_the_real_sidecar_and_is_persisted() {
+    // Test-only sidecar engine: places the letters evenly over the sung part of the
+    // file, so this exercises the wire path without the 360 MB acoustic model.
+    // Set before the sidecar is spawned; it only affects `align_lyrics`.
+    std::env::set_var("SPS_LYRICS_ENGINE", "uniform");
+    let Some((_home, state)) = start() else { return };
+
+    let sr = 16000u32;
+    let song_dir = storage::song_dir("song-ly");
+    let mut samples = vec![0.0f32; sr as usize / 2];
+    samples.extend(tones(&[(220.0, 0.3)], sr, 4.0));
+    samples.extend(vec![0.0f32; sr as usize / 2]);
+    write_wav(&song_dir.join("vocals.wav"), &samples, sr);
+    library::add(library::Song {
+        id: "song-ly".into(),
+        title: "Lyrics Song".into(),
+        duration: 5.0,
+        detected_key: None,
+        detected_bpm: None,
+        processed_at: "2026-01-01T00:00:00Z".into(),
+        directory: song_dir.to_string_lossy().to_string(),
+        stems: vec!["vocals".into(), "drums".into()],
+        metronome_offset: None,
+        has_chords: false,
+        folder_id: None,
+        sort_index: 0,
+    })
+    .unwrap();
+
+    let mut seen: Vec<(f32, String)> = Vec::new();
+    let text = "[Verse]
+hello there my friend
+sing it out loud";
+    let result = lyrics::sync_impl(&state, "song-ly", text, "paste", &mut |p, s| seen.push((p, s.to_string())))
+        .expect("sync_lyrics");
+
+    assert_eq!(result.lines.len(), 2, "the [Verse] marker is not a lyric line");
+    assert_eq!(result.lines[0].text, "hello there my friend");
+    assert_eq!(result.text, text, "the user's text is kept verbatim for re-syncing");
+    assert_eq!(result.source, "paste");
+    assert_eq!(result.aligner, "uniform-test-engine");
+    let (a, b) = (&result.lines[0], &result.lines[1]);
+    assert!(a.start >= 0.4 && a.start < a.end && a.end <= b.start && b.end <= 5.0, "{a:?} {b:?}");
+    assert_eq!(a.words.len(), 4);
+    assert!(a.words.windows(2).all(|w| w[0].start <= w[1].start));
+
+    assert!(!seen.is_empty(), "progress is streamed");
+    assert!(seen.windows(2).all(|w| w[0].0 <= w[1].0), "progress never goes backwards");
+    assert_eq!(seen.last().unwrap().0, 1.0);
+
+    assert_eq!(lyrics::load("song-ly").unwrap(), Some(result.clone()), "persisted to lyrics.json");
+    assert!(song_dir.join("lyrics.json").exists());
+
+    // A failure inside the sidecar surfaces as its own message and leaves the saved lyrics alone.
+    std::fs::write(song_dir.join("vocals.wav"), vec![0u8; 16]).unwrap();
+    let err = lyrics::sync_impl(&state, "song-ly", "la la la", "paste", &mut |_, _| {}).unwrap_err();
+    assert!(err.to_lowercase().contains("read"), "{err}");
+    assert_eq!(lyrics::load("song-ly").unwrap(), Some(result));
+
+    // ...and the sidecar is still usable afterwards.
+    write_wav(&song_dir.join("vocals.wav"), &samples, sr);
+    lyrics::sync_impl(&state, "song-ly", "la la la", "paste", &mut |_, _| {}).expect("sync after a failure");
+
+    std::env::remove_var("SPS_LYRICS_ENGINE");
 }

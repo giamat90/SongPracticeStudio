@@ -44,3 +44,6 @@ build/
 # Frozen sidecar binary is built in CI (release.yml), not committed
 src-tauri/binaries/*
 !src-tauri/binaries/.gitkeep
+
+# Lyrics fetched by the local-only real-data tests (copyrighted, never committed)
+sidecar/tests/_local/

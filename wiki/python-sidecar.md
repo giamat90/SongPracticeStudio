@@ -1,6 +1,6 @@
 # Python Sidecar
 
-**Files:** `sidecar/main.py` · `sidecar/processor.py` · `sidecar/recording.py` · `sidecar/yt_importer.py` · `sidecar/build.py`
+**Files:** `sidecar/main.py` · `sidecar/processor.py` · `sidecar/recording.py` · `sidecar/lyrics.py` · `sidecar/yt_importer.py` · `sidecar/build.py`
 
 ## Role
 
@@ -12,6 +12,7 @@ The Python sidecar handles computationally heavy audio processing:
 - **Take post-processing** — WAV conversion and RMS loudness normalization of recordings (`recording.py`)
 - **Mixdown rendering** — sum tracks with per-source gain over a time window (`mix_export`)
 - **Key transpose** — phase-vocoder pitch-shift every stem by N semitones, tempo preserved (`pitch_shift`)
+- **Lyrics sync** — CTC forced alignment of lyric text to the vocals stem, plus an LRCLIB lookup (`align_lyrics`, `find_lyrics`; `lyrics.py`, see [Lyrics Sync](lyrics.md))
 
 ## IPC Protocol
 
@@ -131,6 +132,26 @@ Phase-vocoder pitch-shifts each requested stem by `nSteps` semitones (implemente
 ```json
 {"cmd": "pitch_shift", "songDir": "/path/to/song", "cacheDir": "/path/to/song/pitched/2", "stemNames": ["vocals", "drums", "bass"], "nSteps": 2}
 ```
+
+### `align_lyrics`
+
+Aligns lyric text to a song's `vocals.wav` (`lyrics.py`, ported from VPS 2026-10-10, see [Lyrics Sync](lyrics.md)): CTC forced alignment over a wav2vec2 acoustic model, returning every line and word with start/end seconds. Streams `progress` (model download on first use, then the vocals processed in 20 s windows). The weights are fetched into `modelsDir` once; a file that fails to load is deleted so the next call re-downloads.
+
+```json
+{"cmd": "align_lyrics", "vocalsPath": "/path/to/vocals.wav", "lyrics": "line one\nline two", "modelsDir": "/home/u/.songpracticestudio/models"}
+```
+
+Result: `{aligner, lines: [{text, start, end, score, words: [{text, start, end, score}]}], meanScore, evidenceRatio, alignedWords, totalWords, warning}`. `warning` is non-null when the text probably does not fit the recording. Errors are plain messages: vocals missing/undecodable/silent, no words or no pronounceable letters in the text, text too long for the audio. `SPS_LYRICS_ENGINE=uniform` swaps in a model-free test engine; never set it outside tests.
+
+### `find_lyrics`
+
+Looks a song up on LRCLIB (`https://lrclib.net/api/search`, 20 s timeout). Titles are cleaned of video decoration (`(Official Video)`, `[HQ]`, `lyrics`) first, which matters here because SPS titles are raw YouTube titles and the library has no separate artist. Candidates are ranked by duration closeness (within 15 s), then synced-over-plain, then title overlap. When a synced version exists its timestamps are stripped and the text returned, because synced versions write repeated choruses out in full.
+
+```json
+{"cmd": "find_lyrics", "title": "Audioslave - Like a stone (HD)", "duration": 294.1}
+```
+
+Result: `{text, synced, title, artist, duration, source}` (`artist` is LRCLIB's, not SPS's).
 
 ### `ping` / `quit`
 

@@ -40,6 +40,7 @@ args = [
     "--hidden-import=librosa",
     "--hidden-import=soundfile",
     "--hidden-import=numpy",
+    "--hidden-import=torchaudio.pipelines",
     "--collect-data=demucs",
     "--collect-all=yt_dlp",
     "--noconfirm",

@@ -1,5 +1,6 @@
 mod commands;
 mod library;
+mod lyrics;
 mod sidecar;
 mod storage;
 mod takes;
@@ -40,6 +41,10 @@ pub fn run() {
             commands::export_mix,
             commands::read_song_chords,
             commands::pitch_shift_song,
+            commands::load_lyrics,
+            commands::sync_lyrics,
+            commands::find_lyrics,
+            commands::delete_lyrics,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

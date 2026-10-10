@@ -103,7 +103,8 @@ SongPracticeStudio/
 ├── sidecar/
 │   ├── processor.py      ← Demucs 6s + BPM + key + chords + bass tab (main pipeline) + pitch_shift_song (transpose)
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
-│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, ping, quit)
+│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, align_lyrics, find_lyrics, ping, quit)
+│   ├── lyrics.py         ← synced lyrics: wav2vec2 CTC forced alignment of pasted/LRCLIB lyrics to vocals.wav + LRCLIB lookup (ported from VPS; see wiki/lyrics.md)
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── version_check.py  ← proactive + reactive yt-dlp staleness checks (see MPS/wiki/known-issues.md)
@@ -119,6 +120,7 @@ SongPracticeStudio/
 │   ├── stores/
 │   │   ├── player.ts           ← Zustand: stemVolumes/mute/solo, punch region, transport, recording, latency calibration
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
+│   │   ├── lyrics.ts           ← Zustand: lyrics for the open song (load/find/sync/remove, progress, stale-result guard)
 │   │   ├── updater.ts          ← Zustand: auto-update state (tauri-plugin-updater)
 │   │   └── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
@@ -126,6 +128,7 @@ SongPracticeStudio/
 │   ├── lib/zoomPan.ts          ← pure zoom-to-cursor / pan math for timeline ctrl+wheel/shift+wheel (byte-identical to VPS)
 │   ├── lib/metronomeSync.ts    ← pure phase-lock math for the metronome downbeat anchor (byte-identical to VPS)
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
+│   ├── lib/lyrics.ts           ← pure lyric timing (active line/word, seek time) + canSyncLyrics (needs the vocals stem)
 │   ├── components/
 │   │   ├── player/
 │   │   │   ├── StemView.tsx       ← TimeRuler + all StemTracks + TakeTrack
@@ -146,6 +149,8 @@ SongPracticeStudio/
 │   │   │   ├── MicSelector.tsx    ← Microphone input picker
 │   │   │   ├── RecordingOffsetControl.tsx ← Latency calibration wizard (click-clap)
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete
+│   │   ├── lyrics/
+│   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, above the stems)
 │   │   ├── updater/
 │   │   │   └── UpdateDialog.tsx   ← Auto-update modal
 │   │   ├── settings/
@@ -159,7 +164,8 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← process_song, import_youtube, read_song_chords, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song
+    ├── commands.rs   ← process_song, import_youtube, read_song_chords, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
+    ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
     ├── sidecar.rs     ← SidecarManager, JSON-lines IPC
@@ -236,6 +242,12 @@ cd sidecar && python build.py
 ```
 
 **The sidecar is NOT auto-started by `beforeDevCommand`** — Tauri's `SidecarManager` spawns it lazily on first use (first song processed or YouTube import).
+
+---
+
+## Synced lyrics (ported from VPS, 2026-10-10)
+
+Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style above the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. `sidecar/lyrics.py` is VPS's file with three SPS-specific lines (user agent, default models dir, `SPS_LYRICS_ENGINE` test switch) — keep it in step with VPS.
 
 ---
 

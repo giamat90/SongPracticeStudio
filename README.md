@@ -11,6 +11,7 @@ Forked from [**VPS**](../VPS) (Vocal Practice Studio), a vocal practice app with
 - **Backend**: Python sidecar, JSON-lines over stdin/stdout, spawned lazily on first use
 - **Stem separation**: Demucs `htdemucs_6s` (6 stems: vocals, drums, bass, guitar, piano, other), with a cascaded high-quality mode
 - **Chord detection**: chroma-template matching (major/minor triads) over the whole song, windowed at 1 s hops
+- **Lyrics sync**: wav2vec2 CTC forced alignment of the lyric text to `vocals.wav` (`sidecar/lyrics.py`, ported from VPS)
 - **BPM / key detection**: `librosa.beat.tempo` / chromagram + Krumhansl-Kessler profiles
 - **Bass tab transcription**: the sidecar transcribes the bass stem to `bass_tab.json` during processing, but nothing in the Rust layer or UI reads it back yet on `master` — a scrolling-canvas viewer exists only on the unmerged `feat/bass-tab` branch
 
@@ -85,6 +86,7 @@ SPS/
 - **Player**: per-stem waveform with mute/solo/volume, loop/punch region, ctrl+wheel zoom / shift+wheel pan over the timeline
 - **Speed & metronome**: BPM-first speed control, click track phase-locked to a draggable downbeat marker
 - **Chords**: chord labels detected per song, scrolled in sync with playback
+- **Lyrics**: paste lyrics or look them up on LRCLIB; they are force-aligned to the vocals stem and shown karaoke-style, click a line to jump there (downloads a ~360 MB speech model on first use)
 - **Recording**: mic capture over the mix with per-device latency calibration (click-clap wizard), auto-stop at punch-out/song end, RMS loudness normalization against `vocals.wav`, manual take-sync nudging (drag or arrow keys)
 - **Export**: mixdown of the live mix (honors mute/solo/volume/punch region), any stem or take individually, or everything as one zip
 

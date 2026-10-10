@@ -11,8 +11,10 @@ import MicSelector from "../components/recording/MicSelector";
 import OutputSelector from "../components/player/OutputSelector";
 import RecordButton from "../components/recording/RecordButton";
 import TakeList from "../components/recording/TakeList";
+import LyricsPanel from "../components/lyrics/LyricsPanel";
 import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
+import { canSyncLyrics } from "../lib/lyrics";
 
 interface AnalyzerPageProps {
   songId: string;
@@ -70,6 +72,8 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
       </div>
 
       <div className="analyzer-page__body">
+        <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />
+
         <div className="analyzer-page__stems">
           <StemView song={song} />
         </div>

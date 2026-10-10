@@ -68,6 +68,27 @@ Unlike VPS's `Take`, there are no analysis fields (`pitchData`, `vibrato`, …) 
 
 **`manualOffset`** — set via `set_take_manual_offset(songId, takeId, offset)` (mirrors `rename_take`'s "find by id, mutate one field, re-save takes.json" shape), a post-recording user adjustment layered additively on top of `startPosition`, distinct from and independent of `audioOffset`'s one-time auto-latency-compensation. `0`/absent means the take sits at its auto-detected position. See [Audio Engine: Manual Take Sync](audio-engine.md#manual-take-sync) and [Components: Take Sync Controls](components.md#take-sync-controls).
 
+### Lyrics
+
+Stored as `lyrics.json` in the song directory, written atomically. See [Lyrics Sync](lyrics.md).
+
+```ts
+interface LyricWord { text: string; start: number; end: number; score: number }
+interface LyricLine { text: string; start: number; end: number; score: number; words: LyricWord[] }
+interface Lyrics {
+  version: number;
+  source: "paste" | "lrclib";
+  text: string;            // exactly as supplied, kept so it can be edited and re-synced
+  aligner: string;
+  alignedAt: string;
+  meanScore: number;
+  warning?: string | null; // set when the text probably does not fit the recording
+  lines: LyricLine[];
+}
+interface FoundLyrics { text: string; synced: boolean; title: string; artist: string; source: string }
+interface LyricsProgress { songId: string; progress: number; stage: string }   // "lyrics-progress" event
+```
+
 ### StemName
 
 ```ts
@@ -97,6 +118,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 ```
 ~/.songpracticestudio/
 ├── library.json           master index of all Folder + Song records
+├── models/
+│   └── wav2vec2_fairseq_base_ls960_asr_ls960.pth   speech model for lyrics sync, downloaded on first use
 └── library/
     └── {songId}/          UUID directory per song
         ├── {original}.mp3 copy of the source file (or source.wav for YouTube imports)
@@ -106,6 +129,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
         ├── guitar.wav     separated guitar stem
         ├── piano.wav      separated piano stem
         ├── other.wav      separated other/residual stem
+        ├── chords.json    detected chord segments
+        ├── lyrics.json    synced lyrics (see lyrics.md)
         ├── takes.json     Take[] metadata
         └── takes/
             └── {takeId}.wav  RMS-normalized take audio (raw .webm kept only when normalization failed)
@@ -137,6 +162,10 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `export_mix` | `sources: MixSource[], startSec, endSec: f64, suggestedName: string` | `void` (sidecar `mix_export`, then Save-As) |
 | `export_all` | `entries: ZipEntry[] ({path, archiveName}), suggestedName: string` | `void` (native Save-As dialog for `.zip`; `zip` crate writes each entry, no sidecar involved) |
 | `pitch_shift_song` | `songDir: string, stemNames: string[], nSteps: i32` | `{ stems: Record<string, string> }` (phase-vocoder shift via sidecar `pitch_shift`, cached under `{songDir}/pitched/{nSteps}/{stem}.wav`; ported from VPS, generalized from the fixed vocals/instrumental pair — see `wiki/audio-engine.md#key-transpose`) |
+| `load_lyrics` | `songId: string` | `Lyrics` or `null` |
+| `sync_lyrics` | `songId, text: string, source?: "paste"/"lrclib"` | `Lyrics` (aligns via sidecar `align_lyrics`, persists `lyrics.json`, emits `"lyrics-progress"`; errors for empty text / song without the vocals stem or file) |
+| `find_lyrics` | `songId: string` | `FoundLyrics` (sidecar `find_lyrics` with the song's title and duration; nothing is saved) |
+| `delete_lyrics` | `songId: string` | `void` (no error when there are none) |
 
 All commands are async and return a `Promise`. Errors are thrown as strings.
 
@@ -145,3 +174,4 @@ All commands are async and return a `Promise`. Errors are thrown as strings.
 | Event | Direction | Payload |
 |-------|-----------|---------|
 | `"processing-progress"` | Rust → frontend | `ProcessingStatus` |
+| `"lyrics-progress"` | Rust → frontend | `LyricsProgress` |
