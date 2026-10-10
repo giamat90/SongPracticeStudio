@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
-import { useLyricsStore } from "../../stores/lyrics";
-import { activeLineIndex, activeWordIndex, lineSeekTime } from "../../lib/lyrics";
+import { activeLineIndex, activeWordIndex, lineSeekTime, useLyricsStore } from "@giamat90/mps-core/lyrics";
 
 interface LyricsPanelProps {
   songId: string;

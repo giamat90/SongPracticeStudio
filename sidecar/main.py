@@ -29,10 +29,18 @@ if getattr(sys, "frozen", False):
     bundled_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
     os.environ["PATH"] = bundled_dir + os.pathsep + os.environ.get("PATH", "")
 
-import lyrics
 from processor import process
 from recording import convert_take_to_wav, mix_export, normalize_take
-from version_check import check_yt_dlp_freshness
+from mps_core import lyrics
+from mps_core.app import AppIdentity
+from mps_core.version_check import check_yt_dlp_freshness
+
+APP = AppIdentity(
+    name="SongPracticeStudio",
+    url="https://github.com/giamat90/SongPracticeStudio",
+    data_dir="~/.songpracticestudio",
+    env_prefix="SPS",
+)
 
 
 def send(msg: dict):
@@ -48,7 +56,7 @@ def make_progress_callback(cmd_name: str):
 
 def main():
     try:
-        advisory = check_yt_dlp_freshness()
+        advisory = check_yt_dlp_freshness(APP)
     except Exception as e:
         print(f"yt-dlp freshness check failed: {e}", file=sys.stderr, flush=True)
         advisory = None
@@ -127,6 +135,7 @@ def main():
                     cmd.get("lyrics", ""),
                     on_progress=make_progress_callback("align_lyrics"),
                     models_dir=cmd.get("modelsDir"),
+                    app=APP,
                 )
                 send({"type": "result", "cmd": "align_lyrics", "data": result})
 
@@ -135,6 +144,7 @@ def main():
                     cmd["title"],
                     artist=cmd.get("artist"),
                     duration=cmd.get("duration"),
+                    app=APP,
                 )
                 send({"type": "result", "cmd": "find_lyrics", "data": result})
 

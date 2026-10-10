@@ -8,7 +8,7 @@ import os
 import re
 import yt_dlp
 from processor import process
-from version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
+from mps_core.version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
 
 _BROWSERS = ["chrome", "firefox", "edge", "brave", "opera"]
 

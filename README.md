@@ -11,7 +11,7 @@ Forked from [**VPS**](../VPS) (Vocal Practice Studio), a vocal practice app with
 - **Backend**: Python sidecar, JSON-lines over stdin/stdout, spawned lazily on first use
 - **Stem separation**: Demucs `htdemucs_6s` (6 stems: vocals, drums, bass, guitar, piano, other), with a cascaded high-quality mode
 - **Chord detection**: chroma-template matching (major/minor triads) over the whole song, windowed at 1 s hops
-- **Lyrics sync**: wav2vec2 CTC forced alignment of the lyric text to `vocals.wav` (`sidecar/lyrics.py`, ported from VPS)
+- **Lyrics sync**: wav2vec2 CTC forced alignment of the lyric text to `vocals.wav` (`mps_core.lyrics`, shared with VPS)
 - **BPM / key detection**: `librosa.beat.tempo` / chromagram + Krumhansl-Kessler profiles
 - **Bass tab transcription**: the sidecar transcribes the bass stem to `bass_tab.json` during processing, but nothing in the Rust layer or UI reads it back yet on `master` — a scrolling-canvas viewer exists only on the unmerged `feat/bass-tab` branch
 
@@ -57,7 +57,7 @@ SPS/
 │   │   └── updater/               # UpdateDialog
 │   ├── stores/                   # Zustand: library, player, updater
 │   ├── audio/                    # AudioEngine (dynamic stems Map + take), VocalRecorder, Metronome
-│   └── lib/                      # tauri.ts, types.ts, chords.ts, zoomPan.ts, metronomeSync.ts
+│   └── lib/                      # tauri.ts, types.ts, chords.ts, lyrics.ts (zoomPan, metronomeSync etc. come from @giamat90/mps-core)
 ├── src-tauri/                     # Tauri shell & Rust backend
 │   └── src/
 │       ├── commands.rs            # process_song, import_youtube, save_take, export_mix, export_all, …

@@ -5,6 +5,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     setupFiles: ["src/test/setup.ts"],
+    // The package ships TypeScript source, which Node will not load from node_modules.
+    server: { deps: { inline: [/@giamat90\/mps-core/] } },
     clearMocks: true,
     restoreMocks: true,
     unstubGlobals: true,

@@ -269,7 +269,7 @@ def test_a_failing_freshness_check_is_logged_and_does_not_block_startup(monkeypa
 
     import main
 
-    def boom():
+    def boom(app):
         raise RuntimeError("network down")
 
     monkeypatch.setattr(main, "check_yt_dlp_freshness", boom)

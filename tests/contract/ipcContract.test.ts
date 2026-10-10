@@ -1,4 +1,5 @@
-// Cross-language contract: the TypeScript IPC wrappers (src/lib/tauri.ts) and
+// Cross-language contract: the TypeScript IPC wrappers (src/lib/tauri.ts, plus
+// the lyrics wrappers that ship in @giamat90/mps-core) and
 // the Rust command handlers (src-tauri/src) are only linked by strings at
 // runtime. A renamed command or argument fails silently (Tauri rejects the call
 // or passes None), so this test reads both sources and checks they agree.
@@ -10,7 +11,7 @@ import { join } from "node:path";
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
-const tauriTs = read("src/lib/tauri.ts");
+const tauriTs = read("src/lib/tauri.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/lyrics/ipc.ts");
 const commandsRs = read("src-tauri/src/commands.rs");
 const libRs = read("src-tauri/src/lib.rs");
 

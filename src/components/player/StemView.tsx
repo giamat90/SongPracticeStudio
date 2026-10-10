@@ -5,7 +5,7 @@ import ChordRow from "./ChordRow";
 import StemTrack from "./StemTrack";
 import TakeTrack from "./TakeTrack";
 import type { Song } from "../../lib/types";
-import { computeZoomToCursor, computePan, wheelDeltaPixels, clamp } from "../../lib/zoomPan";
+import { computeZoomToCursor, computePan, wheelDeltaPixels, clamp } from "@giamat90/mps-core/zoomPan";
 
 interface StemViewProps {
   song: Song;
