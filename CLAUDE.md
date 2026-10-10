@@ -281,3 +281,9 @@ If any of these are needed, refer to `C:\Workspace\GiaMat90\MPS\VPS` for the imp
 - The `guitar` icon in `StemTrack.tsx` reuses 🎸 for both guitar and bass; could differentiate
 - No waveform error UI per stem (only a top-level `stem-view__error` div)
 - Bass tab transcription runs on every `process` call (`sidecar/processor.py`) and writes `bass_tab.json`, but no Rust command or frontend component reads it back — a viewer exists only on the unmerged `feat/bass-tab` branch (`ee54b89`)
+
+---
+
+## Versioning
+
+Releases are tag-driven (`vX.Y.Z`; CI stamps the manifests). **Every version bump must add a `CHANGELOG.md` entry in the same `chore: release` commit** (package.json, src-tauri/tauri.conf.json, Cargo.toml, Cargo.lock, CHANGELOG.md).
