@@ -19,7 +19,10 @@ scipy
 # PyInstaller-frozen sidecar with whatever version was resolved at build
 # time — it never self-updates. Bump this floor whenever YouTube import
 # starts failing in production, then rebuild the sidecar and cut a release.
-# Keep in sync with version_check.py's MIN_YT_DLP_VERSION (both here and in
-# VPS — see MPS wiki/conventions.md#10).
+# Keep equal to MIN_YT_DLP_VERSION in mps-core's mps_core/version_check.py
+# (one constant for both apps; sidecar/tests/test_yt_dlp_floor.py fails if this
+# line or requirements-test.txt disagrees - see MPS wiki/conventions.md#10).
 yt-dlp>=2026.8.19
 pywin32; sys_platform == "win32"
+# Code shared with the sibling app (lyrics engine, yt-dlp floor): https://github.com/giamat90/mps-core
+git+https://github.com/giamat90/mps-core.git@v0.1.0#subdirectory=python

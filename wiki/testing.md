@@ -24,8 +24,8 @@ cd sidecar
 
 - `vitest.config.ts`: node environment, `restoreMocks`/`clearMocks` on, `unstubGlobals` on. `src/test/setup.ts` installs an in-memory `localStorage`; everything else a test needs (`navigator.mediaDevices`, `AudioContext`, `MediaRecorder`, timers, `requestAnimationFrame`) it stubs itself with `vi.stubGlobal`.
 - `engine.test.ts` replaces `wavesurfer.js` with a small fake class (settable duration/current time, scripted `ready`/`error`) and drives the rAF tick by hand, so loop, drift correction, take window sync and auto-follow are tested deterministically.
-- `player.test.ts` mocks the engine, recorder, metronome and `../lib/tauri`, and re-imports the store with `vi.resetModules()` where module-level state matters (device watcher, persisted calibrations).
-- `tests/contract/ipcContract.test.ts` parses `src/lib/tauri.ts`, `src-tauri/src/commands.rs` and `lib.rs` and fails if a wrapper calls an unregistered command, sends an argument Rust does not accept, or omits a required one. It lives outside `src/` because it needs Node's `fs`; `tsc` only checks `src/`.
+- `player.test.ts` mocks the engine, the shared recorder and metronome (by their `@giamat90/mps-core/...` specifiers) and `../lib/tauri`, and re-imports the store with `vi.resetModules()` where module-level state matters (device watcher, persisted calibrations).
+- `tests/contract/ipcContract.test.ts` parses `src/lib/tauri.ts` (and the lyrics wrappers shipped in `@giamat90/mps-core`), `src-tauri/src/commands.rs` and `lib.rs` and fails if a wrapper calls an unregistered command, sends an argument Rust does not accept, or omits a required one. It lives outside `src/` because it needs Node's `fs`; `tsc` only checks `src/`.
 
 ## Rust conventions
 
@@ -39,7 +39,7 @@ cd sidecar
 - `tests/helpers.py` synthesises audio with a known pitch/level; nothing depends on checked-in audio fixtures.
 - `tests/test_protocol.py` drives the real `main.py` over stdio exactly like `SidecarManager` does (ready, ping, invalid JSON, unknown command, exceptions → `error` with traceback, progress ordering, non-ASCII paths, `quit`, EOF). It also asserts that every `"cmd"` string Rust sends has a branch in `main.py`.
 - `tests/test_processor.py` uses `FakeDemucs`/`FakeTensor` (numpy stand-ins for the two torch calls `_save_stem` makes) to pin down which model runs for which stem request, what lands in `other`, the progress ladder (0→0.75 separation, then BPM, key, chords, bass tab), and that BPM/chord/bass-tab failures degrade instead of failing the import.
-- `MIN_YT_DLP_VERSION` is checked against the `requirements*.txt` floors; the equal-across-projects rule (MPS conventions #10) cannot be asserted from inside this repo.
+- `tests/test_yt_dlp_floor.py` checks the `requirements*.txt` floors against `mps_core.version_check.MIN_YT_DLP_VERSION`; the equal-across-projects rule (MPS conventions #10) now holds by construction because the constant has one home.
 
 ## Lyrics sync tests
 
@@ -54,4 +54,5 @@ Details in [Lyrics Sync](lyrics.md#tests). In short: the alignment algorithm is 
 
 - New Tauri command → add the wrapper to `src/lib/tauri.ts` (the contract test then forces the Rust registration to match) and a case in `src/lib/tauri.test.ts`.
 - New sidecar command → a branch in `main.py`, a case in `tests/test_protocol.py` (its handled-commands test lists them all).
-- Bumped `MIN_YT_DLP_VERSION` → update `requirements.txt`, `requirements-test.txt` and the VPS copy (see MPS conventions #10).
+- Bumped the yt-dlp floor → change `MIN_YT_DLP_VERSION` in `mps-core`, then both requirements files here and in VPS (see MPS conventions #10).
+- Shared code (metronome, recorder, zoom/pan, updater store, lyrics engine and slice, version check) is tested in `mps-core`; see [Shared code](shared-core.md). Its tests no longer run here.

@@ -1,6 +1,6 @@
 # Loop Region, Recording & Playback
 
-**Key files:** `src/components/player/TimeRuler.tsx` · `src/stores/player.ts` · `src/audio/recorder.ts` · `src/components/recording/`
+**Key files:** `src/components/player/TimeRuler.tsx` · `src/stores/player.ts` · `@giamat90/mps-core/recorder` · `src/components/recording/`
 
 ## Punch Region
 
@@ -47,7 +47,7 @@ The region is drawn as a translucent red band on the `TimeRuler` canvas with I-b
 
 ## Recording Lifecycle
 
-`startRecording` (player store): if a take is currently selected, deselects it first (`activeTakeId = null` + `eng.clearTakeTrack()`) — otherwise the previous take stays loaded and the engine's rAF take-window sync keeps auto-playing it whenever the playhead crosses its window during the new recording, so the performer hears their last attempt mixed into the stems. The take is untouched on disk (`takes.json` is only appended to / edited explicitly), so it stays in the take list and re-selectable — just out of playback. Then: remembers the start position (`punchIn` if set, else `currentTime`), pauses playback, opens the mic via `rec.init(selectedDeviceId)` (`VocalRecorder` in `src/audio/recorder.ts`), seeks to the start position, resumes playback, then starts the `MediaRecorder`.
+`startRecording` (player store): if a take is currently selected, deselects it first (`activeTakeId = null` + `eng.clearTakeTrack()`) — otherwise the previous take stays loaded and the engine's rAF take-window sync keeps auto-playing it whenever the playhead crosses its window during the new recording, so the performer hears their last attempt mixed into the stems. The take is untouched on disk (`takes.json` is only appended to / edited explicitly), so it stays in the take list and re-selectable — just out of playback. Then: remembers the start position (`punchIn` if set, else `currentTime`), pauses playback, opens the mic via `rec.init(selectedDeviceId)` (`VocalRecorder` from `@giamat90/mps-core/recorder`), seeks to the start position, resumes playback, then starts the `MediaRecorder`.
 
 The recorder builds a Web Audio **channel-fix graph** (channel splitter → per-channel max merge) before the `MediaRecorder`, because some 2-input USB interfaces route the mic to only one physical channel — without it a `channelCount: 1` downmix loses ~6 dB.
 

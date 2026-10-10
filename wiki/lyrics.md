@@ -2,7 +2,7 @@
 
 Place every line and word of a song's lyrics on the separated **vocals** stem, then show them karaoke-style above the stems in the analyzer. Click a line to jump to it.
 
-Ported from VPS (2026-10-10, VPS PR #3). The sidecar module is VPS's `lyrics.py` with three SPS-specific lines; the design record and the original measurements live in VPS `wiki/lyrics.md` and `MPS/wiki/whats-next.md`. This page records what is different here and what was re-measured on SPS's own library.
+Ported from VPS (2026-10-10, VPS PR #3) and since moved into the shared `mps-core` package (`mps_core.lyrics`, `@giamat90/mps-core/lyrics`); the design record and the original measurements live in VPS `wiki/lyrics.md` and `MPS/wiki/whats-next.md`. This page records what is different here and what was re-measured on SPS's own library.
 
 ## User flow
 
@@ -22,10 +22,10 @@ The panel sits **above** the stems list, outside its scroller. Placed below the 
 | Who can have lyrics | non-instrument songs | songs whose `stems` contain `vocals` and whose `vocals.wav` exists; `sync_impl` validates both before touching the sidecar |
 | File location | `storage::song_dir(id)` | the song's own `directory` from `library.json` (as `read_chords` does); `load`/`delete` never create a directory, and a sync that finishes after its song was deleted fails instead of resurrecting the folder |
 | Models dir | `~/.vps/models/` | `~/.songpracticestudio/models/` (a second 360 MB copy if both apps are used; apps are deliberately not coupled) |
-| Test engine switch | `VPS_LYRICS_ENGINE=uniform` | `SPS_LYRICS_ENGINE=uniform` |
+| Test engine switch | `VPS_LYRICS_ENGINE=uniform` | `SPS_LYRICS_ENGINE=uniform` (both come from each app's `AppIdentity` in `sidecar/main.py`) |
 | Sidecar plumbing | own `ensure_sidecar` | reuses `commands::run_sidecar_command` (made `pub(crate)`) |
 
-`sidecar/lyrics.py` differs from VPS's copy in exactly three places: `USER_AGENT`, the default models directory, and the test-engine environment variable. Keep it in step (a diff ignoring those lines should be empty).
+The engine is one copy (`mps_core.lyrics`). The three things that used to be edited in a SPS-specific copy (user agent, models directory, test-engine variable) are the `AppIdentity` passed from `sidecar/main.py`.
 
 ## How it works
 
@@ -103,7 +103,7 @@ Other limits (English model, screamed vocals, collapsed choruses, a different so
 | sidecar | `tests/test_protocol.py` | the set of commands `main.py` handles; every `"cmd"` Rust sends (now scanning `lyrics.rs` too) has a branch |
 | sidecar | `tests/test_lyrics_real.py` | **local only**: 11 real songs from `~/.songpracticestudio` vs LRCLIB + vocal energy; skips without the library, the cached weights or network. Fetched lyrics are cached under `sidecar/tests/_local/` (git-ignored; copyrighted, never commit) |
 | rust | `src/lyrics.rs`, `integration_tests.rs` | wire format, atomic persistence, validation without spawning the sidecar (empty text, unknown song, no vocals stem, missing file), no directory creation, a song deleted mid-sync, and a full round trip through the real sidecar |
-| frontend | `lib/lyrics.test.ts`, `stores/lyrics.test.ts`, `lib/tauri.test.ts` | timing logic, `canSyncLyrics`, store races, IPC wrappers (the contract test also covers the four commands) |
+| frontend | `lib/lyrics.test.ts` (here: `canSyncLyrics`); in mps-core: timing, store, IPC wrappers; `tests/contract/ipcContract.test.ts` | the contract test reads the package's wrappers against this app's Rust handlers |
 
 ### Running the real-data tests
 

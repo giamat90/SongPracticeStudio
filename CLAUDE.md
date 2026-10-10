@@ -9,6 +9,12 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ---
 
+## Shared code (`@giamat90/mps-core`)
+
+Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
+
+---
+
 ## Tech stack
 
 | Layer | Technology |
@@ -104,10 +110,8 @@ SongPracticeStudio/
 │   ├── processor.py      ← Demucs 6s + BPM + key + chords + bass tab (main pipeline) + pitch_shift_song (transpose)
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
 │   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, align_lyrics, find_lyrics, ping, quit)
-│   ├── lyrics.py         ← synced lyrics: wav2vec2 CTC forced alignment of pasted/LRCLIB lyrics to vocals.wav + LRCLIB lookup (ported from VPS; see wiki/lyrics.md)
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
-│   ├── version_check.py  ← proactive + reactive yt-dlp staleness checks (see MPS/wiki/known-issues.md)
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
 │   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
@@ -115,20 +119,14 @@ SongPracticeStudio/
 ├── src/
 │   ├── audio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
-│   │   ├── recorder.ts         ← VocalRecorder (MediaRecorder wrapper, Web Audio channel-fix graph)
-│   │   └── metronome.ts        ← Metronome class (Web Audio lookahead-scheduled click track)
 │   ├── stores/
 │   │   ├── player.ts           ← Zustand: stemVolumes/mute/solo, punch region, transport, recording, latency calibration
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
-│   │   ├── lyrics.ts           ← Zustand: lyrics for the open song (load/find/sync/remove, progress, stale-result guard)
-│   │   ├── updater.ts          ← Zustand: auto-update state (tauri-plugin-updater)
 │   │   └── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
 │   ├── lib/tauri.ts            ← IPC wrappers: processSong, listSongs, saveTake, exportStem, exportMix, …
-│   ├── lib/zoomPan.ts          ← pure zoom-to-cursor / pan math for timeline ctrl+wheel/shift+wheel (byte-identical to VPS)
-│   ├── lib/metronomeSync.ts    ← pure phase-lock math for the metronome downbeat anchor (byte-identical to VPS)
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
-│   ├── lib/lyrics.ts           ← pure lyric timing (active line/word, seek time) + canSyncLyrics (needs the vocals stem)
+│   ├── lib/lyrics.ts           ← canSyncLyrics only (SPS songs may lack the vocals stem); the rest of lyrics is @giamat90/mps-core/lyrics
 │   ├── components/
 │   │   ├── player/
 │   │   │   ├── StemView.tsx       ← TimeRuler + all StemTracks + TakeTrack
@@ -247,7 +245,7 @@ cd sidecar && python build.py
 
 ## Synced lyrics (ported from VPS, 2026-10-10)
 
-Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style above the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. `sidecar/lyrics.py` is VPS's file with three SPS-specific lines (user agent, default models dir, `SPS_LYRICS_ENGINE` test switch) — keep it in step with VPS.
+Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style above the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. The engine is `mps_core.lyrics` from the shared package; this app supplies its identity (user agent, `~/.songpracticestudio/models`, `SPS_LYRICS_ENGINE`) as an `AppIdentity` in `sidecar/main.py` (see `wiki/shared-core.md`).
 
 ---
 
@@ -255,7 +253,7 @@ Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is forc
 
 Recording exists here — do not trust older docs claiming otherwise. Key points (full detail in `wiki/recording-flow.md`):
 
-- `RecordButton` → `VocalRecorder` (`src/audio/recorder.ts`) with a Web Audio **channel-fix graph** (splits/max-merges input channels so 2-in interfaces that route the mic to one physical channel don't lose ~6 dB to a stereo→mono downmix).
+- `RecordButton` → `VocalRecorder` (`@giamat90/mps-core/recorder`) with a Web Audio **channel-fix graph** (splits/max-merges input channels so 2-in interfaces that route the mic to one physical channel don't lose ~6 dB to a stereo→mono downmix).
 - Per-device **latency calibration** (`RecordingOffsetControl.tsx`, click-clap wizard): `recordingOffsets` entries `{ offset, stale?, madMs? }` with devicechange staleness invalidation, MAD-based confidence chip, 0–500 ms and ≥5/8-onset sanity bounds. Unlike VPS there is **no per-recording output routing**, so no `outputDeviceId` on calibration entries.
 - Recording **auto-stops** when playback stops itself (punch-out reached, or song end).
 - Takes are **RMS-normalized** against `vocals.wav` at save time (sidecar `normalize_take`).

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import LibraryPage from "./pages/LibraryPage";
 import AnalyzerPage from "./pages/AnalyzerPage";
 import UpdateDialog from "./components/updater/UpdateDialog";
-import { useUpdaterStore } from "./stores/updater";
+import { useUpdaterStore } from "@giamat90/mps-core/updater";
 
 type Route = { page: "library" } | { page: "analyzer"; songId: string };
 

@@ -20,7 +20,7 @@ const h = vi.hoisted(() => {
 });
 
 vi.mock("../lib/tauri", () => h.api);
-vi.mock("../audio/metronome", () => ({ metronome: h.metronome }));
+vi.mock("@giamat90/mps-core/metronome", () => ({ metronome: h.metronome }));
 vi.mock("../audio/engine", () => ({
   AudioEngine: class {
     timeCb: ((t: number) => void) | null = null;
@@ -51,7 +51,7 @@ vi.mock("../audio/engine", () => ({
     constructor() { h.state.engine = this; }
   },
 }));
-vi.mock("../audio/recorder", () => ({
+vi.mock("@giamat90/mps-core/recorder", () => ({
   VocalRecorder: class {
     init = h.rec.init;
     start = h.rec.start;

@@ -1,4 +1,4 @@
-import { useUpdaterStore } from "../../stores/updater";
+import { useUpdaterStore } from "@giamat90/mps-core/updater";
 
 function UpdateDialog() {
   const status = useUpdaterStore((s) => s.status);

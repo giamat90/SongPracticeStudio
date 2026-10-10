@@ -15,4 +15,5 @@
 | [Dev Setup](dev-setup.md) | Prerequisites, dev.bat, build commands, and local dev notes |
 | [UI Polish](ui-polish.md) | Design tokens, `polish.css` layer, accessibility conventions |
 | [Lyrics Sync](lyrics.md) | Forced alignment of lyrics to the vocals stem: design, wire protocol, accuracy, tests (ported from VPS) |
+| [Shared code](shared-core.md) | What comes from `@giamat90/mps-core`, the wiring in this repo, how to change or bump it |
 | [Testing](testing.md) | The three test suites (vitest, cargo, pytest), their fakes, what the cross-language tests assert, how to run them |

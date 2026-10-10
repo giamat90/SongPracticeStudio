@@ -1,6 +1,6 @@
 # Python Sidecar
 
-**Files:** `sidecar/main.py` · `sidecar/processor.py` · `sidecar/recording.py` · `sidecar/lyrics.py` · `sidecar/yt_importer.py` · `sidecar/build.py`
+**Files:** `sidecar/main.py` · `sidecar/processor.py` · `sidecar/recording.py` · `sidecar/yt_importer.py` · `sidecar/build.py`
 
 ## Role
 
@@ -12,7 +12,7 @@ The Python sidecar handles computationally heavy audio processing:
 - **Take post-processing** — WAV conversion and RMS loudness normalization of recordings (`recording.py`)
 - **Mixdown rendering** — sum tracks with per-source gain over a time window (`mix_export`)
 - **Key transpose** — phase-vocoder pitch-shift every stem by N semitones, tempo preserved (`pitch_shift`)
-- **Lyrics sync** — CTC forced alignment of lyric text to the vocals stem, plus an LRCLIB lookup (`align_lyrics`, `find_lyrics`; `lyrics.py`, see [Lyrics Sync](lyrics.md))
+- **Lyrics sync** — CTC forced alignment of lyric text to the vocals stem, plus an LRCLIB lookup (`align_lyrics`, `find_lyrics`; `mps_core.lyrics`, see [Lyrics Sync](lyrics.md))
 
 ## IPC Protocol
 
@@ -135,7 +135,7 @@ Phase-vocoder pitch-shifts each requested stem by `nSteps` semitones (implemente
 
 ### `align_lyrics`
 
-Aligns lyric text to a song's `vocals.wav` (`lyrics.py`, ported from VPS 2026-10-10, see [Lyrics Sync](lyrics.md)): CTC forced alignment over a wav2vec2 acoustic model, returning every line and word with start/end seconds. Streams `progress` (model download on first use, then the vocals processed in 20 s windows). The weights are fetched into `modelsDir` once; a file that fails to load is deleted so the next call re-downloads.
+Aligns lyric text to a song's `vocals.wav` (`mps_core.lyrics`, ported from VPS 2026-10-10 and now shared, see [Lyrics Sync](lyrics.md)): CTC forced alignment over a wav2vec2 acoustic model, returning every line and word with start/end seconds. Streams `progress` (model download on first use, then the vocals processed in 20 s windows). The weights are fetched into `modelsDir` once; a file that fails to load is deleted so the next call re-downloads.
 
 ```json
 {"cmd": "align_lyrics", "vocalsPath": "/path/to/vocals.wav", "lyrics": "line one\nline two", "modelsDir": "/home/u/.songpracticestudio/models"}

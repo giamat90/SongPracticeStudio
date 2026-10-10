@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePlayerStore, getEngine } from "../../stores/player";
-import { metronome } from "../../audio/metronome";
-import { computeMetronomePhase } from "../../lib/metronomeSync";
+import { metronome } from "@giamat90/mps-core/metronome";
+import { computeMetronomePhase } from "@giamat90/mps-core/metronomeSync";
 
 interface Props {
   detectedBpm?: number;

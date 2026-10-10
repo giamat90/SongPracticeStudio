@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-import lyrics
+from mps_core import lyrics
 
 pytestmark = pytest.mark.slow
 

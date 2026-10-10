@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { AudioEngine } from "../audio/engine";
-import { VocalRecorder } from "../audio/recorder";
+import { VocalRecorder } from "@giamat90/mps-core/recorder";
 import type { Song, StemName, Take } from "../lib/types";
 import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, pitchShiftSong } from "../lib/tauri";
-import { metronome } from "../audio/metronome";
-import { countInDurationSeconds } from "../lib/metronomeSync";
+import { metronome } from "@giamat90/mps-core/metronome";
+import { countInDurationSeconds } from "@giamat90/mps-core/metronomeSync";
 
 let engine: AudioEngine | null = null;
 let recorder: VocalRecorder | null = null;
