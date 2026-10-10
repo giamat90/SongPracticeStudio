@@ -19,8 +19,8 @@ SR = 22050
 
 
 class Sidecar:
-    def __init__(self, home):
-        env = {**os.environ, "USERPROFILE": str(home), "HOME": str(home), "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    def __init__(self, home, extra_env=None):
+        env = {**os.environ, "USERPROFILE": str(home), "HOME": str(home), "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8", **(extra_env or {})}
         self.proc = subprocess.Popen(
             [sys.executable, "main.py"],
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -239,11 +239,12 @@ def test_closing_stdin_ends_the_process(tmp_path_factory):
 
 
 def test_every_command_the_rust_side_sends_is_handled():
-    """Rust emits these `cmd` values (grep of commands.rs); each must have a branch in main.py."""
+    """Rust emits these `cmd` values (grep of commands.rs and lyrics.rs); each must have a branch in main.py."""
     from pathlib import Path
     import re
 
-    rust = (Path(__file__).resolve().parents[2] / "src-tauri" / "src" / "commands.rs").read_text(encoding="utf-8")
+    src = Path(__file__).resolve().parents[2] / "src-tauri" / "src"
+    rust = "".join((src / name).read_text(encoding="utf-8") for name in ("commands.rs", "lyrics.rs"))
     sent = set(re.findall(r'"cmd":\s*"(\w+)"', rust))
     main_py = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
@@ -257,7 +258,10 @@ def test_the_commands_main_py_handles_are_exactly_the_ones_documented():
 
     main_py = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
-    assert handled == {"process", "import_yt", "convert_take", "normalize_take", "mix_export", "pitch_shift", "ping", "quit"}
+    assert handled == {
+        "process", "import_yt", "convert_take", "normalize_take", "mix_export", "pitch_shift",
+        "align_lyrics", "find_lyrics", "ping", "quit",
+    }
 
 
 def test_a_failing_freshness_check_is_logged_and_does_not_block_startup(monkeypatch, capsys):

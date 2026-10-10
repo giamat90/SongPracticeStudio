@@ -29,6 +29,7 @@ if getattr(sys, "frozen", False):
     bundled_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
     os.environ["PATH"] = bundled_dir + os.pathsep + os.environ.get("PATH", "")
 
+import lyrics
 from processor import process
 from recording import convert_take_to_wav, mix_export, normalize_take
 from version_check import check_yt_dlp_freshness
@@ -119,6 +120,23 @@ def main():
                     on_progress=make_progress_callback("pitch_shift"),
                 )
                 send({"type": "result", "cmd": "pitch_shift", "data": result})
+
+            elif cmd.get("cmd") == "align_lyrics":
+                result = lyrics.align_lyrics(
+                    cmd["vocalsPath"],
+                    cmd.get("lyrics", ""),
+                    on_progress=make_progress_callback("align_lyrics"),
+                    models_dir=cmd.get("modelsDir"),
+                )
+                send({"type": "result", "cmd": "align_lyrics", "data": result})
+
+            elif cmd.get("cmd") == "find_lyrics":
+                result = lyrics.find_lyrics(
+                    cmd["title"],
+                    artist=cmd.get("artist"),
+                    duration=cmd.get("duration"),
+                )
+                send({"type": "result", "cmd": "find_lyrics", "data": result})
 
             elif cmd.get("cmd") == "ping":
                 send({"type": "pong"})
