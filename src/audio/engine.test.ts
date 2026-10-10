@@ -156,10 +156,40 @@ describe("load", () => {
 
   it("does nothing when no stem could be created", async () => {
     const engine = new AudioEngine();
-    await engine.load("/s", ["vocals"], {});
+    await expect(engine.load("/s", ["vocals"], {})).resolves.toBe(true);
     expect(engine.getDuration()).toBe(0);
     expect(engine.getCurrentTime()).toBe(0);
     expect(() => engine.play()).not.toThrow();
+  });
+
+  it("reports that the stems are live once they have decoded", async () => {
+    const engine = new AudioEngine();
+    await expect(engine.load("/s", STEMS, containersFor(STEMS))).resolves.toBe(true);
+  });
+
+  it("resolves false when destroyed while still loading (React StrictMode cleanup)", async () => {
+    ws.config.autoReady = false;
+    const engine = new AudioEngine();
+    const loading = engine.load("/s", STEMS, containersFor(STEMS));
+    engine.destroy();
+    ws.instances.forEach((s) => s.emit("ready"));
+    await expect(loading).resolves.toBe(false);
+    expect(engine.getDuration()).toBe(0);
+  });
+
+  it("tells a load that a newer load replaced it, even when its own stems finish decoding late", async () => {
+    ws.config.autoReady = false;
+    const engine = new AudioEngine();
+    const first = engine.load("/s", STEMS, containersFor(STEMS));
+    const firstStems = [...ws.instances];
+    const second = engine.load("/s", STEMS, containersFor(STEMS));
+    const secondStems = ws.instances.slice(firstStems.length);
+    firstStems.forEach((s) => s.emit("ready"));
+    await expect(first).resolves.toBe(false);
+    expect(engine.getDuration()).toBe(0);
+    secondStems.forEach((s) => s.emit("ready"));
+    await expect(second).resolves.toBe(true);
+    expect(engine.getDuration()).toBe(100);
   });
 
   it("rejects with the stem name and the WaveSurfer message when a stem fails to decode", async () => {
