@@ -11,6 +11,7 @@ repository's `wiki/`; this page records how SPS uses it.
 |---|---|
 | `@giamat90/mps-core/metronome`, `/metronomeSync`, `/recorder`, `/zoomPan` | `src/audio/metronome.ts`, `src/lib/metronomeSync.ts`, `src/audio/recorder.ts`, `src/lib/zoomPan.ts` and their tests |
 | `@giamat90/mps-core/updater` | `src/stores/updater.ts` |
+| `@giamat90/mps-core/panels` | new in v0.2.0: `src/stores/panels.ts` builds the analyzer-page store with `createPanelStore`; `PanelMenu` is this app's own |
 | `@giamat90/mps-core/lyrics` | lyric types in `types.ts`, the lyrics wrappers and `onLyricsProgress` in `tauri.ts`, `src/stores/lyrics.ts`, the timing half of `src/lib/lyrics.ts` |
 | `mps_core.lyrics`, `mps_core.version_check`, `mps_core.app` (Python) | `sidecar/lyrics.py`, `sidecar/version_check.py` and their tests |
 

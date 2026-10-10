@@ -2008,6 +2008,84 @@ body,
   gap: 0.5rem;
 }
 
+/* Panels menu: which optional panels the analyzer page shows */
+.panel-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.panel-menu__button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.panel-menu__button:hover,
+.panel-menu__button--active {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.panel-menu__popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 30;
+  min-width: 14rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-surface);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.45);
+}
+
+.panel-menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.panel-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.panel-menu__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.panel-menu__actions button {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.panel-menu__actions button:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
 .analyzer-page__download-all,
 .analyzer-page__export-mix {
   flex-shrink: 0;
