@@ -132,6 +132,7 @@ export class AudioEngine {
           if (otherName !== name) other.seekTo(progress);
         }
         this._seekTake(time);
+        this._notifySeek(time);
       });
     }
 
@@ -215,6 +216,13 @@ export class AudioEngine {
     this._seekTake(time);
   }
 
+  // The rAF tick is the only other source of time updates and it stops while
+  // paused, so without this a click on a waveform would move the audio but
+  // leave the time readout and the lyrics on the old position until Play.
+  private _notifySeek(time: number): void {
+    this._timeUpdateCb?.(Math.max(0, Math.min(this._duration, time)));
+  }
+
   setStemVolume(name: string, volume: number): void {
     if (volume <= 0) this._silentStems.add(name);
     else this._silentStems.delete(name);
@@ -295,6 +303,7 @@ export class AudioEngine {
     this._take.on("interaction", (newTime) => {
       const songTime = newTime - this._takeAudioOffset + this._takeOffset + this._takeManualOffset;
       this.seekTo(songTime);
+      this._notifySeek(songTime);
     });
 
     this._takeIsPlaying = false;
