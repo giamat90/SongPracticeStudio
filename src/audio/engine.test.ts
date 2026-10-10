@@ -314,6 +314,40 @@ describe("user clicks on a waveform keep the others in sync", () => {
   });
 });
 
+describe("a click on a waveform while paused tells the UI the new position", () => {
+  it("a stem click reports the clicked song time", async () => {
+    const { engine, drums } = await loadedEngine();
+    const cb = vi.fn();
+    engine.onTimeUpdate(cb);
+    drums.emit("interaction", 40);
+    expect(cb).toHaveBeenLastCalledWith(40);
+  });
+
+  it("never reports a time outside the song", async () => {
+    const { engine, drums } = await loadedEngine();
+    const cb = vi.fn();
+    engine.onTimeUpdate(cb);
+    drums.emit("interaction", 400);
+    expect(cb).toHaveBeenLastCalledWith(100);
+    drums.emit("interaction", -5);
+    expect(cb).toHaveBeenLastCalledWith(0);
+  });
+
+  it("a take click reports song time through the take's start, audio offset and manual offset", async () => {
+    const { engine } = await loadedEngine();
+    const { take } = await withTake(engine, { duration: 30, start: 20, audioOffset: 2, manual: 1 });
+    const cb = vi.fn();
+    engine.onTimeUpdate(cb);
+    take.emit("interaction", 5);
+    expect(cb).toHaveBeenLastCalledWith(5 - 2 + 20 + 1);
+  });
+
+  it("does not need a registered listener", async () => {
+    const { drums } = await loadedEngine();
+    expect(() => drums.emit("interaction", 10)).not.toThrow();
+  });
+});
+
 // ─── transpose reload ──────────────────────────────────────────────────────
 
 describe("reloadStemsFromPaths", () => {

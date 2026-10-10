@@ -122,3 +122,6 @@ setScrollAll(scrollTime): void {               // shift+wheel, resize reclamp, a
 `onScrollChange(cb)` registers a callback the player store uses to mirror engine-initiated scroll changes (auto-follow, resize reclamp) back into Zustand — the wheel handler updates the store directly since it already has the new values, but auto-follow runs inside the engine with no store access of its own.
 
 The zoom-to-cursor and pan math itself (exponential zoom factor, bounds clamping) is pure and lives in `src/lib/zoomPan.ts` — byte-identical to VPS's copy, designed once for both since neither app had any prior zoom/scroll code to adapt. See [Components: StemView](components.md#timeline-zoompan) for the wheel-handler wiring and the exact formulas.
+
+**Fixed bug (2026-10-10):** clicking a waveform while paused moved the audio but left the time readout and the synced lyrics on the old position until Play. The stem and take `"interaction"` handlers only seeked the other instances, and the rAF tick — the only other source of `onTimeUpdate` — is stopped while paused. They now call `_notifySeek(songTime)`, which pushes the clicked position (clamped to the song) through the same `onTimeUpdate` callback. Seeks that go through the store (`seek`, lyric click, skip buttons) already set `currentTime` themselves.
+
