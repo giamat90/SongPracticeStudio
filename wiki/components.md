@@ -237,3 +237,15 @@ Input + button for pasting a YouTube URL. Validates client-side with a regex bef
 ### SongCard (inline in `LibraryPage`)
 
 Each song in the library list. Shows title, BPM, key, stem count, and a delete button. Clicking the card navigates to `AnalyzerPage` with the song loaded.
+
+## Panel visibility (Panels menu)
+
+The analyzer page lets the user show or hide its optional parts from the **Panels** menu in the header (`src/components/panels/PanelMenu.tsx`). State: `useAnalyzerPanels` in `src/stores/panels.ts` (`createPanelStore` from `@giamat90/mps-core/panels`), persisted under `sps_panels`.
+
+| Panel id | Shows | Default |
+|---|---|---|
+| `chords` | `ChordCarousel` in the topbar and `ChordRow` above the ruler in `StemView` | on |
+| `lyrics` | `LyricsPanel` | on |
+| `takes` | `TakeList` | on |
+
+Always on: the stems timeline, transport, tempo, transpose, mic/output, record. A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
