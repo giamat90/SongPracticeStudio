@@ -98,7 +98,7 @@ fn wait_for_result(
 
 /// Send `cmd` to the (lazily spawned) sidecar and wait for its result. The
 /// sidecar lock is held for the whole exchange, so jobs run one at a time.
-fn run_sidecar_command(
+pub(crate) fn run_sidecar_command(
     state: &SidecarState,
     cmd: &serde_json::Value,
     timeout: Duration,
@@ -626,6 +626,50 @@ pub async fn pitch_shift_song(
     n_steps: i32,
 ) -> Result<serde_json::Value, String> {
     pitch_shift_song_impl(&state, song_dir, stem_names, n_steps)
+}
+
+/// Lyrics sync progress event payload (emitted to frontend as "lyrics-progress").
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LyricsProgress {
+    pub song_id: String,
+    pub progress: f32,
+    pub stage: String,
+}
+
+#[tauri::command]
+pub async fn load_lyrics(song_id: String) -> Result<Option<crate::lyrics::Lyrics>, String> {
+    crate::lyrics::load(&song_id)
+}
+
+#[tauri::command]
+pub async fn sync_lyrics(
+    app: AppHandle,
+    state: State<'_, SidecarState>,
+    song_id: String,
+    text: String,
+    source: Option<String>,
+) -> Result<crate::lyrics::Lyrics, String> {
+    let source = source.unwrap_or_else(|| "paste".to_string());
+    crate::lyrics::sync_impl(&state, &song_id, &text, &source, &mut |progress, stage| {
+        let payload = LyricsProgress { song_id: song_id.clone(), progress, stage: stage.to_string() };
+        if let Err(e) = app.emit("lyrics-progress", payload) {
+            log::warn!("Could not emit lyrics-progress: {e}");
+        }
+    })
+}
+
+#[tauri::command]
+pub async fn find_lyrics(
+    state: State<'_, SidecarState>,
+    song_id: String,
+) -> Result<crate::lyrics::FoundLyrics, String> {
+    crate::lyrics::find_impl(&state, &song_id)
+}
+
+#[tauri::command]
+pub async fn delete_lyrics(song_id: String) -> Result<(), String> {
+    crate::lyrics::delete(&song_id)
 }
 
 /// One track to include in an `export_mix` render. `gain` is the final
