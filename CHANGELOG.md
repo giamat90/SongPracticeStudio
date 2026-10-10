@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.41] - 2026-10-10
+
+### Changed
+- Shared code (metronome, recorder, timeline zoom/pan, auto-update, lyrics engine, yt-dlp version check) now comes from the shared `mps-core` package, which both apps use. No change in behaviour is intended.
+
 ## [0.0.40] - 2026-10-10
 
 ### Added
