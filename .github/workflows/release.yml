@@ -92,7 +92,8 @@ jobs:
         run: |
           $dest = "vendor/ffmpeg/x86_64-pc-windows-msvc"
           New-Item -ItemType Directory -Force $dest | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl.zip" -OutFile ffmpeg.zip
+          # The rolling "latest" release is re-uploaded regularly and answers 404 for a moment: retry.
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-lgpl.zip" -OutFile ffmpeg.zip -MaximumRetryCount 6 -RetryIntervalSec 20
           Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-extracted
           $exe = Get-ChildItem -Path ffmpeg-extracted -Recurse -Filter ffmpeg.exe | Select-Object -First 1
           Copy-Item $exe.FullName "$dest/ffmpeg.exe"
