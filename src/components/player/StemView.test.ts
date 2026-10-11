@@ -93,6 +93,22 @@ describe("StemView take lanes", () => {
     expect(ids.indexOf("takesBar")).toBeLessThan(ids.indexOf("takeTrack"));
   });
 
+  it("puts the takes bar and the lanes in a section of their own, after the stems", async () => {
+    h.state.takes = [mk("a")];
+    h.state.shownTakeIds = ["a"];
+    const html = await render();
+    expect(html.match(/stem-view__takes"/g)).toHaveLength(1);
+    const section = html.indexOf('class="stem-view__takes"');
+    expect(html.lastIndexOf('data-c="stemTrack"')).toBeLessThan(section);
+    expect(html.indexOf('data-c="takesBar"')).toBeGreaterThan(section);
+    expect(html.indexOf('data-c="takeTrack"')).toBeGreaterThan(html.indexOf('data-c="takesBar"'));
+  });
+
+  it("has no takes section while no take is shown", async () => {
+    h.state.takes = [mk("a")];
+    expect(await render()).not.toContain("stem-view__takes");
+  });
+
   it("ignores a shown id that is no longer in the list of takes", async () => {
     h.state.takes = [mk("a")];
     h.state.shownTakeIds = ["a", "ghost"];

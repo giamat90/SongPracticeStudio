@@ -3413,6 +3413,16 @@ button.stem-track__take-name {
   color: var(--text-primary);
 }
 
+/* The recorded takes are a section of their own, apart from the stems. */
+.stem-view__takes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 0.15rem solid var(--bg-surface);
+}
+
 .takes-bar {
   display: flex;
   align-items: center;

@@ -165,8 +165,10 @@ function StemView({ song }: StemViewProps) {
             containerRef={(el) => { stemRefs.current[name] = el; }}
           />
         ))}
-        {shownTakes.length > 0 && <TakesBar />}
-        {shownTakes.map((take) => (
+        {shownTakes.length > 0 && (
+          <div className="stem-view__takes" role="group" aria-label="Recorded takes">
+            <TakesBar />
+            {shownTakes.map((take) => (
           <TakeTrack
             key={take.id}
             take={take}
@@ -179,7 +181,9 @@ function StemView({ song }: StemViewProps) {
               else takeRails.current.delete(take.id);
             }}
           />
-        ))}
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
