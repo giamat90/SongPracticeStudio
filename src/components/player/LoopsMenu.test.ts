@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
     duration: 100,
     metronomeOffset: 0,
     isRecording: false,
+    chordsRevision: 0,
     saveLoop: async () => {},
     renameLoop: async () => {},
     deleteLoop: async () => {},
@@ -20,6 +21,8 @@ const h = vi.hoisted(() => ({
 vi.mock("../../stores/player", () => ({
   usePlayerStore: (sel: (s: unknown) => unknown) => sel(h.state),
 }));
+
+vi.mock("../../lib/tauri", () => ({ readSongChords: vi.fn() }));
 
 import LoopsMenu from "./LoopsMenu";
 

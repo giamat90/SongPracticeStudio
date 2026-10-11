@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { barSections } from "@giamat90/mps-core/loops";
 import { usePlayerStore } from "../../stores/player";
+import { readSongChords } from "../../lib/tauri";
+import { detectSections } from "../../lib/sections";
+import type { ChordSegment } from "../../lib/types";
 
 const SECTION_SIZES = [2, 4, 8, 16];
 const BEATS_PER_BAR = 4;
@@ -22,13 +25,31 @@ export default function LoopsMenu() {
   const renameLoop = usePlayerStore((s) => s.renameLoop);
   const deleteLoop = usePlayerStore((s) => s.deleteLoop);
   const applyLoopRegion = usePlayerStore((s) => s.applyLoopRegion);
+  const chordsRevision = usePlayerStore((s) => s.chordsRevision);
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [sectionBars, setSectionBars] = useState(4);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [chords, setChords] = useState<ChordSegment[]>([]);
   const root = useRef<HTMLDivElement>(null);
+  const hasChords = song?.hasChords ?? false;
+  const songId = song?.id;
+
+  useEffect(() => {
+    if (!open || !hasChords || !songId) return;
+    let cancelled = false;
+    readSongChords(songId)
+      .then((segments) => { if (!cancelled) setChords(segments); })
+      .catch((e: unknown) => console.error("[LoopsMenu] readSongChords failed:", e));
+    return () => { cancelled = true; };
+  }, [open, hasChords, songId, chordsRevision]);
+
+  const detected = useMemo(
+    () => detectSections(chords, { duration, bpm: song?.detectedBpm ?? 0, offset: metronomeOffset }),
+    [chords, duration, song?.detectedBpm, metronomeOffset],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -173,6 +194,31 @@ export default function LoopsMenu() {
           </div>
           {message && <p className="loops-menu__message" role="alert">{message}</p>}
 
+          {hasChords && (
+            <>
+              <h3 className="loops-menu__heading">Sections from the chords</h3>
+              {detected.length === 0 ? (
+                <p className="loops-menu__empty">Not enough chord changes to tell sections apart.</p>
+              ) : (
+                <ul className="loops-menu__list loops-menu__sections">
+                  {detected.map((s) => (
+                    <li key={s.start} className="loops-menu__row">
+                      <button
+                        type="button"
+                        className="loops-menu__apply"
+                        onClick={() => applyLoopRegion(s.start, s.end)}
+                        disabled={isRecording}
+                      >
+                        <span className="loops-menu__name">{s.label === "Intro" ? "Intro" : `Section ${s.label}`}</span>
+                        <span className="loops-menu__time">{formatClock(s.start)}–{formatClock(s.end)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
           <h3 className="loops-menu__heading">
             Bars
             <select
@@ -205,7 +251,7 @@ export default function LoopsMenu() {
               ))}
             </ul>
           )}
-          <p className="loops-menu__hint">Counted from the metronome downbeat, four beats to a bar.</p>
+          <p className="loops-menu__hint">Sections follow where the chord progression changes, in blocks of four bars; sections with the same letter play the same chords. Bars are counted from the metronome downbeat, four beats to a bar.</p>
         </div>
       )}
     </div>
