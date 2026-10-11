@@ -3169,3 +3169,200 @@ body,
   opacity: 1;
   color: var(--accent-hover);
 }
+
+/* Detachable panels: a corner handle on a docked panel, and the detached window */
+.detachable {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detach-handle {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.25rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.detachable:hover .detach-handle,
+.detach-handle--dragging {
+  opacity: 1;
+}
+
+.detach-handle__grip,
+.detach-handle__pop {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+}
+
+.detach-handle__grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.detach-handle--dragging .detach-handle__grip {
+  cursor: grabbing;
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.detach-handle__pop:hover,
+.detach-handle__grip:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.detach-handle__hint {
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  white-space: nowrap;
+}
+
+.detached-host {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.detached-host__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.detached-host__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.dock-handle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dock-handle__grip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.dock-handle__grip:hover,
+.dock-handle--dragging .dock-handle__grip {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.dock-handle--dragging .dock-handle__grip {
+  cursor: grabbing;
+}
+
+.dock-handle__hint {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dock-handle--over .dock-handle__hint {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.detached-host__dock {
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detached-host__dock:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.detached-host__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.detached-host__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detached-host__waiting {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* A panel that rendered nothing (vibrato without a take) leaves only its handle: hide that too. */
+.detachable > .detach-handle:only-child {
+  display: none;
+}
+
+.panel-menu__tag {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+}
+
+/* A panel in a row of controls (the chord carousel) keeps its handle beside it, not over it. */
+.detachable--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.detachable--inline > .detach-handle {
+  position: static;
+}
+
+.detachable--inline > .chord-carousel {
+  margin-left: 0;
+}
+
+.detached-host__body .chord-carousel {
+  margin: 0 auto;
+}

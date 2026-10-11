@@ -12,7 +12,8 @@ const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 const tauriTs = read("src/lib/tauri.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/lyrics/ipc.ts");
-const commandsRs = read("src-tauri/src/commands.rs");
+// Commands live in more than one module; the handler list in lib.rs names each by module.
+const commandsRs = read("src-tauri/src/commands.rs") + "\n" + read("src-tauri/src/windows.rs");
 const libRs = read("src-tauri/src/lib.rs");
 
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -38,7 +39,8 @@ function rustCommands(): Map<string, RustParam[]> {
       const p = raw.trim().match(/^(\w+)\s*:\s*([\s\S]+)$/);
       if (!p) continue;
       const [, name, type] = p;
-      if (type.startsWith("AppHandle") || type.startsWith("State<") || type.startsWith("tauri::State")) continue;
+      // Injected by Tauri, never sent by the frontend.
+      if (/^(AppHandle|State<|tauri::State|WebviewWindow|Window)/.test(type)) continue;
       params.push({ name: camel(name), optional: type.trim().startsWith("Option<") });
     }
     out.set(m[1], params);
@@ -61,7 +63,7 @@ function tsInvokes(): TsInvoke[] {
 describe("IPC contract between src/lib/tauri.ts and src-tauri", () => {
   const rust = rustCommands();
   const handlerBlock = libRs.match(/generate_handler!\[([\s\S]*?)\]/)?.[1] ?? "";
-  const registered = new Set([...handlerBlock.matchAll(/commands::(\w+)/g)].map((m) => m[1]));
+  const registered = new Set([...handlerBlock.matchAll(/(?:commands|windows)::(\w+)/g)].map((m) => m[1]));
   const invokes = tsInvokes();
 
   it("parses a plausible number of commands on both sides (guards the regexes themselves)", () => {

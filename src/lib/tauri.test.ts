@@ -43,6 +43,12 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["exportTake", () => api.exportTake("/t.wav", "take.wav"), "export_take", { takePath: "/t.wav", suggestedName: "take.wav" }],
     ["exportMix", () => api.exportMix([{ path: "/p", gain: 1, isTake: false }], 1, 9, "mix.wav"), "export_mix",
       { sources: [{ path: "/p", gain: 1, isTake: false }], startSec: 1, endSec: 9, suggestedName: "mix.wav" }],
+    ["detachPanel", () => api.detachPanel("lyrics", 2460, 584), "detach_panel", { panelId: "lyrics", x: 2460, y: 584 }],
+    ["detachPanelRemembered", () => api.detachPanel("takes"), "detach_panel", { panelId: "takes", x: null, y: null }],
+    ["closeDetachedPanel", () => api.closeDetachedPanel("chords"), "close_detached_panel", { panelId: "chords" }],
+    ["dockPanel", () => api.dockPanel(), "dock_panel", undefined],
+    ["cursorOverMain", () => api.cursorOverMain(), "cursor_over_main", undefined],
+    ["closeDetachedWindows", () => api.closeDetachedWindows(), "close_detached_windows", undefined],
     ["pitchShiftSong", () => api.pitchShiftSong("/dir", ["vocals", "bass"], -2), "pitch_shift_song",
       { songDir: "/dir", stemNames: ["vocals", "bass"], nSteps: -2 }],
   ];

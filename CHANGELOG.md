@@ -6,6 +6,13 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [Unreleased]
+
+### Added
+- The chord display, the lyrics panel and the takes list can be dragged out of the window into a window of their own, for a second monitor, or popped out with their button. The detached window follows playback and the selected take; clicking a lyric line seeks, and selecting, renaming, deleting or downloading a take works from it. Dock it with its button, by closing it, or by carrying its grip over the main window.
+- A detached window opens where it was last (and the same size) when that is still on a connected monitor.
+- The Panels menu marks panels that are in their own window, and hiding one closes its window.
+
 ## [0.0.42] - 2026-10-10
 
 ### Added

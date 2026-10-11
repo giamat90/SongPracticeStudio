@@ -1,22 +1,26 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { PanelDef, PanelStore } from "@giamat90/mps-core/panels";
+import { useDetachedStore } from "../../stores/detached";
 
 interface PanelMenuListProps {
   panels: readonly PanelDef[];
   visible: Readonly<Record<string, boolean>>;
+  /** Panels that are in a window of their own. */
+  detached?: Readonly<Partial<Record<string, boolean>>>;
   onToggle: (id: string) => void;
   onShowAll: () => void;
   onHideAll: () => void;
   onReset: () => void;
 }
 
-export function PanelMenuList({ panels, visible, onToggle, onShowAll, onHideAll, onReset }: PanelMenuListProps) {
+export function PanelMenuList({ panels, visible, detached, onToggle, onShowAll, onHideAll, onReset }: PanelMenuListProps) {
   return (
     <div className="panel-menu__list" role="group" aria-label="Visible panels">
       {panels.map((p) => (
         <label key={p.id} className="panel-menu__item">
           <input type="checkbox" checked={!!visible[p.id]} onChange={() => onToggle(p.id)} />
           <span>{p.label}</span>
+          {detached?.[p.id] && <span className="panel-menu__tag">own window</span>}
         </label>
       ))}
       <div className="panel-menu__actions">
@@ -38,6 +42,7 @@ function PanelMenu<Id extends string>({ store, panels }: PanelMenuProps<Id>) {
   const root = useRef<HTMLDivElement>(null);
   const listId = useId();
   const visible = store((s) => s.visible);
+  const detached = useDetachedStore((s) => s.detached);
   const { toggle, showAll, hideAll, reset } = store.getState();
   const shown = panels.filter((p) => visible[p.id]).length;
 
@@ -74,6 +79,7 @@ function PanelMenu<Id extends string>({ store, panels }: PanelMenuProps<Id>) {
           <PanelMenuList
             panels={panels}
             visible={visible}
+            detached={detached}
             onToggle={(id) => toggle(id as Id)}
             onShowAll={showAll}
             onHideAll={hideAll}

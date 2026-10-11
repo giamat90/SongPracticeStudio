@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "detached",
+  "description": "Windows holding a panel dragged out of the main window: they only exchange events with it and call the app's own commands, with no dialog or updater access.",
+  "windows": [
+    "detached-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:event:default"
+  ]
+}

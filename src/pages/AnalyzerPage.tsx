@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import StemView from "../components/player/StemView";
 import DownloadAllButton from "../components/player/DownloadAllButton";
 import ExportMixButton from "../components/player/ExportMixButton";
@@ -13,10 +13,24 @@ import RecordButton from "../components/recording/RecordButton";
 import TakeList from "../components/recording/TakeList";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
 import PanelMenu from "../components/panels/PanelMenu";
+import DetachHandle from "../components/panels/DetachHandle";
 import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
+import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels } from "../stores/panels";
 import { canSyncLyrics } from "../lib/lyrics";
+import type { DetachablePanel } from "../windows/protocol";
+import { useMainBridge } from "../windows/useMainBridge";
+
+/** A panel with the corner handle that moves it into a window of its own. */
+function Detachable({ panel, inline, children }: { panel: DetachablePanel; inline?: boolean; children: ReactNode }) {
+  return (
+    <div className={`detachable${inline ? " detachable--inline" : ""}`}>
+      <DetachHandle panel={panel} />
+      {children}
+    </div>
+  );
+}
 
 interface AnalyzerPageProps {
   songId: string;
@@ -28,6 +42,12 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const cleanup = usePlayerStore((s) => s.cleanup);
   const song    = songs.find((s) => s.id === songId);
   const visible = useAnalyzerPanels((s) => s.visible);
+  const detached = useDetachedStore((s) => s.detached);
+
+  useMainBridge();
+
+  // On screen in this window: wanted, and not living in a window of its own.
+  const docked = (id: DetachablePanel) => visible[id] && !detached[id];
 
   useEffect(() => {
     return () => { cleanup(); };
@@ -72,19 +92,29 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <OutputSelector />
         </div>
         <RecordButton />
-        {visible.chords && <ChordCarousel song={song} />}
+        {docked("chords") && (
+          <Detachable panel="chords" inline>
+            <ChordCarousel song={song} />
+          </Detachable>
+        )}
       </div>
 
       <div className="analyzer-page__body">
-        {visible.lyrics && <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />}
+        {docked("lyrics") && (
+          <Detachable panel="lyrics">
+            <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />
+          </Detachable>
+        )}
 
         <div className="analyzer-page__stems">
           <StemView song={song} />
         </div>
 
-        {visible.takes && (
+        {docked("takes") && (
           <div className="analyzer-page__takes">
-            <TakeList />
+            <Detachable panel="takes">
+              <TakeList />
+            </Detachable>
           </div>
         )}
       </div>

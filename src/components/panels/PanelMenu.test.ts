@@ -29,6 +29,17 @@ describe("PanelMenuList", () => {
     expect(html.indexOf('checked=""')).toBeLessThan(html.indexOf("Beta"));
   });
 
+  it("marks the panels that are in a window of their own", () => {
+    const html = renderToStaticMarkup(createElement(PanelMenuList, listProps({ detached: { a: true } })));
+    expect(html.match(/panel-menu__tag/g)).toHaveLength(1);
+    expect(html.indexOf("panel-menu__tag")).toBeGreaterThan(html.indexOf("Alpha"));
+    expect(html.indexOf("panel-menu__tag")).toBeLessThan(html.indexOf("Beta"));
+  });
+
+  it("marks nothing when nothing is detached", () => {
+    expect(renderToStaticMarkup(createElement(PanelMenuList, listProps()))).not.toContain("panel-menu__tag");
+  });
+
   it("offers show all, hide all and reset", () => {
     const html = renderToStaticMarkup(createElement(PanelMenuList, listProps()));
     for (const label of ["Show all", "Hide all", "Reset"]) expect(html).toContain(label);
