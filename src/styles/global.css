@@ -3366,3 +3366,49 @@ body,
 .detached-host__body .chord-carousel {
   margin: 0 auto;
 }
+
+/* Several takes at once: the one that is heard is lit, the others stay as silent lanes */
+.take-item--shown {
+  border-color: var(--bg-surface);
+  opacity: 0.85;
+}
+
+.take-item__state {
+  flex-shrink: 0;
+  width: 1rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.take-item--active .take-item__state {
+  color: var(--accent);
+}
+
+button.stem-track__take-name {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.stem-track--silent .waveform__take-rail {
+  opacity: 0.45;
+}
+
+.stem-track__take-hide {
+  background: transparent;
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+}
+
+.stem-track__take-hide:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}

@@ -3,6 +3,7 @@ import { AudioEngine } from "../audio/engine";
 import { VocalRecorder } from "@giamat90/mps-core/recorder";
 import type { Song, StemName, Take } from "../lib/types";
 import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, pitchShiftSong } from "../lib/tauri";
+import { hideTake, reconcileTakes, showTake, toggleTake, type TakeSelection } from "@giamat90/mps-core/takes";
 import { metronome } from "@giamat90/mps-core/metronome";
 import { countInDurationSeconds } from "@giamat90/mps-core/metronomeSync";
 
@@ -105,6 +106,8 @@ interface PlayerState {
   isRecording: boolean;
   isSavingTake: boolean;
   takes: Take[];
+  // Takes with a lane on screen (in the order they were shown), and the one that is heard.
+  shownTakeIds: string[];
   activeTakeId: string | null;
   takeVolume: number;
   // Per-device recording latency calibration, persisted to localStorage
@@ -162,6 +165,9 @@ interface PlayerActions {
   renameTake: (takeId: string, name: string) => Promise<void>;
   setTakeManualOffset: (takeId: string, offset: number) => void;
   setActiveTake: (takeId: string) => void;
+  // A click in the takes list: show it, switch to it, or hide it when it is the active one
+  toggleTake: (takeId: string) => void;
+  hideTake: (takeId: string) => void;
   setTakeVolume: (v: number) => void;
   // Timeline zoom/pan actions
   setZoom: (minPxPerSec: number, scrollTime: number) => void;
@@ -253,7 +259,21 @@ export function buildMixSources(state: PlayerState): {
   };
 }
 
-export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => ({
+const selectionOf = (s: { shownTakeIds: string[]; activeTakeId: string | null }): TakeSelection => ({
+  shown: s.shownTakeIds,
+  active: s.activeTakeId,
+});
+
+export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => {
+  const applySelection = (next: TakeSelection) => {
+    set({ shownTakeIds: [...next.shown], activeTakeId: next.active });
+    const eng = getEngine();
+    eng.setActiveTakeTrack(next.active);
+    const { song, stemVolumes, mutedStems, soloedStem, takeVolume } = get();
+    if (song) applyEffectiveVolumes(eng, song.stems, stemVolumes, mutedStems, soloedStem, takeVolume);
+  };
+
+  return {
   song: null,
   isPlaying: false,
   currentTime: 0,
@@ -274,6 +294,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   isRecording: false,
   isSavingTake: false,
   takes: [],
+  shownTakeIds: [],
   activeTakeId: null,
   takeVolume: 1.0,
   recordingOffsets: _loadOffsets(),
@@ -336,6 +357,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       transpose: 0,
       isTransposing: false,
       takes: [],
+      shownTakeIds: [],
       activeTakeId: null,
       takeVolume: 1.0,
       isRecording: false,
@@ -462,6 +484,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       isRecording: false,
       isSavingTake: false,
       takes: [],
+      shownTakeIds: [],
       activeTakeId: null,
       takeVolume: 1.0,
     });
@@ -569,15 +592,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const { song } = get();
     if (!song) return;
 
-    // Deselect any active take before recording a new one. The previous take
-    // stays saved (takes.json is never touched) and re-selectable from the
-    // take list, but it's dropped from playback so the performer records
-    // against the stem mix alone — not their last attempt. Nulling
-    // activeTakeId drives StemView's clearTakeTrack() via its activeTakeId
-    // effect; the direct clearTakeTrack() closes the gap before React flushes.
+    // Silence the active take before recording a new one. Every take stays
+    // saved (takes.json is never touched) and shown, but none is heard, so the
+    // performer records against the stem mix alone — not their last attempt.
     if (get().activeTakeId) {
       set({ activeTakeId: null });
-      getEngine().clearTakeTrack();
+      getEngine().setActiveTakeTrack(null);
     }
 
     const eng = getEngine();
@@ -717,12 +737,17 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
         );
       }
 
+      // Show and select the new take — StemView loads it into a lane of its
+      // own; the takes already shown stay where they are.
+      const next = showTake(selectionOf(get()), take.id);
       set((state) => ({
         isSavingTake: false,
         currentTime: 0,
         takes: [...state.takes, take],
-        activeTakeId: take.id,
+        shownTakeIds: [...next.shown],
+        activeTakeId: next.active,
       }));
+      getEngine().setActiveTakeTrack(next.active);
     } catch (e) {
       rec.releaseStream();
       set({ isSavingTake: false, currentTime: 0 });
@@ -734,17 +759,22 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const { song } = get();
     if (!song) return;
     const takes = await listTakes(song.id);
-    set({ takes });
+    const next = reconcileTakes(selectionOf(get()), takes.map((t) => t.id));
+    set({ takes, shownTakeIds: [...next.shown], activeTakeId: next.active });
+    getEngine().setActiveTakeTrack(next.active);
   },
 
   deleteTake: async (takeId) => {
     const { song } = get();
     if (!song) return;
     await deleteTakeApi(song.id, takeId);
+    const next = hideTake(selectionOf(get()), takeId);
     set((state) => ({
       takes: state.takes.filter((t) => t.id !== takeId),
-      activeTakeId: state.activeTakeId === takeId ? null : state.activeTakeId,
+      shownTakeIds: [...next.shown],
+      activeTakeId: next.active,
     }));
+    getEngine().setActiveTakeTrack(next.active);
   },
 
   renameTake: async (takeId, name) => {
@@ -767,13 +797,17 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const rounded = Math.round(offset * 100) / 100;
     const updated = { ...take, manualOffset: rounded || undefined };
     set({ takes: takes.map((t) => (t.id === takeId ? updated : t)) });
-    getEngine().setTakeManualOffset(rounded);
+    getEngine().setTakeManualOffset(takeId, rounded);
     setTakeManualOffsetApi(song.id, takeId, rounded).catch((e: unknown) =>
       console.error("[player] failed to persist take manual offset:", e)
     );
   },
 
-  setActiveTake: (takeId) => set({ activeTakeId: takeId }),
+  setActiveTake: (takeId) => applySelection(showTake(selectionOf(get()), takeId)),
+
+  toggleTake: (takeId) => applySelection(toggleTake(selectionOf(get()), takeId)),
+
+  hideTake: (takeId) => applySelection(hideTake(selectionOf(get()), takeId)),
 
   setTakeVolume: (v) => {
     set({ takeVolume: v });
@@ -821,4 +855,5 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     _countInResolve = null;
     resolve(false);
   },
-}));
+  };
+});

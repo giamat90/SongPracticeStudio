@@ -34,6 +34,8 @@ export interface SharedState {
   song: Song | null;
   duration: number;
   activeTakeId: string | null;
+  /** Takes with a lane on screen, in the order they were shown. */
+  shownTakeIds: string[];
   takes: Take[];
 }
 
@@ -41,7 +43,7 @@ export type StateMessage = CoreStateMessage<SharedState>;
 
 export type Command =
   | { type: "seek"; time: number }
-  | { type: "setActiveTake"; id: string }
+  | { type: "toggleTake"; id: string }
   | { type: "deleteTake"; id: string }
   | { type: "renameTake"; id: string; name: string };
 
@@ -53,7 +55,7 @@ export function parseCommand(value: unknown): Command | null {
   switch (value.type) {
     case "seek":
       return isNumber(value.time) && value.time >= 0 ? { type: "seek", time: value.time } : null;
-    case "setActiveTake":
+    case "toggleTake":
     case "deleteTake":
       return isId(value.id) ? { type: value.type, id: value.id } : null;
     case "renameTake":
@@ -71,6 +73,8 @@ export function isSharedState(value: unknown): value is SharedState {
     isObjectOrNull(value.song) &&
     isNumber(value.duration) &&
     isStringOrNull(value.activeTakeId) &&
+    Array.isArray(value.shownTakeIds) &&
+    value.shownTakeIds.every(isId) &&
     Array.isArray(value.takes) &&
     value.takes.every((t) => isObject(t) && isId(t.id))
   );

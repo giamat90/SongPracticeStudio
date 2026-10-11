@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [Unreleased]
+
+### Added
+- Several recorded takes can be shown at the same time, each on its own lane, and you can switch between them while playing. Only the take marked ▶ in the Takes list is heard; click another shown take to play that one instead (nothing restarts), or its name on the lane.
+
+### Changed
+- Clicking the take that is playing in the Takes list now hides it (before, a take could not be hidden once shown). A lane also has its own × button. A recording no longer removes the takes from the screen; they are silenced until you pick one.
+
 ## [0.0.43] - 2026-10-11
 
 ### Added

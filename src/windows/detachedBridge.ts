@@ -1,3 +1,4 @@
+import { toggleTake } from "@giamat90/mps-core/takes";
 import { createDetachedBridge } from "@giamat90/mps-core/windows";
 import type { Take } from "../lib/types";
 import { isSharedState, type Command, type DetachablePanel, type SharedState } from "./protocol";
@@ -15,9 +16,10 @@ export interface DetachedPlayer {
   isPlaying: boolean;
   playbackRate: number;
   activeTakeId: string | null;
+  shownTakeIds: string[];
   takes: Take[];
   seek: (time: number) => void;
-  setActiveTake: (id: string) => void;
+  toggleTake: (id: string) => void;
   deleteTake: (id: string) => Promise<void>;
   renameTake: (id: string, name: string) => Promise<void>;
   /** The takes list asks for the takes when it mounts; here they are mirrored instead. */
@@ -54,6 +56,7 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
         duration: shared.duration,
         takes: shared.takes,
         activeTakeId: shared.activeTakeId,
+        shownTakeIds: shared.shownTakeIds,
         isPlaying: transport.playing,
         playbackRate: transport.rate,
         currentTime,
@@ -66,9 +69,11 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
       bridge.seekLocal(time);
       bridge.command({ type: "seek", time });
     },
-    setActiveTake: (id) => {
-      player.setState({ activeTakeId: id });
-      bridge.command({ type: "setActiveTake", id });
+    toggleTake: (id) => {
+      const { shownTakeIds, activeTakeId } = player.getState();
+      const next = toggleTake({ shown: shownTakeIds, active: activeTakeId }, id);
+      player.setState({ shownTakeIds: [...next.shown], activeTakeId: next.active });
+      bridge.command({ type: "toggleTake", id });
     },
     deleteTake: async (id) => bridge.command({ type: "deleteTake", id }),
     renameTake: async (id, name) => bridge.command({ type: "renameTake", id, name }),

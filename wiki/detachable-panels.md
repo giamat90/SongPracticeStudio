@@ -9,8 +9,8 @@ The main window stays the only owner of the audio engine, the microphone, record
 | Event | Direction | Content |
 |---|---|---|
 | `mps:hello` | detached → main | `{ panelId }`, once, after listening |
-| `mps:state` | main → detached | transport snapshot `{ time, playing, rate, sentAt }` and the shared state: song, duration, takes, active take id |
-| `mps:command` | detached → main | `seek`, `setActiveTake`, `deleteTake`, `renameTake` |
+| `mps:state` | main → detached | transport snapshot `{ time, playing, rate, sentAt }` and the shared state: song, duration, takes, active take id, which takes are shown |
+| `mps:command` | detached → main | `seek`, `toggleTake`, `deleteTake`, `renameTake` |
 | `mps:docked` | Rust → main | panel id, when its window is destroyed |
 
 Time is not streamed 30 times a second: the detached window extrapolates from the snapshot (`RemoteClock`) and the main window only resends on a change, a seek or a 1 s heartbeat. Until a window says hello the main window publishes nothing and runs no timer. Takes are small here (no analysis arrays), so the whole list is mirrored, and the takes list's `fetchTakes()` is replaced by a no-op in the detached window.

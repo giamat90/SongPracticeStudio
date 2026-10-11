@@ -127,3 +127,13 @@ The zoom-to-cursor and pan math itself (exponential zoom factor, bounds clamping
 
 **Fixed bug (2026-10-10):** clicking a waveform while paused moved the audio but left the time readout and the synced lyrics on the old position until Play. The stem and take `"interaction"` handlers only seeked the other instances, and the rAF tick — the only other source of `onTimeUpdate` — is stopped while paused. They now call `_notifySeek(songTime)`, which pushes the clicked position (clamped to the song) through the same `onTimeUpdate` callback. Seeks that go through the store (`seek`, lyric click, skip buttons) already set `currentTime` themselves.
 
+## Several takes at once (2026-10-11)
+
+The engine keeps a `Map<id, TakeTrack>` instead of one `_take`: every take with a lane on screen has its own WaveSurfer, rail container, start / audio-file / manual offsets and window state. Only one is **active**, which is the audible one.
+
+- `loadTakeTrack(id, filePath, container, startOffset, audioOffset, manualOffset)`; loading an id that is already loaded replaces it. A take removed while it was still decoding is destroyed when it finishes instead of leaking.
+- `setActiveTakeTrack(id | null)` chooses who is heard (`activeTakeId` reads it back); `setTakeVolume(v)` is the active take's effective volume (mute / solo already applied by the store). Every other loaded take has volume 0 **but keeps playing in its window and being drift-corrected**, so switching is instant and nothing re-seeks.
+- `setTakeManualOffset(id, offset)`, `removeTakeTrack(id)`, `clearTakeTrack()` (all).
+- Play / pause / seek / rate / output device / interact / zoom / scroll / window sync / drift correction loop over every loaded take.
+
+Which takes are shown and which is active is the store's `shownTakeIds` / `activeTakeId` (pure transitions in `@giamat90/mps-core/takes`); `StemView` loads and removes engine tracks to match. Clicking a take in the list shows it and plays it, clicking a shown take switches to it, clicking the playing take hides it (the most recently shown remaining take is played instead). Starting a recording silences the active take but keeps the lanes. Mute / solo / volume on a take lane are the single "take" channel and appear on the active lane only.

@@ -12,9 +12,10 @@ function harness() {
     duration: 200,
     playbackRate: 1,
     activeTakeId: null,
+    shownTakeIds: [],
     takes: [take("t1"), take("t2")],
     seek: vi.fn(),
-    setActiveTake: vi.fn(),
+    toggleTake: vi.fn(),
     deleteTake: vi.fn(async () => {}),
     renameTake: vi.fn(async () => {}),
   };
@@ -80,11 +81,11 @@ describe("analyzer main bridge", () => {
     const h = harness();
     await h.bridge;
     h.fire(EVT_COMMAND, { type: "seek", time: 7 });
-    h.fire(EVT_COMMAND, { type: "setActiveTake", id: "t2" });
+    h.fire(EVT_COMMAND, { type: "toggleTake", id: "t2" });
     h.fire(EVT_COMMAND, { type: "renameTake", id: "t1", name: "Chorus" });
     h.fire(EVT_COMMAND, { type: "deleteTake", id: "t1" });
     expect(h.state.seek).toHaveBeenCalledWith(7);
-    expect(h.state.setActiveTake).toHaveBeenCalledWith("t2");
+    expect(h.state.toggleTake).toHaveBeenCalledWith("t2");
     expect(h.state.renameTake).toHaveBeenCalledWith("t1", "Chorus");
     expect(h.state.deleteTake).toHaveBeenCalledWith("t1");
   });
@@ -94,9 +95,9 @@ describe("analyzer main bridge", () => {
     const h = harness();
     await h.bridge;
     h.fire(EVT_COMMAND, { type: "deleteTake", id: "nope" });
-    h.fire(EVT_COMMAND, { type: "setActiveTake", id: "nope" });
+    h.fire(EVT_COMMAND, { type: "toggleTake", id: "nope" });
     expect(h.state.deleteTake).not.toHaveBeenCalled();
-    expect(h.state.setActiveTake).not.toHaveBeenCalled();
+    expect(h.state.toggleTake).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledTimes(2);
   });
 

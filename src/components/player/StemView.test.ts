@@ -10,6 +10,7 @@ const h = vi.hoisted(() => {
   const state = {
     loadSong: async () => {},
     activeTakeId: null as string | null,
+    shownTakeIds: [] as string[],
     takes: [] as unknown[],
     takeVolume: 1,
     setTakeVolume: () => {},
@@ -41,6 +42,7 @@ const shown = (html: string) => [...html.matchAll(/data-c="(\w+)"/g)].map((m) =>
 beforeEach(() => {
   localStorage.clear();
   h.state.activeTakeId = null;
+  h.state.shownTakeIds = [];
   h.state.takes = [];
 });
 

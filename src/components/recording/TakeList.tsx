@@ -18,7 +18,8 @@ function TakeList() {
   const takes = usePlayerStore((s) => s.takes);
   const activeTakeId = usePlayerStore((s) => s.activeTakeId);
   const fetchTakes = usePlayerStore((s) => s.fetchTakes);
-  const setActiveTake = usePlayerStore((s) => s.setActiveTake);
+  const shownTakeIds = usePlayerStore((s) => s.shownTakeIds);
+  const toggleTake = usePlayerStore((s) => s.toggleTake);
   const deleteTake = usePlayerStore((s) => s.deleteTake);
   const renameTake = usePlayerStore((s) => s.renameTake);
 
@@ -68,12 +69,23 @@ function TakeList() {
   return (
     <div className="take-list">
       <h3 className="take-list__title">Takes</h3>
-      {takes.map((take, i) => (
+      {takes.map((take, i) => {
+        const isActive = activeTakeId === take.id;
+        const isShown = shownTakeIds.includes(take.id);
+        return (
         <div
           key={take.id}
-          className={`take-item ${activeTakeId === take.id ? "take-item--active" : ""}`}
-          onClick={() => setActiveTake(take.id)}
+          className={`take-item${isActive ? " take-item--active" : isShown ? " take-item--shown" : ""}`}
+          onClick={() => toggleTake(take.id)}
+          title={isActive ? "Playing. Click to hide this take" : isShown ? "Shown. Click to play this one" : "Click to show this take"}
+          aria-pressed={isShown}
         >
+          <span
+            className="take-item__state"
+            aria-label={isActive ? "playing" : isShown ? "shown" : "hidden"}
+          >
+            {isActive ? "\u25B6" : isShown ? "\u25CF" : "\u25CB"}
+          </span>
           <div className="take-item__info">
             {editingId === take.id ? (
               <input
@@ -130,7 +142,8 @@ function TakeList() {
             </button>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -76,7 +76,7 @@ function TakeSyncControls({ take }: { take: Take }) {
       setDragging(true);
     }
     const newOffset = d.startOffset + deltaPx / minPxPerSec;
-    getEngine().setTakeManualOffset(newOffset);
+    getEngine().setTakeManualOffset(take.id, newOffset);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -181,11 +181,14 @@ function TakeSyncControls({ take }: { take: Take }) {
 
 interface TakeTrackProps {
   take: Take;
+  label: string;
+  /** The take that is heard; the other shown takes keep their lane but are silent. */
+  isActive: boolean;
   song: Song;
   containerRef: RefCallback<HTMLDivElement>;
 }
 
-function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
+function TakeTrack({ take, label, isActive, song, containerRef }: TakeTrackProps) {
   const volume        = usePlayerStore((s) => s.takeVolume);
   const setTakeVolume  = usePlayerStore((s) => s.setTakeVolume);
   const isMuted        = usePlayerStore((s) => !!s.mutedStems[TAKE_TRACK_KEY]);
@@ -193,9 +196,9 @@ function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
   const isSoloed       = soloedStem === TAKE_TRACK_KEY;
   const toggleMute     = usePlayerStore((s) => s.toggleMute);
   const toggleSolo     = usePlayerStore((s) => s.toggleSolo);
+  const setActiveTake  = usePlayerStore((s) => s.setActiveTake);
+  const hideTake       = usePlayerStore((s) => s.hideTake);
   const [isExporting, setIsExporting] = useState(false);
-
-  const label = take.name || "Take";
 
   const handleDownload = async () => {
     setIsExporting(true);
@@ -209,37 +212,57 @@ function TakeTrack({ take, song, containerRef }: TakeTrackProps) {
   };
 
   return (
-    <div className="stem-track">
+    <div className={`stem-track stem-track--take${isActive ? " stem-track--active" : " stem-track--silent"}`}>
       <div className="stem-track__header">
-        <span className="stem-track__label waveform__label--take">🎙 {label}</span>
+        <button
+          type="button"
+          className="stem-track__label waveform__label--take stem-track__take-name"
+          onClick={() => setActiveTake(take.id)}
+          title={isActive ? "This take is playing" : "Play this take instead"}
+          aria-pressed={isActive}
+        >
+          🎙 {label}
+        </button>
         <div className="stem-track__controls">
           <TakeSyncControls take={take} />
+          {isActive && (
+            <>
+              <button
+                className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
+                onClick={() => toggleMute(TAKE_TRACK_KEY)}
+                title={isMuted ? "Unmute" : "Mute"}
+                aria-label={isMuted ? "Unmute" : "Mute"}
+              >
+                M
+              </button>
+              <button
+                className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
+                onClick={() => toggleSolo(TAKE_TRACK_KEY)}
+                title={isSoloed ? "Unsolo" : "Solo"}
+                aria-label={isSoloed ? "Unsolo" : "Solo"}
+              >
+                S
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={(e) => setTakeVolume(Number(e.target.value))}
+                className="stem-track__volume"
+                title="Take volume"
+              />
+            </>
+          )}
           <button
-            className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
-            onClick={() => toggleMute(TAKE_TRACK_KEY)}
-            title={isMuted ? "Unmute" : "Mute"}
-            aria-label={isMuted ? "Unmute" : "Mute"}
+            className="stem-track__take-hide"
+            onClick={() => hideTake(take.id)}
+            title="Hide this take (it stays in the list)"
+            aria-label={`Hide ${label}`}
           >
-            M
+            &times;
           </button>
-          <button
-            className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
-            onClick={() => toggleSolo(TAKE_TRACK_KEY)}
-            title={isSoloed ? "Unsolo" : "Solo"}
-            aria-label={isSoloed ? "Unsolo" : "Solo"}
-          >
-            S
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={(e) => setTakeVolume(Number(e.target.value))}
-            className="stem-track__volume"
-            title="Take volume"
-          />
           <button
             className="stem-track__download"
             onClick={handleDownload}
