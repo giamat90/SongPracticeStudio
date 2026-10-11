@@ -23,6 +23,8 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["importYoutube", () => api.importYoutube("u", ["drums"], false, "/c.txt"), "import_youtube",
       { url: "u", stemsToExtract: ["drums"], highQuality: false, cookiesPath: "/c.txt" }],
     ["renameSongApi", () => api.renameSongApi("s1", "New"), "rename_song", { songId: "s1", title: "New" }],
+    ["readBassTab", () => api.readBassTab("s1"), "read_bass_tab", { songId: "s1" }],
+    ["exportFile", () => api.exportFile([1, 2], "a.txt"), "export_file", { data: [1, 2], suggestedName: "a.txt" }],
     ["readSongChords", () => api.readSongChords("s1"), "read_song_chords", { songId: "s1" }],
     ["listFolders", () => api.listFolders(), "list_folders", undefined],
     ["createFolder", () => api.createFolder("Band"), "create_folder", { name: "Band" }],

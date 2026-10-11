@@ -130,6 +130,12 @@ Mounts/destroys the `AudioEngine` whenever `song.id` changes. Iterates `song.ste
 
 `@giamat90/mps-core/zoomPan` holds the pure math (one copy, shared with VPS): `computeZoomToCursor()` keeps the exact song-time under the mouse cursor fixed on screen while `minPxPerSec` changes by an exponential factor of wheel delta (`Math.exp(-deltaY * ZOOM_SENSITIVITY)` — proportional zoom feels consistent regardless of current zoom level, unlike a fixed additive step); `computePan()` shifts `scrollTime` by `deltaPx / minPxPerSec`. Both clamp `scrollTime` into `[0, max(0, duration - viewportWidthPx/minPxPerSec)]` and `minPxPerSec` into `[dynamicLowerBound, MAX_PX_PER_SEC]` — the lower bound comes from `eng.getMinPxPerSec()` (the "whole song fills the container" floor), so zooming out can never scroll past the song's edges.
 
+### BassTabPanel / ExportChartButton
+
+`BassTabPanel` (below `StemView` in `.analyzer-page__stems`) reads `bass_tab.json` through `read_bass_tab` and draws a four-string tab on a canvas: a 6 s window with the playhead a quarter of the way in (`tabWindowStart`, `tabTimeToX` in `src/lib/bassTab.ts`), fret numbers on the string rows, the sounding note in the accent colour. Clicking seeks. It renders nothing for a song without a bass stem or without a transcription. "Export MIDI" saves a format 0 `.mid` (`bassTabToMidi`, fingered-bass program, the song's detected tempo as a fixed tempo map) through `export_file`.
+
+`ExportChartButton` (header, only when `song.hasChords`) saves a text chord sheet (`buildChordChart`: start time and chord name, four per line). The chords are written in the current transpose; the capo select writes them as the shapes to play (`transpose - capo` semitones) while the key line keeps the sounding key.
+
 ### ExportMixButton / DownloadAllButton
 
 Both render in `AnalyzerPage.tsx`'s `.analyzer-page__header`, next to the song title — whole-song actions, not stem-view-specific, so they don't belong inside `StemView.tsx`. `ExportMixButton` was extracted out of `StemView.tsx` into its own file (2026-07-08) to sit alongside `DownloadAllButton` in the header, matching the equivalent move made in VPS (`ExportMixButton` out of `Waveform.tsx` into `PracticeRoom.tsx`'s header).

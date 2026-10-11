@@ -43,6 +43,8 @@ pub fn run() {
             commands::export_take,
             commands::export_mix,
             commands::read_song_chords,
+            commands::read_bass_tab,
+            commands::export_file,
             commands::pitch_shift_song,
             commands::load_lyrics,
             commands::sync_lyrics,

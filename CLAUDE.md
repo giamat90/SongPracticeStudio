@@ -58,7 +58,7 @@ Five stages:
 2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — chroma-template matching (24 major/minor triads, 1s hops) over the whole song → `chords.json`, non-fatal on failure (0.92→0.96)
-5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). **Backend-only**: no Rust command or frontend component reads it back yet on `master` (unlike chords — see below); a viewer exists only on the unmerged `feat/bass-tab` branch.
+5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). Read back by `read_bass_tab` (`None` for songs without one) and shown by `BassTabPanel`; "Export MIDI" writes it as a `.mid`.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — `chords`/`bassTab` are booleans (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
 
@@ -133,6 +133,8 @@ SongPracticeStudio/
 │   │   ├── player/
 │   │   │   ├── StemView.tsx       ← TimeRuler + all StemTracks + TakeTrack
 │   │   │   ├── ExportMixButton.tsx ← export current mix as WAV (rendered in AnalyzerPage header)
+│   │   │   ├── ExportChartButton.tsx ← chord sheet as .txt, with a capo choice (AnalyzerPage header)
+│   │   │   ├── BassTabPanel.tsx   ← scrolling four-string bass tab + Export MIDI (below the stems)
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
@@ -166,7 +168,7 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← process_song, import_youtube, read_song_chords, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
+    ├── commands.rs   ← process_song, import_youtube, read_song_chords, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
@@ -283,7 +285,7 @@ If any of these are needed, refer to `C:\Workspace\GiaMat90\MPS\VPS` for the imp
 
 - The `guitar` icon in `StemTrack.tsx` reuses 🎸 for both guitar and bass; could differentiate
 - No waveform error UI per stem (only a top-level `stem-view__error` div)
-- Bass tab transcription runs on every `process` call (`sidecar/processor.py`) and writes `bass_tab.json`, but no Rust command or frontend component reads it back — a viewer exists only on the unmerged `feat/bass-tab` branch (`ee54b89`)
+- Chord charts are text only (no PDF), and the chord carousel does not show capo shapes (only the export does)
 
 ---
 
