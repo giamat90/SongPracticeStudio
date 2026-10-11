@@ -6,6 +6,18 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.47] - 2026-10-12
+
+### Added
+- A **Bass tab** under the stems for songs with a bass stem: a four-string tab that scrolls with the playhead (click to jump), and **Export MIDI** to save the bass line as a MIDI file.
+- **Export Chords** saves the detected chords as a text chord sheet in the current key, with an optional **Capo** setting that writes the shapes to play.
+- Songs can be renamed from the library: double-click the title or use the pencil.
+- Keyboard shortcuts in the analyzer: **Space** play / pause, **Home** / **End** to the start / end, **←** / **→** back / forward 5 seconds (hold **Shift** for 1 second), **L** loop on / off, **[** and **]** set the start and end of the region at the playhead. They are ignored while you type, while recording and during the count-in.
+- A **Loops** menu next to the loop button. Save the current region under a name (it is kept with the song), click a saved loop to loop it, rename or delete it. The same menu lists the song cut into groups of 2, 4, 8 or 16 bars from the metronome downbeat, one click each.
+
+### Fixed
+- After a key transpose the chord display and the key in the header still showed the original key. They now follow the transpose, also in a detached window.
+
 ## [0.0.46] - 2026-10-12
 
 ### Added
