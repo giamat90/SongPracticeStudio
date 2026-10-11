@@ -3460,9 +3460,48 @@ button.stem-track__take-name {
   text-decoration: underline;
 }
 
-.takes-bar__spacer {
-  visibility: hidden;
-  pointer-events: none;
+.takes-bar__delete:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.takes-bar__delete:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.takes-bar__confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-radius: 4px;
+}
+
+.takes-bar__confirm-yes,
+.takes-bar__confirm-no {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--bg-surface);
+  color: var(--text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.takes-bar__confirm-yes {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.takes-bar__confirm-yes:disabled,
+.takes-bar__confirm-no:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .waveform__take-heading {

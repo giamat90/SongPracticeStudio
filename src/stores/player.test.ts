@@ -1171,6 +1171,46 @@ describe("takes", () => {
     expect(store().getState().activeTakeId).toBe("t1");
   });
 
+  it("deleteAllTakes removes every take and clears the selection, mute, solo and gains", async () => {
+    store().setState({
+      takes: [take(), take({ id: "t2" })], activeTakeId: "t2", shownTakeIds: ["t1", "t2"],
+      mutedTakeIds: ["t1"], soloedTakeId: "t2", takeGains: { t1: 0.5, t2: 0.7 },
+    });
+    h.api.deleteTakeApi.mockResolvedValue(undefined);
+    await store().getState().deleteAllTakes();
+    expect(h.api.deleteTakeApi).toHaveBeenCalledTimes(2);
+    expect(h.api.deleteTakeApi).toHaveBeenCalledWith("s1", "t1");
+    expect(h.api.deleteTakeApi).toHaveBeenCalledWith("s1", "t2");
+    const s = store().getState();
+    expect(s.takes).toEqual([]);
+    expect(s.shownTakeIds).toEqual([]);
+    expect(s.activeTakeId).toBeNull();
+    expect(s.mutedTakeIds).toEqual([]);
+    expect(s.soloedTakeId).toBeNull();
+    expect(s.takeGains).toEqual({});
+  });
+
+  it("deleteAllTakes keeps what the backend could not delete, and rethrows", async () => {
+    store().setState({
+      takes: [take(), take({ id: "t2" }), take({ id: "t3" })], activeTakeId: "t2", shownTakeIds: ["t1", "t2", "t3"],
+    });
+    h.api.deleteTakeApi.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("locked"));
+    await expect(store().getState().deleteAllTakes()).rejects.toThrow("locked");
+    expect(h.api.deleteTakeApi).toHaveBeenCalledTimes(2);
+    const s = store().getState();
+    expect(s.takes.map((t) => t.id)).toEqual(["t2", "t3"]);
+    expect(s.shownTakeIds).not.toContain("t1");
+    expect(s.activeTakeId).toBe("t2");
+  });
+
+  it("deleteAllTakes does nothing without a song or without takes", async () => {
+    store().setState({ takes: [] });
+    await store().getState().deleteAllTakes();
+    store().setState({ song: null, takes: [take()] });
+    await store().getState().deleteAllTakes();
+    expect(h.api.deleteTakeApi).not.toHaveBeenCalled();
+  });
+
   it("renameTake swaps in the backend's copy", async () => {
     store().setState({ takes: [take(), take({ id: "t2" })] });
     h.api.renameTakeApi.mockResolvedValue(take({ name: "Verse" }));
