@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent, type RefCallback } from "react";
-import { usePlayerStore, getEngine, TAKE_TRACK_KEY } from "../../stores/player";
+import { usePlayerStore, getEngine } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
 import type { Song, Take } from "../../lib/types";
 
@@ -182,20 +182,18 @@ function TakeSyncControls({ take }: { take: Take }) {
 interface TakeTrackProps {
   take: Take;
   label: string;
-  /** The take that is heard; the other shown takes keep their lane but are silent. */
+  /** The selected take: what a click on a take in the list switches to. */
   isActive: boolean;
+  /** Whether this take is heard right now; a silent lane is dimmed. */
+  isAudible: boolean;
   song: Song;
   containerRef: RefCallback<HTMLDivElement>;
 }
 
-function TakeTrack({ take, label, isActive, song, containerRef }: TakeTrackProps) {
-  const volume        = usePlayerStore((s) => s.takeVolume);
-  const setTakeVolume  = usePlayerStore((s) => s.setTakeVolume);
-  const isMuted        = usePlayerStore((s) => !!s.mutedStems[TAKE_TRACK_KEY]);
-  const soloedStem     = usePlayerStore((s) => s.soloedStem);
-  const isSoloed       = soloedStem === TAKE_TRACK_KEY;
-  const toggleMute     = usePlayerStore((s) => s.toggleMute);
-  const toggleSolo     = usePlayerStore((s) => s.toggleSolo);
+function TakeTrack({ take, label, isActive, isAudible, song, containerRef }: TakeTrackProps) {
+  const takePlayback   = usePlayerStore((s) => s.takePlayback);
+  const isLaneMuted    = usePlayerStore((s) => s.mutedTakeIds.includes(take.id));
+  const toggleTakeMute = usePlayerStore((s) => s.toggleTakeMute);
   const setActiveTake  = usePlayerStore((s) => s.setActiveTake);
   const hideTake       = usePlayerStore((s) => s.hideTake);
   const [isExporting, setIsExporting] = useState(false);
@@ -212,48 +210,35 @@ function TakeTrack({ take, label, isActive, song, containerRef }: TakeTrackProps
   };
 
   return (
-    <div className={`stem-track stem-track--take${isActive ? " stem-track--active" : " stem-track--silent"}`}>
+    <div className={`stem-track stem-track--take${isActive ? " stem-track--active" : ""}${isAudible ? "" : " stem-track--silent"}`}>
       <div className="stem-track__header">
         <button
           type="button"
           className="stem-track__label waveform__label--take stem-track__take-name"
           onClick={() => setActiveTake(take.id)}
-          title={isActive ? "This take is playing" : "Play this take instead"}
+          title={
+            takePlayback === "selected" && !isActive
+              ? "Play this take instead"
+              : isActive
+                ? "This is the selected take"
+                : "Select this take"
+          }
           aria-pressed={isActive}
         >
           🎙 {label}
         </button>
         <div className="stem-track__controls">
           <TakeSyncControls take={take} />
-          {isActive && (
-            <>
-              <button
-                className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
-                onClick={() => toggleMute(TAKE_TRACK_KEY)}
-                title={isMuted ? "Unmute" : "Mute"}
-                aria-label={isMuted ? "Unmute" : "Mute"}
-              >
-                M
-              </button>
-              <button
-                className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
-                onClick={() => toggleSolo(TAKE_TRACK_KEY)}
-                title={isSoloed ? "Unsolo" : "Solo"}
-                aria-label={isSoloed ? "Unsolo" : "Solo"}
-              >
-                S
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={volume}
-                onChange={(e) => setTakeVolume(Number(e.target.value))}
-                className="stem-track__volume"
-                title="Take volume"
-              />
-            </>
+          {takePlayback === "all" && (
+            <button
+              className={`stem-track__mute${isLaneMuted ? " stem-track__mute--on" : ""}`}
+              onClick={() => toggleTakeMute(take.id)}
+              aria-pressed={isLaneMuted}
+              title={isLaneMuted ? `Unmute ${label}` : `Mute ${label}`}
+              aria-label={isLaneMuted ? `Unmute ${label}` : `Mute ${label}`}
+            >
+              M
+            </button>
           )}
           <button
             className="stem-track__take-hide"

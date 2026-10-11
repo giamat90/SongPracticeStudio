@@ -9,10 +9,12 @@ Releases before 0.0.40 are not itemised; see `git log` and the tags.
 ## [Unreleased]
 
 ### Added
-- Several recorded takes can be shown at the same time, each on its own lane, and you can switch between them while playing. Only the take marked ▶ in the Takes list is heard; click another shown take to play that one instead (nothing restarts), or its name on the lane.
+- Several recorded takes can be shown at the same time, each on its own lane. Click a take in the Takes list to show it, click it again to hide it (a lane also has its own ×). By default every shown take is heard together; **M** on a lane silences just that take.
+- A bar above the take lanes: **Hear: all shown / selected only** (only the selected take plays, and clicking another take switches to it) and **Silent / Playing while recording** (keep hearing the shown takes while you record another one). Both choices are remembered.
+- The mixdown export includes every take that is heard.
 
 ### Changed
-- Clicking the take that is playing in the Takes list now hides it (before, a take could not be hidden once shown). A lane also has its own × button. A recording no longer removes the takes from the screen; they are silenced until you pick one.
+- Starting a recording no longer removes the takes from the screen. By default they are silent while you record, as before; switch **Playing while recording** on to hear them.
 
 ## [0.0.43] - 2026-10-11
 

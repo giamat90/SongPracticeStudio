@@ -5,8 +5,10 @@ import TimeRuler from "./TimeRuler";
 import ChordRow from "./ChordRow";
 import StemTrack from "./StemTrack";
 import TakeTrack from "./TakeTrack";
+import TakesBar from "./TakesBar";
 import type { Song, Take } from "../../lib/types";
 import { computeZoomToCursor, computePan, wheelDeltaPixels, clamp } from "@giamat90/mps-core/zoomPan";
+import { audibleTakes } from "@giamat90/mps-core/takes";
 
 interface StemViewProps {
   song: Song;
@@ -16,6 +18,10 @@ function StemView({ song }: StemViewProps) {
   const loadSong      = usePlayerStore((s) => s.loadSong);
   const activeTakeId  = usePlayerStore((s) => s.activeTakeId);
   const shownTakeIds  = usePlayerStore((s) => s.shownTakeIds);
+  const takePlayback  = usePlayerStore((s) => s.takePlayback);
+  const mutedTakeIds  = usePlayerStore((s) => s.mutedTakeIds);
+  const isRecording   = usePlayerStore((s) => s.isRecording);
+  const muteWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
   const takes         = usePlayerStore((s) => s.takes);
   const showChords    = useAnalyzerPanels((s) => s.visible.chords);
   const setTakeVolume = usePlayerStore((s) => s.setTakeVolume);
@@ -24,6 +30,14 @@ function StemView({ song }: StemViewProps) {
   const shownTakes = shownTakeIds
     .map((id) => takes.find((t) => t.id === id))
     .filter((t): t is Take => t !== undefined);
+  const audibleIds = audibleTakes({
+    shown: shownTakeIds,
+    active: activeTakeId,
+    playback: takePlayback,
+    muted: mutedTakeIds,
+    recording: isRecording,
+    muteWhileRecording,
+  });
   // Lane containers by take id, and the takes currently loaded into the engine
   const takeRails     = useRef(new Map<string, HTMLDivElement>());
   const loadedTakes   = useRef(new Set<string>());
@@ -147,12 +161,14 @@ function StemView({ song }: StemViewProps) {
             containerRef={(el) => { stemRefs.current[name] = el; }}
           />
         ))}
+        {shownTakes.length > 0 && <TakesBar />}
         {shownTakes.map((take) => (
           <TakeTrack
             key={take.id}
             take={take}
             label={take.name || `Take ${takes.indexOf(take) + 1}`}
             isActive={take.id === activeTakeId}
+            isAudible={audibleIds.includes(take.id)}
             song={song}
             containerRef={(el) => {
               if (el) takeRails.current.set(take.id, el);

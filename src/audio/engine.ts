@@ -67,8 +67,11 @@ export class AudioEngine {
   // Recorded takes — separate from the stems map since their duration/start
   // position can differ from the shared song timeline (e.g. punch-in takes).
   private _takes = new Map<string, TakeTrack>();
+  // The selected take (what getTrackSamples reads) and the takes that are heard.
+  // They are independent: several takes can be heard together.
   private _activeTakeId: string | null = null;
-  // Effective volume of the active take (mute/solo already applied by the store)
+  private _audibleTakeIds = new Set<string>();
+  // Effective volume of the audible takes (mute/solo already applied by the store)
   private _takeVolume = 1;
   // Timeline zoom/pan
   private _minPxPerSec = 1;
@@ -298,7 +301,7 @@ export class AudioEngine {
       console.warn("[engine] setSinkId failed for take:", e)
     );
     ws.setPlaybackRate(this._lastPlaybackRate);
-    ws.setVolume(id === this._activeTakeId ? this._takeVolume : 0);
+    ws.setVolume(this._audibleTakeIds.has(id) ? this._takeVolume : 0);
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -359,20 +362,25 @@ export class AudioEngine {
     return this._activeTakeId;
   }
 
-  /** Which loaded take is heard; null silences them all (they stay loaded and in sync). */
+  /** The selected take: what the spectrum reads. It does not change what is heard. */
   setActiveTakeTrack(id: string | null): void {
     this._activeTakeId = id;
+  }
+
+  /** Which loaded takes are heard; the others stay loaded and in sync, silently. */
+  setAudibleTakeTracks(ids: readonly string[]): void {
+    this._audibleTakeIds = new Set(ids);
     this._applyTakeVolumes();
   }
 
-  /** The active take's effective volume; the others are always silent. */
+  /** The effective volume of the takes that are heard (mute / solo already applied). */
   setTakeVolume(volume: number): void {
     this._takeVolume = volume;
     this._applyTakeVolumes();
   }
 
   private _applyTakeVolumes(): void {
-    for (const t of this._takes.values()) t.ws.setVolume(t.id === this._activeTakeId ? this._takeVolume : 0);
+    for (const t of this._takes.values()) t.ws.setVolume(this._audibleTakeIds.has(t.id) ? this._takeVolume : 0);
   }
 
   removeTakeTrack(id: string): void {
@@ -386,6 +394,7 @@ export class AudioEngine {
     for (const t of this._takes.values()) t.ws.destroy();
     this._takes.clear();
     this._activeTakeId = null;
+    this._audibleTakeIds = new Set();
   }
 
   // ─── Timeline zoom/pan ──────────────────────────────────────────────────

@@ -9,7 +9,17 @@ import {
   parseCommand,
 } from "./protocol";
 
-const shared = { song: null, duration: 120, activeTakeId: null, shownTakeIds: [], takes: [] };
+const shared = {
+  song: null,
+  duration: 120,
+  activeTakeId: null,
+  shownTakeIds: [],
+  takePlayback: "all",
+  mutedTakeIds: [],
+  muteTakesWhileRecording: true,
+  isRecording: false,
+  takes: [],
+};
 const transport = { time: 1, playing: false, rate: 1, sentAt: 100 };
 
 describe("detachable panels", () => {
@@ -86,6 +96,12 @@ describe("shared state", () => {
       { ...shared, shownTakeIds: "t1" },
       { ...shared, shownTakeIds: [""] },
       { ...shared, shownTakeIds: undefined },
+      { ...shared, takePlayback: "both" },
+      { ...shared, takePlayback: undefined },
+      { ...shared, mutedTakeIds: "t1" },
+      { ...shared, mutedTakeIds: [""] },
+      { ...shared, muteTakesWhileRecording: "yes" },
+      { ...shared, isRecording: undefined },
       { ...shared, takes: {} },
       { ...shared, takes: [{ name: "no id" }] },
       { ...shared, song: 7 },

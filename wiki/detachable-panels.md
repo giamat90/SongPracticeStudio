@@ -53,3 +53,4 @@ Time is not streamed 30 times a second: the detached window extrapolates from th
 - Several windows of one panel (one window per panel id).
 - The component and gesture wiring (pointer capture, window creation) has no automated test: there is no DOM environment. The decisions behind them are tested (`decideDrop`, `createDockGesture`, the bridges, the Rust planner and hit-test).
 - The stems and the mixer cannot be detached; that would need the audio engine to move.
+- The Takes list in a detached window shows what is heard (▶ playing, ▷ silent, ○ hidden) from the mirrored `shownTakeIds`, `takePlayback`, `mutedTakeIds`, `muteTakesWhileRecording` and recording state; the lane mutes and the two toggles live in the main window's take bar.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { audibleTakes } from "@giamat90/mps-core/takes";
 import { usePlayerStore } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
 import type { Take } from "../../lib/types";
@@ -20,12 +21,25 @@ function TakeList() {
   const fetchTakes = usePlayerStore((s) => s.fetchTakes);
   const shownTakeIds = usePlayerStore((s) => s.shownTakeIds);
   const toggleTake = usePlayerStore((s) => s.toggleTake);
+  const takePlayback = usePlayerStore((s) => s.takePlayback);
+  const mutedTakeIds = usePlayerStore((s) => s.mutedTakeIds);
+  const isRecording = usePlayerStore((s) => s.isRecording);
+  const muteTakesWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
   const deleteTake = usePlayerStore((s) => s.deleteTake);
   const renameTake = usePlayerStore((s) => s.renameTake);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const audibleIds = audibleTakes({
+    shown: shownTakeIds,
+    active: activeTakeId,
+    playback: takePlayback,
+    muted: mutedTakeIds,
+    recording: isRecording,
+    muteWhileRecording: muteTakesWhileRecording,
+  });
 
   const displayName = (take: Take, i: number) => take.name || `Take ${i + 1}`;
 
@@ -72,19 +86,27 @@ function TakeList() {
       {takes.map((take, i) => {
         const isActive = activeTakeId === take.id;
         const isShown = shownTakeIds.includes(take.id);
+        const isAudible = audibleIds.includes(take.id);
+        const hint = !isShown
+          ? "Click to show this take"
+          : isActive
+            ? "Selected. Click to hide this take"
+            : takePlayback === "selected"
+              ? "Shown. Click to play this one"
+              : "Shown. Click to select it";
         return (
         <div
           key={take.id}
           className={`take-item${isActive ? " take-item--active" : isShown ? " take-item--shown" : ""}`}
           onClick={() => toggleTake(take.id)}
-          title={isActive ? "Playing. Click to hide this take" : isShown ? "Shown. Click to play this one" : "Click to show this take"}
+          title={hint}
           aria-pressed={isShown}
         >
           <span
             className="take-item__state"
-            aria-label={isActive ? "playing" : isShown ? "shown" : "hidden"}
+            aria-label={isAudible ? "playing" : isShown ? "silent" : "hidden"}
           >
-            {isActive ? "\u25B6" : isShown ? "\u25CF" : "\u25CB"}
+            {isAudible ? "\u25B6" : isShown ? "\u25B7" : "\u25CB"}
           </span>
           <div className="take-item__info">
             {editingId === take.id ? (

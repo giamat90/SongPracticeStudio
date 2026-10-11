@@ -129,11 +129,13 @@ The zoom-to-cursor and pan math itself (exponential zoom factor, bounds clamping
 
 ## Several takes at once (2026-10-11)
 
-The engine keeps a `Map<id, TakeTrack>` instead of one `_take`: every take with a lane on screen has its own WaveSurfer, rail container, start / audio-file / manual offsets and window state. Only one is **active**, which is the audible one.
+The engine keeps a `Map<id, TakeTrack>` instead of one take: every take with a lane on screen has its own WaveSurfer, rail container, start / audio-file / manual offsets and window state.
 
 - `loadTakeTrack(id, filePath, container, startOffset, audioOffset, manualOffset)`; loading an id that is already loaded replaces it. A take removed while it was still decoding is destroyed when it finishes instead of leaking.
-- `setActiveTakeTrack(id | null)` chooses who is heard (`activeTakeId` reads it back); `setTakeVolume(v)` is the active take's effective volume (mute / solo already applied by the store). Every other loaded take has volume 0 **but keeps playing in its window and being drift-corrected**, so switching is instant and nothing re-seeks.
-- `setTakeManualOffset(id, offset)`, `removeTakeTrack(id)`, `clearTakeTrack()` (all).
-- Play / pause / seek / rate / output device / interact / zoom / scroll / window sync / drift correction loop over every loaded take.
+- **Who is heard and who is selected are separate.** `setAudibleTakeTracks(ids)` is the set of takes that play at `setTakeVolume(v)` (the effective volume of the "take" channel, mute / solo already applied); every other loaded take has volume 0 **but keeps playing in its window and being drift-corrected**, so unmuting is instant and nothing re-seeks. `setActiveTakeTrack(id | null)` is the selected take only (what `getTrackSamples("take")` reads); it does not change what is heard.
+- `setTakeManualOffset(id, offset)`, `removeTakeTrack(id)`, `clearTakeTrack()` (all, and forgets who was audible).
+- Play / pause / seek / rate / output device / zoom / scroll / window sync / drift correction loop over every loaded take.
 
-Which takes are shown and which is active is the store's `shownTakeIds` / `activeTakeId` (pure transitions in `@giamat90/mps-core/takes`); `StemView` loads and removes engine tracks to match. Clicking a take in the list shows it and plays it, clicking a shown take switches to it, clicking the playing take hides it (the most recently shown remaining take is played instead). Starting a recording silences the active take but keeps the lanes. Mute / solo / volume on a take lane are the single "take" channel and appear on the active lane only.
+**The store derives the audible set.** `shownTakeIds`, `activeTakeId`, `takePlayback` (`"all"` | `"selected"`), `mutedTakeIds` (lane mutes), `isRecording` and `muteTakesWhileRecording` go through `audibleTakes()` from `@giamat90/mps-core/takes`, and a single `usePlayerStore.subscribe` pushes the result to the engine whenever one of them changes, so no action has to remember to. `takePlayback` and `muteTakesWhileRecording` are remembered in `localStorage` (`sps_take_prefs`).
+
+Behaviour: clicking a take in the list shows it (and selects it), clicking a shown one selects it (in selected-only mode that also switches the sound), clicking the selected one hides it (the most recently shown remaining take becomes the selected one). With "all shown" every shown take plays together and **M** on a lane silences one. Starting a recording with `muteTakesWhileRecording` on (the default) silences the takes and drops the selection, as before; with it off they keep playing and the selection stays. Takes are mixed into the export exactly as they are heard.
