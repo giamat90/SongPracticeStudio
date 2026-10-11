@@ -11,7 +11,7 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ## Shared code (`@giamat90/mps-core`)
 
-Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
+Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
 
 ---
 
@@ -124,6 +124,7 @@ SongPracticeStudio/
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   └── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
+│   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
 │   ├── lib/tauri.ts            ← IPC wrappers: processSong, listSongs, saveTake, exportStem, exportMix, …
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
@@ -171,6 +172,7 @@ SongPracticeStudio/
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
     ├── sidecar.rs     ← SidecarManager, JSON-lines IPC
     ├── storage.rs     ← ~/.songpracticestudio/ path helpers
+    ├── windows.rs    ← detached panel windows: allowlist, creation, remembered geometry, `cursor_over_main`
     └── lib.rs        ← Tauri builder, invoke_handler registration
 ```
 

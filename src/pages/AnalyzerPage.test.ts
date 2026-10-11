@@ -11,11 +11,21 @@ const h = vi.hoisted(() => {
     stub,
     library: { songs: [] as unknown[] },
     player: { cleanup: () => {} },
+    detached: {} as Record<string, boolean>,
   };
 });
 
 vi.mock("../stores/library", () => ({ useLibraryStore: (sel: (s: unknown) => unknown) => sel(h.library) }));
 vi.mock("../stores/player", () => ({ usePlayerStore: (sel: (s: unknown) => unknown) => sel(h.player) }));
+
+vi.mock("../stores/detached", () => ({
+  useDetachedStore: (sel: (s: unknown) => unknown) => sel({ detached: h.detached }),
+}));
+vi.mock("../windows/useMainBridge", () => ({ useMainBridge: () => {} }));
+vi.mock("../components/panels/DetachHandle", async () => {
+  const { createElement: el } = await import("react");
+  return { default: ({ panel }: { panel: string }) => el("i", { "data-c": "handle", "data-panel": panel }) };
+});
 
 vi.mock("../components/player/StemView", h.stub("stems"));
 vi.mock("../components/player/DownloadAllButton", h.stub("downloadAll"));
@@ -53,6 +63,7 @@ const OPTIONAL = ["chords", "lyrics", "takes"];
 
 beforeEach(() => {
   localStorage.clear();
+  h.detached = {};
   h.library.songs = [{ id: "s1", title: "Song", stems: ["vocals", "drums"], detectedBpm: 120 }];
 });
 
@@ -76,6 +87,24 @@ describe("AnalyzerPage panels", () => {
   it("drops the takes wrapper along with the list", async () => {
     expect(await render({ takes: false })).not.toContain("analyzer-page__takes");
     expect(await render()).toContain("analyzer-page__takes");
+  });
+
+  it("puts a detach handle on every docked optional panel, and none on the stems", async () => {
+    const html = await render();
+    expect([...html.matchAll(/data-panel="(\w+)"/g)].map((m) => m[1]).sort()).toEqual(["chords", "lyrics", "takes"]);
+  });
+
+  it.each(OPTIONAL)("a detached %s leaves the page, its handle with it, and nothing else", async (id) => {
+    const before = shown(await render());
+    h.detached = { [id]: true };
+    const html = await render();
+    expect(html).not.toContain(`data-panel="${id}"`);
+    expect(before.filter((c) => !shown(html).includes(c))).toEqual([id]);
+  });
+
+  it("a panel that is hidden stays hidden even when it is also marked detached", async () => {
+    h.detached = { lyrics: true };
+    expect(shown(await render({ lyrics: false }))).not.toContain("lyrics");
   });
 
   it("offers the menu every optional panel", async () => {
