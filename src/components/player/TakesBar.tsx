@@ -72,6 +72,10 @@ function TakesBar() {
           className="stem-track__volume"
           title="Volume of the takes"
         />
+        {/* Same width as a lane's download button, so the sliders line up with the other tracks' */}
+        <span className="stem-track__download takes-bar__spacer" aria-hidden="true">
+          &darr;
+        </span>
       </div>
     </div>
   );

@@ -3418,7 +3418,12 @@ button.stem-track__take-name {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0 0.1rem;
+}
+
+/* The take channel's mute / solo / volume sit at the far right, like every other track's */
+.takes-bar > .stem-track__controls {
+  margin-left: auto;
 }
 
 .takes-bar__toggle {
@@ -3439,4 +3444,9 @@ button.stem-track__take-name {
 
 .stem-track--take.stem-track--active .waveform__label--take {
   text-decoration: underline;
+}
+
+.takes-bar__spacer {
+  visibility: hidden;
+  pointer-events: none;
 }
