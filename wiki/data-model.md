@@ -144,6 +144,7 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `import_youtube` | `url: string, stemsToExtract?: StemName[], highQuality?: boolean` | `Song` |
 | `list_songs` | — | `Song[]` |
 | `delete_song` | `songId: string` | `void` |
+| `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected) |
 | `set_metronome_offset` | `songId: string, offset?: f64` | `Song` (persists the metronome's downbeat anchor; `null` clears it back to song start) |
 | `read_song_chords` | `songId: string` | `ChordSegment[]` (reads `chords.json` on demand; empty if the song predates chord detection or detection failed) |
 | `list_folders` | — | `Folder[]` |

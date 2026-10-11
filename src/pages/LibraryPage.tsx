@@ -55,9 +55,25 @@ interface SongCardProps {
   song: Song;
   onSelect: () => void;
   onDelete: () => void;
+  onRename: (title: string) => void;
 }
 
-function SongCard({ song, onSelect, onDelete }: SongCardProps) {
+function SongCard({ song, onSelect, onDelete, onRename }: SongCardProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(song.title);
+
+  const startEditingTitle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTitleValue(song.title);
+    setIsEditingTitle(true);
+  };
+
+  const commitTitle = () => {
+    setIsEditingTitle(false);
+    const trimmed = titleValue.trim();
+    if (trimmed && trimmed !== song.title) onRename(trimmed);
+  };
+
   return (
     <div
       className="song-card"
@@ -73,7 +89,34 @@ function SongCard({ song, onSelect, onDelete }: SongCardProps) {
       }}
     >
       <div className="song-card__info">
-        <div className="song-card__title">{song.title}</div>
+        <div className="song-card__title">
+          {isEditingTitle ? (
+            <input
+              className="song-card__title-input"
+              value={titleValue}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitTitle();
+                else if (e.key === "Escape") setIsEditingTitle(false);
+              }}
+            />
+          ) : (
+            <span onDoubleClick={startEditingTitle} title="Double-click to rename">
+              {song.title}
+            </span>
+          )}
+          <button
+            className="song-card__rename"
+            onClick={startEditingTitle}
+            title="Rename song"
+            aria-label="Rename song"
+          >
+            &#9998;
+          </button>
+        </div>
         <div className="song-card__meta">
           {song.detectedBpm && <span>{Math.round(song.detectedBpm)} BPM</span>}
           {song.detectedKey && <span>{song.detectedKey}</span>}
@@ -100,7 +143,7 @@ function SongCard({ song, onSelect, onDelete }: SongCardProps) {
   );
 }
 
-function DraggableSongRow({ song, onSelect, onDelete }: SongCardProps) {
+function DraggableSongRow({ song, onSelect, onDelete, onRename }: SongCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: song.id,
   });
@@ -120,7 +163,7 @@ function DraggableSongRow({ song, onSelect, onDelete }: SongCardProps) {
       >
         ⠿
       </button>
-      <SongCard song={song} onSelect={onSelect} onDelete={onDelete} />
+      <SongCard song={song} onSelect={onSelect} onDelete={onDelete} onRename={onRename} />
     </div>
   );
 }
@@ -130,6 +173,7 @@ interface FolderSectionProps {
   songs: Song[];
   onSelectSong: (songId: string) => void;
   onDeleteSong: (songId: string) => void;
+  onRenameSong: (songId: string, title: string) => void;
   onRenameFolder: (folderId: string, name: string) => void;
   onDeleteFolder: (folderId: string) => void;
 }
@@ -139,6 +183,7 @@ function FolderSection({
   songs,
   onSelectSong,
   onDeleteSong,
+  onRenameSong,
   onRenameFolder,
   onDeleteFolder,
 }: FolderSectionProps) {
@@ -249,6 +294,7 @@ function FolderSection({
                   song={song}
                   onSelect={() => onSelectSong(song.id)}
                   onDelete={() => onDeleteSong(song.id)}
+                  onRename={(title) => onRenameSong(song.id, title)}
                 />
               ))
             )}
@@ -279,6 +325,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const fetchSongs          = useLibraryStore((s) => s.fetchSongs);
   const fetchFolders        = useLibraryStore((s) => s.fetchFolders);
   const deleteSong          = useLibraryStore((s) => s.deleteSong);
+  const renameSong          = useLibraryStore((s) => s.renameSong);
   const createFolder        = useLibraryStore((s) => s.createFolder);
   const renameFolder        = useLibraryStore((s) => s.renameFolder);
   const deleteFolder        = useLibraryStore((s) => s.deleteFolder);
@@ -509,6 +556,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
                       songs={songsByFolder.get(folder.id) ?? []}
                       onSelectSong={onSelectSong}
                       onDeleteSong={deleteSong}
+                      onRenameSong={renameSong}
                       onRenameFolder={renameFolder}
                       onDeleteFolder={deleteFolder}
                     />
@@ -526,6 +574,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
                       song={song}
                       onSelect={() => onSelectSong(song.id)}
                       onDelete={() => deleteSong(song.id)}
+                      onRename={(title) => renameSong(song.id, title)}
                     />
                   ))}
                 </SortableContext>

@@ -719,6 +719,35 @@ body,
   text-overflow: ellipsis;
 }
 
+.song-card__title-input {
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  width: 100%;
+  max-width: 16rem;
+}
+
+.song-card__rename {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.song-card__rename:hover {
+  color: var(--accent);
+}
+
 .song-card__meta {
   display: flex;
   gap: 1rem;

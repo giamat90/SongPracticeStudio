@@ -50,7 +50,7 @@ Manages the song list, import/upload flow, and error state.
 | `isLoading` | `boolean` | Initial fetch in progress |
 | `error` | `string \| null` | Last friendly error message |
 
-Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. Note SPS has no `renameSong` action (unlike VPS) — no backend command backs one here. See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
+Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `renameSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. `renameSong` calls `rename_song` and swaps in the returned song (double-click the title or the ✎ button on a song card; empty titles are rejected by the backend). See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
 
 Errors from `importYoutube` and `uploadSong` are parsed by `friendlyError()` into human-readable messages.
 
