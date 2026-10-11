@@ -108,6 +108,11 @@ export async function renameTakeApi(songId: string, takeId: string, name: string
   return invoke<Take>("rename_take", { songId, takeId, name });
 }
 
+/** Abandon the lyrics sync that is running; its sync call then fails with "Cancelled." */
+export async function cancelLyricsSync(): Promise<void> {
+  return invoke("cancel_lyrics_sync");
+}
+
 /** Detect the song's chords again from its stems (sevenths, slash chords); resolves to the updated song */
 export async function redetectSongChords(songId: string): Promise<Song> {
   return invoke<Song>("redetect_song_chords", { songId });

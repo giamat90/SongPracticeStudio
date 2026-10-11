@@ -165,6 +165,15 @@ impl SidecarManager {
             .map_err(|e| format!("recv: {e}"))
     }
 
+    /// Wait up to `slice` for the next message: `Ok(None)` when none arrived.
+    pub fn recv_slice(&self, slice: Duration) -> Result<Option<SidecarMessage>, String> {
+        match self.rx.recv_timeout(slice) {
+            Ok(m) => Ok(Some(m)),
+            Err(mpsc::RecvTimeoutError::Timeout) => Ok(None),
+            Err(mpsc::RecvTimeoutError::Disconnected) => Err("recv: the sidecar closed unexpectedly".to_string()),
+        }
+    }
+
     /// Gracefully shut down the sidecar.
     pub fn shutdown(&mut self) {
         let _ = self.send_command(&serde_json::json!({"cmd": "quit"}));

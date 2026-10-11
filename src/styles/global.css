@@ -3777,3 +3777,21 @@ button.stem-track__take-name {
   font-size: 0.72rem;
   color: var(--accent);
 }
+
+.lyrics-panel__cancel {
+  align-self: flex-start;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lyrics-panel__cancel:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}

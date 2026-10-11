@@ -50,6 +50,7 @@ pub fn run() {
             commands::pitch_shift_song,
             commands::load_lyrics,
             commands::sync_lyrics,
+            commands::cancel_lyrics_sync,
             commands::find_lyrics,
             commands::delete_lyrics,
             windows::detach_panel,
