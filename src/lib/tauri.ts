@@ -108,6 +108,11 @@ export async function renameTakeApi(songId: string, takeId: string, name: string
   return invoke<Take>("rename_take", { songId, takeId, name });
 }
 
+/** Detect the song's chords again from its stems (sevenths, slash chords); resolves to the updated song */
+export async function redetectSongChords(songId: string): Promise<Song> {
+  return invoke<Song>("redetect_song_chords", { songId });
+}
+
 /** A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem */
 export async function readBassTab(songId: string): Promise<BassTabData | null> {
   return invoke<BassTabData | null>("read_bass_tab", { songId });

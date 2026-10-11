@@ -6,6 +6,11 @@ function shiftNote(note: string, semitones: number): string | null {
   return NOTE_NAMES[(((i + semitones) % 12) + 12) % 12];
 }
 
+/** "E" shifted up by 2 semitones -> "F#"; anything that is not a note is returned as is. */
+export function transposeNote(note: string, semitones: number): string {
+  return shiftNote(note, semitones) ?? note;
+}
+
 /** "C:maj" shifted up by 2 semitones -> "D:maj"; anything that is not a note:quality pair is returned as is. */
 export function transposeChord(chord: string, semitones: number): string {
   const [root, quality] = chord.split(":");
@@ -21,8 +26,17 @@ export function transposeKey(key: string, semitones: number): string {
   return shifted === null ? key : [shifted, ...rest].join(" ");
 }
 
-/** Chord name like "C:maj" / "A:min" -> "C" / "Am" */
-export function formatChordName(chord: string): string {
+const QUALITY_SUFFIX: Record<string, string> = {
+  maj: "",
+  min: "m",
+  "7": "7",
+  maj7: "maj7",
+  min7: "m7",
+};
+
+/** "C:maj" -> "C", "A:min7" -> "Am7", with a slash bass note when given: "C:maj", "E" -> "C/E" */
+export function formatChordName(chord: string, bass?: string | null): string {
   const [root, quality] = chord.split(":");
-  return quality === "min" ? `${root}m` : root;
+  const name = `${root}${QUALITY_SUFFIX[quality] ?? ""}`;
+  return bass ? `${name}/${bass}` : name;
 }

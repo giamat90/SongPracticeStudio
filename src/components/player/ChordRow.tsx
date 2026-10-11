@@ -33,7 +33,7 @@ export default function ChordRow({ song }: ChordRowProps) {
               width: `${width}px`,
             }}
           >
-            {showLabel ? formatChordName(seg.chord) : null}
+            {showLabel ? formatChordName(seg.chord, seg.bass) : null}
           </span>
         );
       })}

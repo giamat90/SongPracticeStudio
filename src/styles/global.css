@@ -3772,3 +3772,8 @@ button.stem-track__take-name {
   font-size: 0.75rem;
   color: var(--accent);
 }
+
+.export-chart__error {
+  font-size: 0.72rem;
+  color: var(--accent);
+}

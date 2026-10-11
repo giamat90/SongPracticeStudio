@@ -1,5 +1,5 @@
 import type { ChordSegment } from "./types";
-import { formatChordName, transposeChord, transposeKey } from "./chordNames";
+import { formatChordName, transposeChord, transposeKey, transposeNote } from "./chordNames";
 
 export interface ChordChartInput {
   title: string;
@@ -35,7 +35,11 @@ export function buildChordChart(input: ChordChartInput): string {
 
   const shown: { start: number; name: string }[] = [];
   for (const seg of segments) {
-    const name = formatChordName(transposeChord(seg.chord, transpose - capo));
+    const shift = transpose - capo;
+    const name = formatChordName(
+      transposeChord(seg.chord, shift),
+      seg.bass ? transposeNote(seg.bass, shift) : null,
+    );
     if (shown.length > 0 && shown[shown.length - 1].name === name) continue;
     shown.push({ start: seg.start, name });
   }

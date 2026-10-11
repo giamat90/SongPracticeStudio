@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { usePlayerStore } from "../stores/player";
 import { readSongChords } from "./tauri";
 import type { ChordSegment, Song } from "./types";
-import { transposeChord } from "./chordNames";
+import { transposeChord, transposeNote } from "./chordNames";
 
-export { formatChordName, transposeChord, transposeKey } from "./chordNames";
+export { formatChordName, transposeChord, transposeKey, transposeNote } from "./chordNames";
 
 export function findActiveChordIndex(segments: ChordSegment[], time: number): number {
   let lo = 0;
@@ -37,10 +37,21 @@ export function findNearestChordIndex(segments: ChordSegment[], time: number): n
 export function useChordSegments(song: Song) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const transpose = usePlayerStore((s) => s.transpose);
+  const capo = usePlayerStore((s) => s.capo);
+  const revision = usePlayerStore((s) => s.chordsRevision);
   const [detected, setSegments] = useState<ChordSegment[]>([]);
+  // What is shown is the shapes to play: the key the song sounds in, with the capo taken off.
+  const shift = transpose - capo;
   const segments = useMemo(
-    () => (transpose === 0 ? detected : detected.map((seg) => ({ ...seg, chord: transposeChord(seg.chord, transpose) }))),
-    [detected, transpose],
+    () =>
+      shift === 0
+        ? detected
+        : detected.map((seg) => ({
+            ...seg,
+            chord: transposeChord(seg.chord, shift),
+            ...(seg.bass ? { bass: transposeNote(seg.bass, shift) } : {}),
+          })),
+    [detected, shift],
   );
 
   useEffect(() => {
@@ -51,7 +62,7 @@ export function useChordSegments(song: Song) {
       .then((result) => { if (!cancelled) setSegments(result); })
       .catch((e: unknown) => console.error("[useChordSegments] readSongChords failed:", e));
     return () => { cancelled = true; };
-  }, [song.id, song.hasChords]);
+  }, [song.id, song.hasChords, revision]);
 
   const activeIndex = findActiveChordIndex(segments, currentTime);
   const centerIndex = findNearestChordIndex(segments, currentTime);

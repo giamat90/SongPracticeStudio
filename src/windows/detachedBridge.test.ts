@@ -10,6 +10,8 @@ function setup() {
     song: null,
     duration: 0,
     transpose: 0,
+    capo: 0,
+    chordsRevision: 0,
     currentTime: 0,
     isPlaying: false,
     playbackRate: 1,
@@ -53,13 +55,15 @@ function setup() {
     takeTrackKey: "__take__",
   });
   const message = (
-    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[]; transpose: number }> = {},
+    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[]; transpose: number; capo: number; chordsRevision: number }> = {},
   ) => ({
     transport: { time: over.time ?? 10, playing: over.playing ?? false, rate: 1, sentAt: clock },
     shared: {
       song,
       duration: 200,
       transpose: over.transpose ?? 0,
+      capo: over.capo ?? 0,
+      chordsRevision: over.chordsRevision ?? 0,
       activeTakeId: over.activeTakeId ?? null,
       shownTakeIds: over.shownTakeIds ?? [],
       takePlayback: "all",
@@ -113,6 +117,13 @@ describe("analyzer detached bridge", () => {
     await t.started;
     t.send(t.message({ transpose: -2 }));
     expect(t.get().transpose).toBe(-2);
+  });
+
+  it("mirrors the capo and the chords revision", async () => {
+    const t = setup();
+    await t.started;
+    t.send(t.message({ capo: 3, chordsRevision: 5 }));
+    expect(t.get()).toMatchObject({ capo: 3, chordsRevision: 5 });
   });
 
   it("keeps the playhead moving between messages, and holds it when paused", async () => {

@@ -1522,6 +1522,60 @@ describe("named loops", () => {
   });
 });
 
+describe("capo", () => {
+  const CAPO_KEY = "sps_capo_by_song";
+
+  it("starts at no capo", async () => {
+    await loadedSong();
+    expect(store().getState().capo).toBe(0);
+  });
+
+  it("is clamped to a whole fret from 0 to 7 and remembered for this song only", async () => {
+    await loadedSong();
+    store().getState().setCapo(3);
+    expect(store().getState().capo).toBe(3);
+    store().getState().setCapo(12);
+    expect(store().getState().capo).toBe(7);
+    store().getState().setCapo(-2);
+    expect(store().getState().capo).toBe(0);
+    store().getState().setCapo(2.6);
+    expect(store().getState().capo).toBe(3);
+    expect(JSON.parse(localStorage.getItem(CAPO_KEY) ?? "{}")).toEqual({ s1: 3 });
+  });
+
+  it("is restored when the song is opened again, and a different song has none", async () => {
+    await loadedSong();
+    store().getState().setCapo(5);
+    await loadedSong(song({ id: "s2" }));
+    expect(store().getState().capo).toBe(0);
+    await loadedSong();
+    expect(store().getState().capo).toBe(5);
+  });
+
+  it("drops the entry when the capo goes back to none", async () => {
+    await loadedSong();
+    store().getState().setCapo(5);
+    store().getState().setCapo(0);
+    expect(JSON.parse(localStorage.getItem(CAPO_KEY) ?? "{}")).toEqual({});
+  });
+
+  it("ignores unreadable storage", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    localStorage.setItem(CAPO_KEY, "{not json");
+    await loadedSong();
+    expect(store().getState().capo).toBe(0);
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe("chords revision", () => {
+  it("counts up so chord displays reload their chords", () => {
+    const before = store().getState().chordsRevision;
+    store().getState().bumpChordsRevision();
+    expect(store().getState().chordsRevision).toBe(before + 1);
+  });
+});
+
 describe("timeline zoom", () => {
   it("stores zoom and scroll", () => {
     store().getState().setZoom(80, 12);

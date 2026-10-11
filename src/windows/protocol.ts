@@ -35,6 +35,9 @@ export interface SharedState {
   duration: number;
   /** Semitones the song is shifted by; the chords are shown in that key. */
   transpose: number;
+  /** Capo fret and the chords.json revision, so the detached chord display shows the same shapes. */
+  capo: number;
+  chordsRevision: number;
   activeTakeId: string | null;
   /** Takes with a lane on screen, in the order they were shown. */
   shownTakeIds: string[];
@@ -84,6 +87,8 @@ export function isSharedState(value: unknown): value is SharedState {
     isObjectOrNull(value.song) &&
     isNumber(value.duration) &&
     isNumber(value.transpose) &&
+    isNumber(value.capo) &&
+    isNumber(value.chordsRevision) &&
     isStringOrNull(value.activeTakeId) &&
     Array.isArray(value.shownTakeIds) &&
     value.shownTakeIds.every(isId) &&

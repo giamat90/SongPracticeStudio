@@ -31,7 +31,7 @@ export default function ChordCarousel({ song }: ChordCarouselProps) {
     <div
       className="chord-carousel"
       role="img"
-      aria-label={activeChord ? `Now playing chord ${formatChordName(activeChord.chord)}` : "Chords"}
+      aria-label={activeChord ? `Now playing chord ${formatChordName(activeChord.chord, activeChord.bass)}` : "Chords"}
     >
       {slots.map(({ offset, segment }) => {
         const isCenter = offset === 0;
@@ -43,7 +43,7 @@ export default function ChordCarousel({ song }: ChordCarouselProps) {
             className={`chord-carousel__slot chord-carousel__slot--${position}${isActive ? " chord-carousel__slot--active" : ""}`}
             style={{ "--dist": offset, "--dist-abs": Math.abs(offset) } as SlotStyle}
           >
-            {segment ? formatChordName(segment.chord) : ""}
+            {segment ? formatChordName(segment.chord, segment.bass) : ""}
           </span>
         );
       })}

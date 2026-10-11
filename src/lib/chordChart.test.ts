@@ -42,6 +42,15 @@ describe("buildChordChart", () => {
     expect(text).toContain("0:00  Gm");
   });
 
+  it("writes sevenths and slash chords, shifted with the rest", () => {
+    const segments = [seg(0, 4, "A:min7"), seg(4, 8, "C:maj"), seg(8, 12, "G:7")];
+    segments[1].bass = "E";
+    const text = buildChordChart({ ...base, segments, transpose: 2 });
+    expect(text).toContain("0:00  Bm7");
+    expect(text).toContain("0:04  D/F#");
+    expect(text).toContain("0:08  A7");
+  });
+
   it("merges neighbouring segments with the same chord", () => {
     const text = buildChordChart({ ...base, segments: [seg(0, 2, "C:maj"), seg(2, 4, "C:maj"), seg(4, 6, "G:maj")] });
     expect(text).toContain("0:00  C      0:04  G");
