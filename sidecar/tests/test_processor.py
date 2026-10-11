@@ -228,7 +228,7 @@ class TestProcessResult:
     def test_chords_json_has_the_documented_shape(self, mix, demucs, tmp_path):
         run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         doc = json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
-        assert doc["version"] == 1 and doc["duration"] == pytest.approx(2.0, abs=0.01)
+        assert doc["version"] == 2 and doc["duration"] == pytest.approx(2.0, abs=0.01)
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
         assert set(doc["segments"][0]) == {"start", "end", "chord"}
 
@@ -407,6 +407,91 @@ class TestChordDetection:
     def test_a_clip_shorter_than_the_smoothing_window_still_works(self, tmp_path):
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", chord_audio(C_MAJOR, 1.5), SR))
         assert segs and segs[0]["chord"] == "C:maj"
+
+
+def weighted_chord(tones, seconds, sr=SR):
+    """tones: (frequency, amplitude) pairs, each with one overtone like chord_audio."""
+    t = np.arange(int(sr * seconds)) / sr
+    return sum(a * (np.sin(2 * np.pi * f * t) + 0.4 * np.sin(2 * np.pi * 2 * f * t)) for f, a in tones).astype(np.float32)
+
+
+C4, E4, G4, BB4, B4, A3 = 261.63, 329.63, 392.00, 466.16, 493.88, 220.00
+
+
+class TestSeventhChords:
+    def test_seventh_templates_have_four_notes_and_their_own_qualities(self):
+        assert {n.split(":")[1] for n in processor.SEVENTH_TEMPLATES} == {"7", "maj7", "min7"}
+        assert len(processor.SEVENTH_TEMPLATES) == 36
+        assert processor.SEVENTH_TEMPLATES["C:7"].nonzero()[0].tolist() == [0, 4, 7, 10]
+        assert processor.SEVENTH_TEMPLATES["C:maj7"].nonzero()[0].tolist() == [0, 4, 7, 11]
+        assert processor.SEVENTH_TEMPLATES["A:min7"].nonzero()[0].tolist() == [0, 4, 7, 9]
+        assert all(t.sum() == 4 for t in processor.SEVENTH_TEMPLATES.values())
+
+    @pytest.mark.parametrize("tones,expected", [
+        ([(C4, 0.15), (E4, 0.15), (G4, 0.15), (BB4, 0.15)], "C:7"),
+        ([(C4, 0.15), (E4, 0.15), (G4, 0.15), (B4, 0.15)], "C:maj7"),
+        ([(A3, 0.15), (C4, 0.15), (E4, 0.15), (G4, 0.15)], "A:min7"),
+    ])
+    def test_a_clear_seventh_is_named(self, tmp_path, tones, expected):
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", weighted_chord(tones, 5), SR))
+        assert [s["chord"] for s in segs] == [expected]
+
+    def test_a_faint_seventh_stays_a_triad(self, tmp_path):
+        tones = [(C4, 0.15), (E4, 0.15), (G4, 0.15), (BB4, 0.03)]
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", weighted_chord(tones, 5), SR))
+        assert [s["chord"] for s in segs] == ["C:maj"]
+
+
+class TestSlashChords:
+    E2, C2, D2 = 82.41, 65.41, 73.42
+
+    def song(self, tmp_path, bass_hz):
+        mix = write_wav(tmp_path / "mix.wav", chord_audio(C_MAJOR, 5), SR)
+        bass = write_wav(tmp_path / "bass.wav", sine(bass_hz, SR, 5, amp=0.4), SR)
+        return mix, bass
+
+    def test_a_chord_tone_in_the_bass_makes_a_slash_chord(self, tmp_path):
+        mix, bass = self.song(tmp_path, self.E2)
+        segs = processor._detect_chords_chroma(mix, bass_path=bass)
+        assert [(s["chord"], s.get("bass")) for s in segs] == [("C:maj", "E")]
+
+    def test_the_root_in_the_bass_adds_nothing(self, tmp_path):
+        mix, bass = self.song(tmp_path, self.C2)
+        segs = processor._detect_chords_chroma(mix, bass_path=bass)
+        assert "bass" not in segs[0]
+
+    def test_a_bass_note_outside_the_chord_is_ignored(self, tmp_path):
+        mix, bass = self.song(tmp_path, self.D2)
+        segs = processor._detect_chords_chroma(mix, bass_path=bass)
+        assert "bass" not in segs[0]
+
+    def test_without_a_bass_stem_there_is_no_bass_field(self, tmp_path):
+        mix, _ = self.song(tmp_path, self.E2)
+        assert "bass" not in processor._detect_chords_chroma(mix)[0]
+
+    def test_the_same_chord_over_a_new_bass_note_is_a_new_segment(self, tmp_path):
+        mix = write_wav(tmp_path / "mix.wav", chord_audio(C_MAJOR, 8), SR)
+        bass_audio = np.concatenate([sine(self.C2, SR, 4, amp=0.4), sine(self.E2, SR, 4, amp=0.4)])
+        bass = write_wav(tmp_path / "bass.wav", bass_audio, SR)
+        segs = processor._detect_chords_chroma(mix, bass_path=bass)
+        assert [(s["chord"], s.get("bass")) for s in segs] == [("C:maj", None), ("C:maj", "E")]
+
+
+class TestRedetectChords:
+    def test_sums_the_stems_and_writes_chords_json(self, tmp_path):
+        a = write_wav(tmp_path / "other.wav", chord_audio(C_MAJOR, 5), SR)
+        b = write_wav(tmp_path / "bass.wav", sine(82.41, SR, 5, amp=0.4), SR)
+        out = tmp_path / "chords.json"
+        result = processor.detect_chords_from_stems({"other": a, "bass": b}, str(out))
+        assert result == {"segments": 1}
+        doc = json.loads(out.read_text(encoding="utf-8"))
+        assert doc["version"] == 2
+        assert doc["segments"][0]["chord"] == "C:maj" and doc["segments"][0]["bass"] == "E"
+        assert doc["duration"] == pytest.approx(5.0, abs=0.1)
+
+    def test_no_stems_is_an_error(self, tmp_path):
+        with pytest.raises(ValueError):
+            processor.detect_chords_from_stems({}, str(tmp_path / "c.json"))
 
 
 # ─── bass transcription ────────────────────────────────────────────────────

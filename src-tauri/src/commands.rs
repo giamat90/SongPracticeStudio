@@ -110,6 +110,89 @@ pub(crate) fn run_sidecar_command(
     wait_for_result(sidecar, timeout, on_progress)
 }
 
+/// What a caller sees when the user cancelled the job.
+pub(crate) const CANCELLED_MESSAGE: &str = "Cancelled.";
+
+#[derive(Debug)]
+pub(crate) enum WaitError {
+    Cancelled,
+    Failed(String),
+}
+
+const CANCEL_POLL: Duration = Duration::from_millis(200);
+
+/// Like `wait_for_result`, but looks at `cancel` between `slice`s of waiting, so
+/// a job the sidecar cannot be interrupted in can still be abandoned. `timeout`
+/// is the longest silence tolerated, as in `wait_for_result`.
+pub(crate) fn wait_cancellable(
+    mut next: impl FnMut(Duration) -> Result<Option<SidecarMessage>, String>,
+    cancel: &std::sync::atomic::AtomicBool,
+    slice: Duration,
+    timeout: Duration,
+    mut on_progress: impl FnMut(f32, String),
+) -> Result<serde_json::Value, WaitError> {
+    let mut silent = Duration::ZERO;
+    loop {
+        if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(WaitError::Cancelled);
+        }
+        match next(slice).map_err(WaitError::Failed)? {
+            None => {
+                silent += slice;
+                if silent >= timeout {
+                    return Err(WaitError::Failed("recv: timed out waiting for the sidecar".to_string()));
+                }
+            }
+            Some(SidecarMessage::Progress { value, stage, .. }) => {
+                silent = Duration::ZERO;
+                on_progress(value, stage);
+            }
+            Some(SidecarMessage::Result { data, .. }) => return Ok(data),
+            Some(SidecarMessage::Error { message, traceback, cmd }) => {
+                log::error!(
+                    "Sidecar error ({}): {message}\n{}",
+                    cmd.as_deref().unwrap_or("?"),
+                    traceback.unwrap_or_default()
+                );
+                return Err(WaitError::Failed(message));
+            }
+            Some(_) => {}
+        }
+    }
+}
+
+/// Run a job that the user may cancel. Cancelling cannot interrupt the Python
+/// process mid-computation, so the sidecar is dropped (killed) and starts again
+/// on its next use.
+pub(crate) fn run_sidecar_command_cancellable(
+    state: &SidecarState,
+    cmd: &serde_json::Value,
+    timeout: Duration,
+    cancel: &std::sync::atomic::AtomicBool,
+    on_progress: impl FnMut(f32, String),
+) -> Result<serde_json::Value, String> {
+    let mut guard = state.0.lock().map_err(|e| format!("lock: {e}"))?;
+    if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(CANCELLED_MESSAGE.to_string());
+    }
+    if guard.is_none() {
+        log::info!("Spawning sidecar for first use");
+        *guard = Some(SidecarManager::spawn()?);
+    }
+    let sidecar = guard.as_ref().ok_or("Sidecar not available")?;
+    sidecar.send_command(cmd)?;
+    let outcome = wait_cancellable(|slice| sidecar.recv_slice(slice), cancel, CANCEL_POLL, timeout, on_progress);
+    match outcome {
+        Ok(data) => Ok(data),
+        Err(WaitError::Failed(message)) => Err(message),
+        Err(WaitError::Cancelled) => {
+            log::info!("Job cancelled: stopping the sidecar");
+            *guard = None;
+            Err(CANCELLED_MESSAGE.to_string())
+        }
+    }
+}
+
 /// Build the library entry for a finished `process` / `import_yt` job from the
 /// sidecar's result payload.
 pub(crate) fn song_from_result(
@@ -671,6 +754,38 @@ pub async fn pitch_shift_song(
     pitch_shift_song_impl(&state, song_dir, stem_names, n_steps)
 }
 
+/// Detect a song's chords again from its separated stems, replacing `chords.json`.
+pub(crate) fn redetect_chords_impl(state: &SidecarState, song_id: &str) -> Result<Song, String> {
+    let song = library::load_songs()?
+        .into_iter()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    let dir = Path::new(&song.directory);
+    let stem_paths: serde_json::Map<String, serde_json::Value> = song
+        .stems
+        .iter()
+        .filter_map(|name| {
+            let path = dir.join(format!("{name}.wav"));
+            path.exists().then(|| (name.clone(), serde_json::Value::String(path.to_string_lossy().to_string())))
+        })
+        .collect();
+    if stem_paths.is_empty() {
+        return Err("This song has no stems to detect chords from".to_string());
+    }
+    let cmd = serde_json::json!({
+        "cmd": "detect_chords",
+        "stemPaths": stem_paths,
+        "outputPath": dir.join("chords.json").to_string_lossy(),
+    });
+    run_sidecar_command(state, &cmd, Duration::from_secs(300), |_, _| {})?;
+    library::mark_chords_detected(song_id)
+}
+
+#[tauri::command]
+pub async fn redetect_song_chords(state: State<'_, SidecarState>, song_id: String) -> Result<Song, String> {
+    redetect_chords_impl(&state, &song_id)
+}
+
 /// Lyrics sync progress event payload (emitted to frontend as "lyrics-progress").
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -685,6 +800,17 @@ pub async fn load_lyrics(song_id: String) -> Result<Option<crate::lyrics::Lyrics
     crate::lyrics::load(&song_id)
 }
 
+/// Set by `cancel_lyrics_sync`, read by the sync that is running.
+static LYRICS_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Abandon the lyrics sync that is running (if any); its `sync_lyrics` call
+/// fails with "Cancelled." and the sidecar is stopped.
+#[tauri::command]
+pub async fn cancel_lyrics_sync() -> Result<(), String> {
+    LYRICS_CANCEL.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn sync_lyrics(
     app: AppHandle,
@@ -694,7 +820,8 @@ pub async fn sync_lyrics(
     source: Option<String>,
 ) -> Result<crate::lyrics::Lyrics, String> {
     let source = source.unwrap_or_else(|| "paste".to_string());
-    crate::lyrics::sync_impl(&state, &song_id, &text, &source, &mut |progress, stage| {
+    LYRICS_CANCEL.store(false, std::sync::atomic::Ordering::SeqCst);
+    crate::lyrics::sync_cancellable(&state, &song_id, &text, &source, &LYRICS_CANCEL, &mut |progress, stage| {
         let payload = LyricsProgress { song_id: song_id.clone(), progress, stage: stage.to_string() };
         if let Err(e) = app.emit("lyrics-progress", payload) {
             log::warn!("Could not emit lyrics-progress: {e}");
@@ -769,6 +896,129 @@ pub async fn export_mix(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    fn script(
+        steps: Vec<Result<Option<SidecarMessage>, String>>,
+    ) -> impl FnMut(Duration) -> Result<Option<SidecarMessage>, String> {
+        let mut steps = steps.into_iter();
+        move |_| steps.next().unwrap_or(Ok(None))
+    }
+
+    fn progress(value: f32) -> SidecarMessage {
+        SidecarMessage::Progress { cmd: None, value, stage: "s".into() }
+    }
+
+    #[test]
+    fn a_cancellable_wait_returns_the_result_and_reports_progress() {
+        let cancel = AtomicBool::new(false);
+        let mut seen = vec![];
+        let out = wait_cancellable(
+            script(vec![
+                Ok(None),
+                Ok(Some(progress(0.5))),
+                Ok(Some(SidecarMessage::Result { cmd: "x".into(), data: serde_json::json!({"ok": 1}) })),
+            ]),
+            &cancel,
+            Duration::from_millis(10),
+            Duration::from_secs(5),
+            |v, _| seen.push(v),
+        );
+        assert_eq!(out.unwrap(), serde_json::json!({"ok": 1}));
+        assert_eq!(seen, vec![0.5]);
+    }
+
+    #[test]
+    fn a_cancellable_wait_stops_when_cancel_is_set_between_slices() {
+        let cancel = AtomicBool::new(false);
+        let mut calls = 0;
+        let out = wait_cancellable(
+            |_| {
+                calls += 1;
+                if calls == 2 {
+                    cancel.store(true, Ordering::SeqCst);
+                }
+                Ok(None)
+            },
+            &cancel,
+            Duration::from_millis(10),
+            Duration::from_secs(5),
+            |_, _| {},
+        );
+        assert!(matches!(out, Err(WaitError::Cancelled)));
+        assert_eq!(calls, 2, "no more waiting once cancelled");
+    }
+
+    #[test]
+    fn a_cancellable_wait_gives_up_after_the_silence_timeout() {
+        let cancel = AtomicBool::new(false);
+        let out = wait_cancellable(|_| Ok(None), &cancel, Duration::from_millis(10), Duration::from_millis(35), |_, _| {});
+        match out {
+            Err(WaitError::Failed(m)) => assert!(m.contains("timed out"), "{m}"),
+            other => panic!("expected a timeout, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn progress_resets_the_silence_clock() {
+        let cancel = AtomicBool::new(false);
+        let mut n = 0;
+        let out = wait_cancellable(
+            move |_| {
+                n += 1;
+                match n {
+                    1 | 2 => Ok(None),
+                    3 => Ok(Some(progress(0.3))),
+                    4 | 5 => Ok(None),
+                    6 => Ok(Some(progress(0.6))),
+                    7 | 8 => Ok(None),
+                    _ => Ok(Some(SidecarMessage::Result { cmd: "x".into(), data: serde_json::json!(1) })),
+                }
+            },
+            &cancel,
+            Duration::from_millis(10),
+            Duration::from_millis(30),
+            |_, _| {},
+        );
+        assert!(out.is_ok(), "{out:?}");
+    }
+
+    #[test]
+    fn a_sidecar_error_or_a_dead_channel_fails_the_wait() {
+        let cancel = AtomicBool::new(false);
+        let err = wait_cancellable(
+            script(vec![Ok(Some(SidecarMessage::Error { cmd: None, message: "boom".into(), traceback: None }))]),
+            &cancel,
+            Duration::from_millis(10),
+            Duration::from_secs(1),
+            |_, _| {},
+        );
+        assert!(matches!(err, Err(WaitError::Failed(ref m)) if m == "boom"));
+        let dead = wait_cancellable(
+            script(vec![Err("recv: disconnected".into())]),
+            &cancel,
+            Duration::from_millis(10),
+            Duration::from_secs(1),
+            |_, _| {},
+        );
+        assert!(matches!(dead, Err(WaitError::Failed(ref m)) if m.contains("disconnected")));
+    }
+
+    #[test]
+    fn a_cancel_already_requested_never_starts_the_sidecar() {
+        let state = SidecarState(std::sync::Mutex::new(None));
+        let cancel = AtomicBool::new(true);
+        let err = run_sidecar_command_cancellable(
+            &state,
+            &serde_json::json!({"cmd": "ping"}),
+            Duration::from_secs(1),
+            &cancel,
+            |_, _| {},
+        )
+        .unwrap_err();
+        assert_eq!(err, CANCELLED_MESSAGE);
+        assert!(state.0.lock().unwrap().is_none(), "nothing was spawned");
+    }
     use crate::storage::test_support::TestHome;
     use serde_json::json;
     use std::cell::RefCell;

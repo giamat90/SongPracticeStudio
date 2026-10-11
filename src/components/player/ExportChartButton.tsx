@@ -1,62 +1,80 @@
 import { useState } from "react";
 import { usePlayerStore } from "../../stores/player";
-import { readSongChords } from "../../lib/tauri";
+import { useLibraryStore } from "../../stores/library";
+import { readSongChords, redetectSongChords } from "../../lib/tauri";
 import { exportChordChart } from "../../lib/exports";
 import type { Song } from "../../lib/types";
-
-const CAPO_FRETS = [0, 1, 2, 3, 4, 5, 6, 7];
 
 interface ExportChartButtonProps {
   song: Song;
 }
 
-/** Saves the detected chords as a text chord sheet, in the current key, optionally as capo shapes. */
+/** Saves the detected chords as a text chord sheet, and detects them again with the current model. */
 export default function ExportChartButton({ song }: ExportChartButtonProps) {
-  const [capo, setCapo] = useState(0);
-  const [exporting, setExporting] = useState(false);
-  if (!song.hasChords) return null;
+  const [busy, setBusy] = useState<"export" | "detect" | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const handleExport = async () => {
-    setExporting(true);
+    setBusy("export");
+    setMessage(null);
     try {
       const segments = await readSongChords(song.id);
+      const { transpose, capo } = usePlayerStore.getState();
       await exportChordChart({
         title: song.title,
         key: song.detectedKey,
         bpm: song.detectedBpm,
         segments,
-        transpose: usePlayerStore.getState().transpose,
+        transpose,
         capo,
       });
     } catch (e) {
       console.error("[ExportChartButton] chord chart export failed:", e);
+      setMessage(String(e));
     } finally {
-      setExporting(false);
+      setBusy(null);
+    }
+  };
+
+  const handleDetect = async () => {
+    setBusy("detect");
+    setMessage(null);
+    try {
+      await redetectSongChords(song.id);
+      await useLibraryStore.getState().fetchSongs();
+      usePlayerStore.setState((s) => (s.song ? { song: { ...s.song, hasChords: true } } : {}));
+      usePlayerStore.getState().bumpChordsRevision();
+    } catch (e) {
+      console.error("[ExportChartButton] chord re-detection failed:", e);
+      setMessage(String(e));
+    } finally {
+      setBusy(null);
     }
   };
 
   return (
     <span className="export-chart">
+      {song.hasChords && (
+        <button
+          className="analyzer-page__export-mix"
+          onClick={() => void handleExport()}
+          disabled={busy !== null}
+          title="Save the chords as a text chord sheet"
+          aria-label="Export the chords as a text chord sheet"
+        >
+          {busy === "export" ? "Exporting…" : "Export Chords"}
+        </button>
+      )}
       <button
         className="analyzer-page__export-mix"
-        onClick={() => void handleExport()}
-        disabled={exporting}
-        title="Save the chords as a text chord sheet"
-        aria-label="Export the chords as a text chord sheet"
+        onClick={() => void handleDetect()}
+        disabled={busy !== null}
+        title="Detect the chords again from the stems: sevenths and slash chords"
+        aria-label="Detect the chords again"
       >
-        {exporting ? "Exporting…" : "Export Chords"}
+        {busy === "detect" ? "Detecting…" : song.hasChords ? "Re-detect chords" : "Detect chords"}
       </button>
-      <select
-        className="export-chart__capo"
-        value={capo}
-        onChange={(e) => setCapo(Number(e.target.value))}
-        title="Capo: write the chords as the shapes to play with the capo on this fret"
-        aria-label="Capo fret"
-      >
-        {CAPO_FRETS.map((f) => (
-          <option key={f} value={f}>{f === 0 ? "No capo" : `Capo ${f}`}</option>
-        ))}
-      </select>
+      {message && <span className="export-chart__error" role="alert">{message}</span>}
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
+import { cancelLyricsSync } from "../../lib/tauri";
 import { activeLineIndex, activeWordIndex, lineSeekTime, useLyricsStore } from "@giamat90/mps-core/lyrics";
 
 interface LyricsPanelProps {
@@ -101,6 +102,16 @@ function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
                 <div className="lyrics-panel__progress-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
               </div>
               <span className="lyrics-panel__progress-label">{stage}</span>
+              <button
+                type="button"
+                className="lyrics-panel__cancel"
+                onClick={() =>
+                  cancelLyricsSync().catch((e: unknown) => console.error("[LyricsPanel] cancel failed:", e))
+                }
+                title="Stop the sync. Nothing is changed."
+              >
+                Cancel
+              </button>
             </div>
           )}
 

@@ -4,7 +4,7 @@ import type { ChordSegment } from "./types";
 vi.mock("../stores/player", () => ({ usePlayerStore: () => 0 }));
 vi.mock("./tauri", () => ({ readSongChords: vi.fn() }));
 
-import { findActiveChordIndex, findNearestChordIndex, formatChordName, transposeChord, transposeKey } from "./chords";
+import { findActiveChordIndex, findNearestChordIndex, formatChordName, transposeChord, transposeKey, transposeNote } from "./chords";
 
 const seg = (start: number, end: number, chord: string): ChordSegment => ({ start, end, chord });
 const SEGMENTS = [seg(2, 4, "C:maj"), seg(4, 6, "A:min"), seg(8, 9, "G:maj")];
@@ -16,7 +16,38 @@ describe("formatChordName", () => {
     ["F#:maj", "F#"],
     ["C#:min", "C#m"],
     ["G", "G"],
+    ["G:7", "G7"],
+    ["C:maj7", "Cmaj7"],
+    ["A:min7", "Am7"],
+    ["F#:min7", "F#m7"],
   ])("%s -> %s", (input, expected) => expect(formatChordName(input)).toBe(expected));
+
+  it("adds the bass note of a slash chord", () => {
+    expect(formatChordName("C:maj", "E")).toBe("C/E");
+    expect(formatChordName("A:min7", "G")).toBe("Am7/G");
+  });
+
+  it("ignores a missing bass note", () => {
+    expect(formatChordName("C:maj", null)).toBe("C");
+    expect(formatChordName("C:maj", undefined)).toBe("C");
+  });
+});
+
+describe("transposeNote", () => {
+  it.each([["E", 2, "F#"], ["C", -1, "B"], ["A#", 14, "C"]])("%s by %i is %s", (n, s, e) => {
+    expect(transposeNote(n, s)).toBe(e);
+  });
+
+  it("leaves what is not a note alone", () => {
+    expect(transposeNote("H", 3)).toBe("H");
+  });
+});
+
+describe("transposeChord with sevenths", () => {
+  it("keeps the quality", () => {
+    expect(transposeChord("A:min7", 3)).toBe("C:min7");
+    expect(transposeChord("G:7", 2)).toBe("A:7");
+  });
 });
 
 describe("findActiveChordIndex", () => {

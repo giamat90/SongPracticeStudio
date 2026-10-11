@@ -30,7 +30,10 @@ export interface Folder {
 export interface ChordSegment {
   start: number;
   end: number;
+  /** "C:maj", "A:min", "G:7", "C:maj7", "A:min7" */
   chord: string;
+  /** The bass note when it is a chord tone other than the root (a slash chord). */
+  bass?: string;
 }
 
 export interface ProcessingStatus {

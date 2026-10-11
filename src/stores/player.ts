@@ -197,6 +197,12 @@ interface PlayerActions {
   // Timeline zoom/pan actions
   setZoom: (minPxPerSec: number, scrollTime: number) => void;
   setScrollTime: (scrollTime: number) => void;
+  // Capo fret for the open song (remembered per song) and a counter that makes
+  // the chord displays fetch chords.json again after a re-detection
+  capo: number;
+  setCapo: (fret: number) => void;
+  chordsRevision: number;
+  bumpChordsRevision: () => void;
   // Named loops: saved regions of the song
   saveLoop: (name: string) => Promise<void>;
   renameLoop: (id: string, name: string) => Promise<void>;
@@ -347,6 +353,32 @@ function _persistTakePrefs(prefs: typeof DEFAULT_TAKE_PREFS): void {
   }
 }
 
+const CAPO_KEY = "sps_capo_by_song";
+export const MAX_CAPO_FRET = 7;
+
+function _readCapos(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(CAPO_KEY);
+    if (raw === null) return {};
+    const v = JSON.parse(raw) as unknown;
+    return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, number>) : {};
+  } catch (e) {
+    console.warn("[player] could not read the saved capo frets:", e);
+    return {};
+  }
+}
+
+function _writeCapo(songId: string, fret: number): void {
+  const all = _readCapos();
+  if (fret > 0) all[songId] = fret;
+  else delete all[songId];
+  try {
+    localStorage.setItem(CAPO_KEY, JSON.stringify(all));
+  } catch (e) {
+    console.warn("[player] could not save the capo fret:", e);
+  }
+}
+
 export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => {
   const applySelection = (next: TakeSelection) => {
     const s = get();
@@ -463,6 +495,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       minPxPerSec: baselinePxPerSec,
       scrollTime: 0,
       metronomeOffset: Math.max(0, Math.min(eng.getDuration(), song.metronomeOffset ?? 0)),
+      capo: Math.max(0, Math.min(MAX_CAPO_FRET, Math.round(Number(_readCapos()[song.id]) || 0))),
     });
     get().fetchTakes();
   },
@@ -1004,6 +1037,17 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       console.error("[player] failed to persist metronome offset:", e)
     );
   },
+
+  capo: 0,
+  setCapo: (fret) => {
+    const clamped = Math.max(0, Math.min(MAX_CAPO_FRET, Math.round(fret)));
+    set({ capo: clamped });
+    const song = get().song;
+    if (song) _writeCapo(song.id, clamped);
+  },
+
+  chordsRevision: 0,
+  bumpChordsRevision: () => set((s) => ({ chordsRevision: s.chordsRevision + 1 })),
 
   saveLoop: async (name) => {
     const { song, punchIn, punchOut, duration } = get();

@@ -19,6 +19,7 @@ import StemPicker, { DEFAULT_STEMS } from "../components/upload/StemPicker";
 import RecordingOffsetControl from "../components/recording/RecordingOffsetControl";
 import YouTubeCookiesControl from "../components/settings/YouTubeCookiesControl";
 import type { Folder, Song, StemName } from "../lib/types";
+import { filterSongs } from "../lib/librarySearch";
 import { useLibraryStore } from "../stores/library";
 import { useSettingsStore } from "../stores/settings";
 
@@ -341,6 +342,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const [highQuality, setHighQuality] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [query, setQuery] = useState("");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -357,6 +359,13 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   }, []);
 
   const sortedFolders = sortByIndex(folders);
+  const searching = query.trim() !== "";
+  const searchOrder = [
+    ...sortByIndex(songs.filter((s) => !s.folderId)),
+    ...sortedFolders.flatMap((f) => sortByIndex(songs.filter((s) => s.folderId === f.id))),
+  ];
+  const matches = searching ? filterSongs(searchOrder, folders, query) : [];
+  const folderNameOf = (song: Song) => folders.find((f) => f.id === song.folderId)?.name ?? null;
   const rootSongs = sortByIndex(songs.filter((s) => !s.folderId));
   const songsByFolder = new Map<string, Song[]>();
   for (const folder of sortedFolders) {
@@ -508,6 +517,17 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
       {!isLoading && (songs.length > 0 || sortedFolders.length > 0) && (
         <div className="library-page__list-toolbar">
           <span className="library-page__list-toolbar-label">Library</span>
+          <input
+            className="library-page__search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+            placeholder="Search title, key, tempo or folder"
+            aria-label="Search the library"
+          />
           {isCreatingFolder ? (
             <input
               className="library-page__new-folder-input"
@@ -540,7 +560,29 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
         </p>
       )}
 
-      {!isLoading && (songs.length > 0 || sortedFolders.length > 0) && (
+      {!isLoading && searching && (
+        <div className="library-page__scroll">
+          {matches.length === 0 ? (
+            <p className="library-page__empty">No song matches &ldquo;{query.trim()}&rdquo;.</p>
+          ) : (
+            <section className="library-page__list library-page__results" aria-label="Search results">
+              {matches.map((song) => (
+                <div key={song.id} className="library-page__result">
+                  <SongCard
+                    song={song}
+                    onSelect={() => onSelectSong(song.id)}
+                    onDelete={() => deleteSong(song.id)}
+                    onRename={(title) => renameSong(song.id, title)}
+                  />
+                  {folderNameOf(song) && <span className="library-page__result-folder">{folderNameOf(song)}</span>}
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
+      )}
+
+      {!isLoading && !searching && (songs.length > 0 || sortedFolders.length > 0) && (
         <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragEnd={handleDragEnd}>
           <div className="library-page__scroll">
             {sortedFolders.length > 0 && (

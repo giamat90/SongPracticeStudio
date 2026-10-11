@@ -1,10 +1,11 @@
 //! Synced lyrics: persistence of `{song}/lyrics.json` and the sidecar round trip
 //! that produces it. The Tauri command wrappers live in `commands.rs`.
 
-use crate::commands::{run_sidecar_command, SidecarState};
+use crate::commands::{run_sidecar_command, run_sidecar_command_cancellable, SidecarState};
 use crate::library::{self, Song};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 const FORMAT_VERSION: u32 = 1;
@@ -170,6 +171,19 @@ pub fn sync_impl(
     source: &str,
     on_progress: &mut dyn FnMut(f32, &str),
 ) -> Result<Lyrics, String> {
+    sync_cancellable(state, song_id, text, source, &AtomicBool::new(false), on_progress)
+}
+
+/// `sync_impl` that the user can cancel: setting `cancel` abandons the job and
+/// stops the sidecar, which a running alignment cannot be interrupted in.
+pub fn sync_cancellable(
+    state: &SidecarState,
+    song_id: &str,
+    text: &str,
+    source: &str,
+    cancel: &AtomicBool,
+    on_progress: &mut dyn FnMut(f32, &str),
+) -> Result<Lyrics, String> {
     if text.trim().is_empty() {
         return Err("Paste the lyrics first.".to_string());
     }
@@ -182,7 +196,9 @@ pub fn sync_impl(
         "lyrics": text,
         "modelsDir": crate::storage::app_data_dir().join("models").to_string_lossy(),
     });
-    let data = run_sidecar_command(state, &cmd, SYNC_TIMEOUT, |value, stage| on_progress(value, &stage))?;
+    let data = run_sidecar_command_cancellable(state, &cmd, SYNC_TIMEOUT, cancel, |value, stage| {
+        on_progress(value, &stage)
+    })?;
     let lyrics = from_alignment(source, text, &data, chrono::Utc::now().to_rfc3339())?;
     save(&song, &lyrics)?;
     Ok(lyrics)
@@ -392,6 +408,19 @@ mod tests {
         let err = sync_impl(&state, "s1", "  \n ", "paste", &mut |_, _| {}).unwrap_err();
         assert!(err.contains("Paste the lyrics"));
         assert!(!spawned(&state));
+    }
+
+    #[test]
+    fn a_cancelled_sync_stops_before_the_sidecar_and_saves_nothing() {
+        let _home = TestHome::new();
+        let song = add_song("s1", &["vocals"]);
+        std::fs::write(PathBuf::from(&song.directory).join("vocals.wav"), b"x").unwrap();
+        let state = offline_state();
+        let cancel = std::sync::atomic::AtomicBool::new(true);
+        let err = sync_cancellable(&state, "s1", "la la", "paste", &cancel, &mut |_, _| {}).unwrap_err();
+        assert_eq!(err, crate::commands::CANCELLED_MESSAGE);
+        assert!(!spawned(&state));
+        assert!(load("s1").unwrap().is_none(), "no lyrics were saved");
     }
 
     #[test]

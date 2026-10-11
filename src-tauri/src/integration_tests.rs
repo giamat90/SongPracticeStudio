@@ -8,6 +8,7 @@
 //! sidecar before any model is loaded.
 
 use crate::commands::{
+    redetect_chords_impl,
     convert_take_to_temp_wav, import_youtube_impl, pitch_shift_song_impl, process_song_impl, render_mix_to_temp_wav,
     save_take_impl, MixSource, ProcessingStatus, SidecarState,
 };
@@ -183,6 +184,40 @@ fn transposing_shifts_every_stem_and_is_cached_for_the_next_time() {
 
     let missing = pitch_shift_song_impl(&state, dir, vec!["drums".to_string()], 3);
     assert!(missing.is_err(), "a stem that is not on disk cannot be shifted");
+}
+
+#[test]
+fn detecting_the_chords_again_replaces_chords_json_and_marks_the_song() {
+    let Some((home, state)) = start() else { return };
+    let song_dir = home.path().join("song-chords");
+    std::fs::create_dir_all(&song_dir).unwrap();
+    write_wav(&song_dir.join("other.wav"), &tones(&[(261.63, 0.15), (329.63, 0.15), (392.0, 0.15)], 22050, 5.0), 22050);
+    write_wav(&song_dir.join("bass.wav"), &tones(&[(82.41, 0.4)], 22050, 5.0), 22050);
+    library::add(library::Song {
+        id: "song-chords".into(),
+        title: "Chords".into(),
+        duration: 5.0,
+        detected_key: None,
+        detected_bpm: None,
+        processed_at: "2026-01-01T00:00:00Z".into(),
+        directory: song_dir.to_string_lossy().to_string(),
+        stems: vec!["other".into(), "bass".into(), "drums".into()],
+        metronome_offset: None,
+        has_chords: false,
+        folder_id: None,
+        sort_index: 0,
+        loops: vec![],
+    })
+    .unwrap();
+
+    let song = redetect_chords_impl(&state, "song-chords").expect("redetect");
+    assert!(song.has_chords, "a stem that is not on disk (drums) is skipped, not an error");
+    let segments = library::read_chords("song-chords").unwrap();
+    assert_eq!(segments[0].chord, "C:maj");
+    assert_eq!(segments[0].bass.as_deref(), Some("E"));
+
+    let none = redetect_chords_impl(&state, "ghost");
+    assert!(none.unwrap_err().contains("ghost"));
 }
 
 #[test]

@@ -3772,3 +3772,59 @@ button.stem-track__take-name {
   font-size: 0.75rem;
   color: var(--accent);
 }
+
+.export-chart__error {
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+.lyrics-panel__cancel {
+  align-self: flex-start;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lyrics-panel__cancel:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.library-page__search {
+  flex: 1;
+  min-width: 0;
+  max-width: 24rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+
+.library-page__result {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.library-page__result > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-page__result-folder {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--bg-surface);
+  border-radius: 0.75rem;
+  padding: 0.1rem 0.5rem;
+}
