@@ -22,6 +22,7 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["deleteSong", () => api.deleteSong("s1"), "delete_song", { songId: "s1" }],
     ["importYoutube", () => api.importYoutube("u", ["drums"], false, "/c.txt"), "import_youtube",
       { url: "u", stemsToExtract: ["drums"], highQuality: false, cookiesPath: "/c.txt" }],
+    ["renameSongApi", () => api.renameSongApi("s1", "New"), "rename_song", { songId: "s1", title: "New" }],
     ["readSongChords", () => api.readSongChords("s1"), "read_song_chords", { songId: "s1" }],
     ["listFolders", () => api.listFolders(), "list_folders", undefined],
     ["createFolder", () => api.createFolder("Band"), "create_folder", { name: "Band" }],

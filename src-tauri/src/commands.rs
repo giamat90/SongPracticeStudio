@@ -238,6 +238,11 @@ pub async fn set_metronome_offset(song_id: String, offset: Option<f64>) -> Resul
     library::update_metronome_offset(&song_id, offset)
 }
 
+#[tauri::command]
+pub async fn rename_song(song_id: String, title: String) -> Result<Song, String> {
+    library::rename(&song_id, &title)
+}
+
 // --- Folder commands ---
 
 #[tauri::command]
@@ -1066,6 +1071,7 @@ mod tests {
         ))
         .unwrap();
 
+        assert_eq!(run(rename_song("a".into(), " Renamed ".into())).unwrap().title, "Renamed");
         assert_eq!(run(set_metronome_offset("a".into(), Some(3.0))).unwrap().metronome_offset, Some(3.0));
 
         let folder = run(create_folder("Band".into())).unwrap();

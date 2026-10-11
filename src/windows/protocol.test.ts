@@ -12,6 +12,7 @@ import {
 const shared = {
   song: null,
   duration: 120,
+  transpose: 0,
   activeTakeId: null,
   shownTakeIds: [],
   takePlayback: "all",
@@ -93,6 +94,8 @@ describe("shared state", () => {
       null,
       {},
       { ...shared, duration: "120" },
+      { ...shared, transpose: "2" },
+      { ...shared, transpose: undefined },
       { ...shared, duration: Number.NaN },
       { ...shared, activeTakeId: 3 },
       { ...shared, shownTakeIds: "t1" },

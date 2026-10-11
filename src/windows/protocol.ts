@@ -33,6 +33,8 @@ export const panelFromLabel = windows.fromLabel;
 export interface SharedState {
   song: Song | null;
   duration: number;
+  /** Semitones the song is shifted by; the chords are shown in that key. */
+  transpose: number;
   activeTakeId: string | null;
   /** Takes with a lane on screen, in the order they were shown. */
   shownTakeIds: string[];
@@ -81,6 +83,7 @@ export function isSharedState(value: unknown): value is SharedState {
   return (
     isObjectOrNull(value.song) &&
     isNumber(value.duration) &&
+    isNumber(value.transpose) &&
     isStringOrNull(value.activeTakeId) &&
     Array.isArray(value.shownTakeIds) &&
     value.shownTakeIds.every(isId) &&

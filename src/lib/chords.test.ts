@@ -4,7 +4,7 @@ import type { ChordSegment } from "./types";
 vi.mock("../stores/player", () => ({ usePlayerStore: () => 0 }));
 vi.mock("./tauri", () => ({ readSongChords: vi.fn() }));
 
-import { findActiveChordIndex, findNearestChordIndex, formatChordName } from "./chords";
+import { findActiveChordIndex, findNearestChordIndex, formatChordName, transposeChord, transposeKey } from "./chords";
 
 const seg = (start: number, end: number, chord: string): ChordSegment => ({ start, end, chord });
 const SEGMENTS = [seg(2, 4, "C:maj"), seg(4, 6, "A:min"), seg(8, 9, "G:maj")];
@@ -65,5 +65,40 @@ describe("findNearestChordIndex", () => {
 
   it("sticks to the last chord once playback runs past the end", () => {
     expect(findNearestChordIndex(SEGMENTS, 30)).toBe(2);
+  });
+});
+
+describe("transposeChord", () => {
+  it.each([
+    ["C:maj", 0, "C:maj"],
+    ["C:maj", 2, "D:maj"],
+    ["A:min", 3, "C:min"],
+    ["A#:maj", 1, "B:maj"],
+    ["B:maj", 1, "C:maj"],
+    ["C:maj", -1, "B:maj"],
+    ["C:maj", -6, "F#:maj"],
+    ["C:maj", 14, "D:maj"],
+  ])("%s by %i is %s", (chord, n, expected) => {
+    expect(transposeChord(chord, n)).toBe(expected);
+  });
+
+  it("leaves the no-chord label and unknown roots alone", () => {
+    expect(transposeChord("N", 3)).toBe("N");
+    expect(transposeChord("H:maj", 3)).toBe("H:maj");
+  });
+});
+
+describe("transposeKey", () => {
+  it.each([
+    ["C major", 2, "D major"],
+    ["A minor", -3, "F# minor"],
+    ["G# minor", 4, "C minor"],
+    ["C major", 0, "C major"],
+  ])("%s by %i is %s", (key, n, expected) => {
+    expect(transposeKey(key, n)).toBe(expected);
+  });
+
+  it("returns an unparseable key unchanged", () => {
+    expect(transposeKey("unknown", 2)).toBe("unknown");
   });
 });

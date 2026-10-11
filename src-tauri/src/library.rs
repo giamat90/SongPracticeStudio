@@ -135,6 +135,25 @@ pub fn update_metronome_offset(song_id: &str, offset: Option<f64>) -> Result<Son
     Ok(updated)
 }
 
+/// Rename a song and persist it. A song has no placeholder title to fall
+/// back to, so an empty or whitespace title is rejected rather than cleared.
+pub fn rename(song_id: &str, title: &str) -> Result<Song, String> {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        return Err("Song title cannot be empty".to_string());
+    }
+    let mut lib = load()?;
+    let song = lib
+        .songs
+        .iter_mut()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    song.title = trimmed.to_string();
+    let updated = song.clone();
+    save(&lib)?;
+    Ok(updated)
+}
+
 #[derive(Deserialize)]
 struct ChordsFile {
     segments: Vec<ChordSegment>,
@@ -484,6 +503,24 @@ mod tests {
         let cleared = update_metronome_offset("a", None).unwrap();
         assert_eq!(cleared.metronome_offset, None);
         assert_eq!(load_songs().unwrap()[0].metronome_offset, None);
+    }
+
+    #[test]
+    fn rename_persists_and_trims() {
+        let _home = TestHome::new();
+        add(song("a", "Old")).unwrap();
+        let updated = rename("a", "  New  ").unwrap();
+        assert_eq!(updated.title, "New");
+        assert_eq!(load_songs().unwrap()[0].title, "New");
+    }
+
+    #[test]
+    fn rename_rejections_leave_the_file_alone() {
+        let _home = TestHome::new();
+        add(song("a", "Old")).unwrap();
+        assert!(rename("a", "  ").is_err());
+        assert!(rename("zzz", "X").unwrap_err().contains("zzz"));
+        assert_eq!(load_songs().unwrap()[0].title, "Old");
     }
 
     #[test]

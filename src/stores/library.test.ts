@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   onProcessingProgress: vi.fn(),
   processSong: vi.fn(),
   renameFolder: vi.fn(),
+  renameSongApi: vi.fn(),
   reorderFolders: vi.fn(),
 }));
 
@@ -170,6 +171,25 @@ describe("deleteSong", () => {
     api.deleteSong.mockRejectedValue("locked");
     await useLibraryStore.getState().deleteSong("a");
     expect(useLibraryStore.getState().songs).toHaveLength(2);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+});
+
+describe("renameSong", () => {
+  beforeEach(() => useLibraryStore.setState({ songs: [song("a"), song("b")], error: null }));
+
+  it("replaces the song with the one the backend returns", async () => {
+    api.renameSongApi.mockResolvedValue(song("a", { title: "Renamed" }));
+    await useLibraryStore.getState().renameSong("a", "  Renamed ");
+    expect(api.renameSongApi).toHaveBeenCalledWith("a", "  Renamed ");
+    expect(useLibraryStore.getState().songs.map((s) => s.title)).toEqual(["Renamed", "b"]);
+  });
+
+  it("keeps the old title, logs and sets the error when the backend refuses", async () => {
+    api.renameSongApi.mockRejectedValue("Song title cannot be empty");
+    await useLibraryStore.getState().renameSong("a", "  ");
+    expect(useLibraryStore.getState().songs[0].title).toBe("a");
+    expect(useLibraryStore.getState().error).toBe("Song title cannot be empty");
     expect(errorSpy).toHaveBeenCalled();
   });
 });

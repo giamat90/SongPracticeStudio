@@ -50,7 +50,7 @@ Manages the song list, import/upload flow, and error state.
 | `isLoading` | `boolean` | Initial fetch in progress |
 | `error` | `string \| null` | Last friendly error message |
 
-Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. Note SPS has no `renameSong` action (unlike VPS) — no backend command backs one here. See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
+Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `renameSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. `renameSong` calls `rename_song` and swaps in the returned song (double-click the title or the ✎ button on a song card; empty titles are rejected by the backend). See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
 
 Errors from `importYoutube` and `uploadSong` are parsed by `friendlyError()` into human-readable messages.
 
@@ -223,7 +223,7 @@ Controlled component (`value`/`onChange` + `highQuality`/`onHighQualityChange`) 
 
 ### ChordCarousel / ChordRow
 
-Both read from `useChordSegments(song)` (`src/lib/chords.ts`), which lazily fetches `read_song_chords(song.id)` the first time a song with `hasChords: true` is displayed (empty array, no fetch, if `hasChords` is false — songs processed before chord detection shipped, or where it failed non-fatally in `processor.py`). Chords are detected once at processing time (chroma-template matching, `processor.py`'s `_detect_chords_chroma()`), written to `chords.json`, and never recomputed — no live/on-the-fly detection.
+Both read from `useChordSegments(song)` (`src/lib/chords.ts`), which lazily fetches `read_song_chords(song.id)` the first time a song with `hasChords: true` is displayed (empty array, no fetch, if `hasChords` is false — songs processed before chord detection shipped, or where it failed non-fatally in `processor.py`). Chords are detected once at processing time (chroma-template matching, `processor.py`'s `_detect_chords_chroma()`), written to `chords.json`, and never recomputed — no live/on-the-fly detection. The detected chords are shifted by the active `transpose` (`transposeChord`) so the display matches the audio, and the header shows the shifted key (`transposeKey`); `transpose` is part of the detached-window shared state for this reason.
 
 - **ChordCarousel** (`AnalyzerPage`'s topbar) — a gauge-dial-style strip: the currently-playing chord centered ("now"), with up to 2 past and 2 next chords on either side, each positioned by `--dist`/`--dist-abs` CSS custom properties. Returns `null` entirely if `!song.hasChords || segments.length === 0`, so it takes no layout space on a song with no chord data.
 - **ChordRow** (inside `StemView`, above the stem tracks) — the same segments laid out as fixed-position chips along the actual timeline, sized/positioned in pixels from `minPxPerSec`/`scrollTime` like everything else in the zoom/pan system. Chips narrower than `MIN_LABEL_PX` (28px) show as an unlabeled tick instead of a clipped label, unless active.

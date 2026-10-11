@@ -11,6 +11,7 @@ import {
   onProcessingProgress,
   processSong,
   renameFolder as renameFolderApi,
+  renameSongApi,
   reorderFolders as reorderFoldersApi,
 } from "../lib/tauri";
 
@@ -25,6 +26,7 @@ interface LibraryState {
   uploadSong: (filePath: string, stems?: StemName[], highQuality?: boolean) => Promise<void>;
   importYoutube: (url: string, stems?: StemName[], highQuality?: boolean, cookiesPath?: string | null) => Promise<void>;
   deleteSong: (songId: string) => Promise<void>;
+  renameSong: (songId: string, title: string) => Promise<void>;
   fetchFolders: () => Promise<void>;
   createFolder: (name: string) => Promise<void>;
   renameFolder: (folderId: string, name: string) => Promise<void>;
@@ -132,6 +134,18 @@ export const useLibraryStore = create<LibraryState>((set) => ({
       }));
     } catch (e) {
       console.error("Failed to delete song:", e);
+    }
+  },
+
+  renameSong: async (songId: string, title: string) => {
+    try {
+      const updated = await renameSongApi(songId, title);
+      set((state) => ({
+        songs: state.songs.map((s) => (s.id === songId ? updated : s)),
+      }));
+    } catch (e) {
+      console.error("Failed to rename song:", e);
+      set({ error: String(e) });
     }
   },
 

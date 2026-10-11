@@ -12,6 +12,7 @@ export interface PlayerPort {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  transpose: number;
   playbackRate: number;
   activeTakeId: string | null;
   shownTakeIds: string[];
@@ -80,6 +81,7 @@ export function startMainBridge(deps: MainBridgeDeps): Promise<{ dispose(): void
       return {
         song: p.song,
         duration: p.duration,
+        transpose: p.transpose,
         activeTakeId: p.activeTakeId,
         shownTakeIds: p.shownTakeIds,
         takePlayback: p.takePlayback,
