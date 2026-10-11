@@ -131,9 +131,10 @@ impl SidecarManager {
             rx,
         };
 
-        // Wait for "ready" message
+        // 90s, not 30s: torch/demucs/librosa are imported before "ready" is sent and
+        // a cold (uncached) first import can exceed 30s alone.
         let msg = manager
-            .recv_timeout(Duration::from_secs(30))
+            .recv_timeout(Duration::from_secs(90))
             .map_err(|e| format!("Sidecar did not send ready: {e}"))?;
 
         match msg {
