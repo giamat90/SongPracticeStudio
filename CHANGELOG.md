@@ -6,6 +6,15 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.48] - 2026-10-12
+
+### Added
+- Chords: seventh chords (7, maj7, m7) and slash chords (C/E, with the bass note taken from the bass stem) are now detected. Songs imported earlier keep their triads until you press **Re-detect chords** in the header; no new separation is needed.
+- **Capo** selector next to the chords: the chord display, the chord row and Export Chords show the shapes to play with the capo on that fret (remembered per song, also in a detached chords window).
+- The **Loops** menu lists **Sections from the chords**: the song cut where the chord progression changes, in blocks of four bars, with a letter that repeats for sections playing the same chords (and an Intro before the first chord). Click one to loop it. Chords alone cannot tell a verse from a chorus that loops the same chords.
+- **Cancel** button while lyrics are syncing. Nothing is changed; the next sidecar use starts it again.
+- **Search** box in the library: title, key, tempo or folder name, several words allowed.
+
 ## [0.0.47] - 2026-10-12
 
 ### Added
