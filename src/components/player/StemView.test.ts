@@ -28,6 +28,7 @@ vi.mock("../../stores/player", () => ({
   usePlayerStore: Object.assign((sel: (s: unknown) => unknown) => sel(h.state), { getState: () => h.state }),
   getEngine: () => ({}),
   TAKE_TRACK_KEY: "__take__",
+  takesSilenced: () => false,
 }));
 vi.mock("./TimeRuler", h.stub("ruler"));
 vi.mock("./ChordRow", h.stub("chordRow"));

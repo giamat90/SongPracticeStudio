@@ -269,6 +269,7 @@ export function buildMixSources(state: PlayerState): {
       recording: false,
       muteWhileRecording: false,
       soloed: soloedTakeOf(state),
+      silenced: false,
     });
     for (const id of audible) {
       const take = takes.find((t) => t.id === id);
@@ -293,9 +294,14 @@ export function buildMixSources(state: PlayerState): {
   };
 }
 
-// A take soloed on its own lane: the take channel is soloed and names the take.
-const soloedTakeOf = (s: { soloedStem: string | null; soloedTakeId: string | null }): string | null =>
-  s.soloedStem === TAKE_TRACK_KEY ? s.soloedTakeId : null;
+// A take soloed on its own lane only chooses among the takes; it never touches the
+// stems, and the take channel's own mute / solo state outranks it.
+const soloedTakeOf = (s: { soloedTakeId: string | null }): string | null => s.soloedTakeId;
+
+/** The takes as a whole are silent: the main take mute is on, or another track is soloed. */
+export function takesSilenced(s: { mutedStems: Record<string, boolean>; soloedStem: string | null }): boolean {
+  return effectiveStemGain(TAKE_TRACK_KEY, 1, s.mutedStems, s.soloedStem) === 0;
+}
 
 const selectionOf = (s: { shownTakeIds: string[]; activeTakeId: string | null }): TakeSelection => ({
   shown: s.shownTakeIds,
@@ -341,14 +347,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     set({
       shownTakeIds: [...next.shown],
       activeTakeId: next.active,
-      ...(lost
-        ? { soloedTakeId: null, soloedStem: s.soloedStem === TAKE_TRACK_KEY ? null : s.soloedStem }
-        : {}),
+      ...(lost ? { soloedTakeId: null } : {}),
     });
-    if (lost) {
-      const { song, stemVolumes, mutedStems, soloedStem, takeVolume } = get();
-      if (song) applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, soloedStem, takeVolume);
-    }
   };
 
   return {
@@ -522,7 +522,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   toggleSolo: (name) => {
     const { soloedStem, mutedStems, stemVolumes, song, takeVolume } = get();
     const newSolo = soloedStem === name ? null : name;
-    set({ soloedStem: newSolo, soloedTakeId: null });
+    set({ soloedStem: newSolo });
     if (song) {
       applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, newSolo, takeVolume);
     }
@@ -863,9 +863,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       activeTakeId: next.active,
       mutedTakeIds: state.mutedTakeIds.filter((id) => ids.includes(id)),
       takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => ids.includes(id))),
-      ...(state.soloedTakeId !== null && !ids.includes(state.soloedTakeId)
-        ? { soloedTakeId: null, soloedStem: state.soloedStem === TAKE_TRACK_KEY ? null : state.soloedStem }
-        : {}),
+      ...(state.soloedTakeId !== null && !ids.includes(state.soloedTakeId) ? { soloedTakeId: null } : {}),
     }));
   },
 
@@ -880,7 +878,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       activeTakeId: next.active,
       mutedTakeIds: state.mutedTakeIds.filter((id) => id !== takeId),
       takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => id !== takeId)),
-      ...(state.soloedTakeId === takeId ? { soloedTakeId: null, soloedStem: state.soloedStem === TAKE_TRACK_KEY ? null : state.soloedStem } : {}),
+      ...(state.soloedTakeId === takeId ? { soloedTakeId: null } : {}),
     }));
   },
 
@@ -911,13 +909,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   },
 
   toggleTakeSolo: (takeId) => {
-    const { soloedStem, soloedTakeId, mutedStems, stemVolumes, song, takeVolume } = get();
-    const on = soloedStem === TAKE_TRACK_KEY && soloedTakeId === takeId;
-    const newSolo = on ? null : TAKE_TRACK_KEY;
-    set({ soloedStem: newSolo, soloedTakeId: on ? null : takeId });
-    if (song) {
-      applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, newSolo, takeVolume);
-    }
+    set((s) => ({ soloedTakeId: s.soloedTakeId === takeId ? null : takeId }));
   },
 
   setTakeGain: (takeId, gain) => {
@@ -1010,6 +1002,7 @@ function pushTakeAudio(state: PlayerState): void {
       recording: state.isRecording,
       muteWhileRecording: state.muteTakesWhileRecording,
       soloed: soloedTakeOf(state),
+      silenced: takesSilenced(state),
     }),
   );
 }
@@ -1025,6 +1018,7 @@ usePlayerStore.subscribe((state, prev) => {
     state.mutedTakeIds === prev.mutedTakeIds &&
     state.soloedTakeId === prev.soloedTakeId &&
     state.soloedStem === prev.soloedStem &&
+    state.mutedStems === prev.mutedStems &&
     state.takeGains === prev.takeGains &&
     state.isRecording === prev.isRecording &&
     state.muteTakesWhileRecording === prev.muteTakesWhileRecording

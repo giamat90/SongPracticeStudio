@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
     takePlayback: "all" as "all" | "selected",
     mutedTakeIds: [] as string[],
     soloedTakeId: null as string | null,
+    takesSilenced: false,
     isRecording: false,
     muteTakesWhileRecording: true,
     toggleTake: () => {},
@@ -22,6 +23,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock("../../stores/player", () => ({
   usePlayerStore: (sel: (s: unknown) => unknown) => sel(h.state),
+  takesSilenced: (s: { takesSilenced: boolean }) => s.takesSilenced,
 }));
 vi.mock("../../lib/tauri", () => ({ exportTake: async () => {} }));
 
@@ -40,6 +42,7 @@ beforeEach(() => {
   h.state.takePlayback = "all";
   h.state.mutedTakeIds = [];
   h.state.soloedTakeId = null;
+  h.state.takesSilenced = false;
   h.state.isRecording = false;
   h.state.muteTakesWhileRecording = true;
 });
@@ -64,6 +67,14 @@ describe("takes list", () => {
     h.state.activeTakeId = "b";
     h.state.mutedTakeIds = ["a"];
     expect(marks(render())).toEqual(["silent", "playing", "hidden"]);
+  });
+
+  it("marks every take silent while the main take mute or another solo silences them", () => {
+    h.state.shownTakeIds = ["a", "b"];
+    h.state.activeTakeId = "b";
+    h.state.soloedTakeId = "a";
+    h.state.takesSilenced = true;
+    expect(marks(render())).toEqual(["silent", "silent", "hidden"]);
   });
 
   it("marks only the soloed take as playing", () => {

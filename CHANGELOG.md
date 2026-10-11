@@ -11,7 +11,7 @@ Releases before 0.0.40 are not itemised; see `git log` and the tags.
 ### Added
 - Several recorded takes can be shown at the same time, each on its own lane. Click a take in the Takes list to show it, click it again to hide it (a lane also has its own ×). By default every shown take is heard together; **M** on a lane silences just that take.
 - A bar above the take lanes: **Hear: all shown / selected only** (only the selected take plays, and clicking another take switches to it) and **Silent / Playing while recording** (keep hearing the shown takes while you record another one). Both choices are remembered.
-- Each take lane has its own **mute, solo and volume** at the far right, next to the offset controls it already had; the shared take volume (and its mute / solo) stays in the bar above the lanes and the two multiply. Soloing a take plays it alone, like soloing a stem.
+- Each take lane has its own **mute, solo and volume** at the far right, next to the offset controls it already had; the shared take volume, mute and solo stay in the bar above the lanes and come first: the main mute silences every take whatever the lanes say, and a lane's solo only picks one take among the takes (it never touches the other tracks). The main buttons' tooltips say so.
 - The mixdown export includes every take that is heard, at each take's own level.
 
 ### Changed

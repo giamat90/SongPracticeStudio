@@ -21,6 +21,9 @@ export interface DetachedPlayer {
   mutedTakeIds: string[];
   soloedTakeId: string | null;
   muteTakesWhileRecording: boolean;
+  /** Mirrors the main window's take mute; the stems are not shown here. */
+  mutedStems: Record<string, boolean>;
+  soloedStem: string | null;
   isRecording: boolean;
   takes: Take[];
   seek: (time: number) => void;
@@ -37,6 +40,8 @@ export interface DetachedBridgeDeps {
   emit: (event: string, payload: unknown) => void | Promise<void>;
   listen: (event: string, cb: (payload: unknown) => void) => Promise<() => void>;
   now: () => number;
+  /** The key the player store uses for the take channel's mute / solo. */
+  takeTrackKey: string;
 }
 
 /**
@@ -65,6 +70,8 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
         takePlayback: shared.takePlayback,
         mutedTakeIds: shared.mutedTakeIds,
         soloedTakeId: shared.soloedTakeId,
+        mutedStems: { [deps.takeTrackKey]: shared.takesSilenced },
+        soloedStem: null,
         muteTakesWhileRecording: shared.muteTakesWhileRecording,
         isRecording: shared.isRecording,
         isPlaying: transport.playing,

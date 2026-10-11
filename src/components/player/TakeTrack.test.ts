@@ -87,11 +87,16 @@ describe("take lane", () => {
 
   it("marks a muted and a soloed lane", () => {
     h.state.mutedTakeIds = ["t1"];
-    h.state.soloedStem = "__take__";
     h.state.soloedTakeId = "t1";
     const html = render();
     expect(html).toContain('aria-label="Unmute Take 1"');
     expect(html).toContain('aria-label="Unsolo Take 1"');
+  });
+
+  it("says in its tooltips that it leaves the stems alone and that the main buttons come first", () => {
+    const html = render();
+    expect(html).toContain("The stems are not affected, and the main take mute and solo above still come first");
+    expect(html).toContain("The main take mute and solo above still come first");
   });
 
   it("dims a lane that is not heard", () => {

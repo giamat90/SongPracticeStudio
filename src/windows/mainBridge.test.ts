@@ -4,6 +4,8 @@ import { EVT_COMMAND, EVT_DOCKED, EVT_HELLO, EVT_STATE } from "./protocol";
 
 const take = (id: string) => ({ id, songId: "s1", recordedAt: "2026-10-10T10:00:00Z", filepath: `/t/${id}.wav`, startPosition: 0 });
 
+const silenced = { value: false };
+
 function harness() {
   const state: PlayerPort = {
     song: { id: "s1", title: "Song", stems: ["vocals"] } as PlayerPort["song"],
@@ -37,11 +39,13 @@ function harness() {
       return () => {};
     },
     now: () => 5000,
+    takesSilenced: () => silenced.value,
   });
   return { state, emitted, bridge, fire: (e: string, p: unknown) => handlers.get(e)?.(p), notify: () => notify() };
 }
 
 beforeEach(() => {
+  silenced.value = false;
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -70,6 +74,17 @@ describe("analyzer main bridge", () => {
     expect(msg.shared).toMatchObject({ duration: 200, activeTakeId: "t2" });
     expect((msg.shared.takes as unknown[]).length).toBe(2);
     expect((msg.shared.song as { id: string }).id).toBe("s1");
+  });
+
+  it("tells the detached window when the main take mute or another solo silences the takes", async () => {
+    const h = harness();
+    await h.bridge;
+    h.fire(EVT_HELLO, { panelId: "takes" });
+    silenced.value = true;
+    h.state.currentTime = 1;
+    h.notify();
+    const last = h.emitted[h.emitted.length - 1].payload as { shared: { takesSilenced: boolean } };
+    expect(last.shared.takesSilenced).toBe(true);
   });
 
   it("sends a new state when a take is added", async () => {

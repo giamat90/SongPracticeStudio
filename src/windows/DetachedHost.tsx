@@ -7,7 +7,7 @@ import TakeList from "../components/recording/TakeList";
 import { canSyncLyrics } from "../lib/lyrics";
 import { dockPanel } from "../lib/tauri";
 import type { Song } from "../lib/types";
-import { usePlayerStore } from "../stores/player";
+import { TAKE_TRACK_KEY, usePlayerStore } from "../stores/player";
 import { startDetachedBridge } from "./detachedBridge";
 import type { DetachablePanel } from "./protocol";
 
@@ -53,6 +53,7 @@ function DetachedHost({ panel }: DetachedHostProps) {
       emit: (event, payload) => emit(event, payload),
       listen: (event, cb) => listen(event, (e) => cb(e.payload)),
       now: () => Date.now(),
+      takeTrackKey: TAKE_TRACK_KEY,
     })
       .then((b) => {
         if (cancelled) b.dispose();

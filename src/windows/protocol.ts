@@ -41,6 +41,8 @@ export interface SharedState {
   mutedTakeIds: string[];
   /** The take soloed on its lane, if any. */
   soloedTakeId: string | null;
+  /** The main take mute is on, or another track is soloed: no take is heard. */
+  takesSilenced: boolean;
   muteTakesWhileRecording: boolean;
   isRecording: boolean;
   takes: Take[];
@@ -86,6 +88,7 @@ export function isSharedState(value: unknown): value is SharedState {
     Array.isArray(value.mutedTakeIds) &&
     value.mutedTakeIds.every(isId) &&
     isStringOrNull(value.soloedTakeId) &&
+    typeof value.takesSilenced === "boolean" &&
     typeof value.muteTakesWhileRecording === "boolean" &&
     typeof value.isRecording === "boolean" &&
     Array.isArray(value.takes) &&

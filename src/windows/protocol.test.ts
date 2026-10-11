@@ -17,6 +17,7 @@ const shared = {
   takePlayback: "all",
   mutedTakeIds: [],
   soloedTakeId: null,
+  takesSilenced: false,
   muteTakesWhileRecording: true,
   isRecording: false,
   takes: [],

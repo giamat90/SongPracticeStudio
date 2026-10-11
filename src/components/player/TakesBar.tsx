@@ -49,7 +49,11 @@ function TakesBar() {
         <button
           className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
           onClick={() => toggleMute(TAKE_TRACK_KEY)}
-          title={isMuted ? "Unmute all takes" : "Mute all takes"}
+          title={
+            isMuted
+              ? "Unmute the takes"
+              : "Mute all the takes. This main mute wins over the mute and solo on each take."
+          }
           aria-label={isMuted ? "Unmute all takes" : "Mute all takes"}
         >
           M
@@ -57,7 +61,11 @@ function TakesBar() {
         <button
           className={`stem-track__solo${isSoloed ? " stem-track__solo--on" : ""}`}
           onClick={() => toggleSolo(TAKE_TRACK_KEY)}
-          title={isSoloed ? "Unsolo takes" : "Solo takes"}
+          title={
+            isSoloed
+              ? "Stop soloing the takes"
+              : "Solo the takes: only the takes are heard and the stems go quiet. Solo on a take then picks one take among them."
+          }
           aria-label={isSoloed ? "Unsolo takes" : "Solo takes"}
         >
           S

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { usePlayerStore, getEngine, TAKE_TRACK_KEY } from "../../stores/player";
+import { usePlayerStore, getEngine, takesSilenced } from "../../stores/player";
 import { useAnalyzerPanels } from "../../stores/panels";
 import TimeRuler from "./TimeRuler";
 import ChordRow from "./ChordRow";
@@ -22,7 +22,8 @@ function StemView({ song }: StemViewProps) {
   const mutedTakeIds  = usePlayerStore((s) => s.mutedTakeIds);
   const isRecording   = usePlayerStore((s) => s.isRecording);
   const muteWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
-  const soloedTakeId  = usePlayerStore((s) => (s.soloedStem === TAKE_TRACK_KEY ? s.soloedTakeId : null));
+  const soloedTakeId  = usePlayerStore((s) => s.soloedTakeId);
+  const takeChannelSilent = usePlayerStore((s) => takesSilenced(s));
   const takes         = usePlayerStore((s) => s.takes);
   const showChords    = useAnalyzerPanels((s) => s.visible.chords);
   const setTakeVolume = usePlayerStore((s) => s.setTakeVolume);
@@ -39,6 +40,7 @@ function StemView({ song }: StemViewProps) {
     recording: isRecording,
     muteWhileRecording,
     soloed: soloedTakeId,
+    silenced: takeChannelSilent,
   });
   // Lane containers by take id, and the takes currently loaded into the engine
   const takeRails     = useRef(new Map<string, HTMLDivElement>());

@@ -1488,10 +1488,10 @@ describe("a take's own mixer", () => {
     expect(store().getState().takeGains).toEqual({ t1: 1, t2: 0 });
   });
 
-  it("soloing a take lane solos the take channel and names the take, so only it is heard", () => {
+  it("soloing a take lane picks that take among the takes and leaves every other track alone", () => {
     store().getState().toggleTakeSolo("t1");
-    expect(store().getState().soloedStem).toBe(mod.TAKE_TRACK_KEY);
     expect(store().getState().soloedTakeId).toBe("t1");
+    expect(store().getState().soloedStem).toBeNull();
     expect(audible()).toEqual(["t1"]);
   });
 
@@ -1510,18 +1510,56 @@ describe("a take's own mixer", () => {
     expect(audible()).toEqual(["t2"]);
   });
 
-  it("soloing a track or the take channel itself clears a lane solo", () => {
+  it("a lane solo is not undone by soloing another track, but that track silences the takes", () => {
     store().getState().toggleTakeSolo("t1");
     store().getState().toggleSolo("vocals");
-    expect(store().getState().soloedTakeId).toBeNull();
-    expect(audible()).toEqual(["t1", "t2"]);
+    expect(store().getState().soloedTakeId).toBe("t1");
+    expect(mod.takesSilenced(store().getState())).toBe(true);
+    expect(audible()).toEqual([]);
+    store().getState().toggleSolo("vocals");
+    expect(audible()).toEqual(["t1"]);
   });
 
-  it("hiding the soloed take drops the solo, so the stems come back", () => {
+  it("the main take mute outranks the lane solo and the lane mutes", () => {
+    store().getState().toggleTakeSolo("t1");
+    store().getState().toggleMute(mod.TAKE_TRACK_KEY);
+    expect(mod.takesSilenced(store().getState())).toBe(true);
+    expect(audible()).toEqual([]);
+    store().getState().toggleMute(mod.TAKE_TRACK_KEY);
+    expect(audible()).toEqual(["t1"]);
+  });
+
+  it("with the main take solo on, a lane solo still only chooses among the takes", () => {
+    store().getState().toggleSolo(mod.TAKE_TRACK_KEY);
+    expect(mod.takesSilenced(store().getState())).toBe(false);
+    expect(audible()).toEqual(["t1", "t2"]);
+    store().getState().toggleTakeSolo("t2");
+    expect(store().getState().soloedStem).toBe(mod.TAKE_TRACK_KEY);
+    expect(audible()).toEqual(["t2"]);
+  });
+
+  it("a lane mute works inside the main solo as well", () => {
+    store().getState().toggleSolo(mod.TAKE_TRACK_KEY);
+    store().getState().toggleTakeMute("t1");
+    expect(audible()).toEqual(["t2"]);
+  });
+
+  it("takes are silenced by the main mute or by another track's solo, and not by their own solo", () => {
+    expect(mod.takesSilenced(store().getState())).toBe(false);
+    store().getState().toggleMute(mod.TAKE_TRACK_KEY);
+    expect(mod.takesSilenced(store().getState())).toBe(true);
+    store().getState().toggleMute(mod.TAKE_TRACK_KEY);
+    store().getState().toggleSolo("vocals");
+    expect(mod.takesSilenced(store().getState())).toBe(true);
+    store().getState().toggleSolo("vocals");
+    store().getState().toggleSolo(mod.TAKE_TRACK_KEY);
+    expect(mod.takesSilenced(store().getState())).toBe(false);
+  });
+
+  it("hiding the soloed take drops the solo", () => {
     store().getState().toggleTakeSolo("t1");
     store().getState().hideTake("t1");
     expect(store().getState().soloedTakeId).toBeNull();
-    expect(store().getState().soloedStem).toBeNull();
   });
 
   it("deleting a take forgets its volume, mute and solo", async () => {
@@ -1532,7 +1570,6 @@ describe("a take's own mixer", () => {
     expect(store().getState().takeGains).toEqual({ t2: 0.9 });
     expect(store().getState().mutedTakeIds).toEqual([]);
     expect(store().getState().soloedTakeId).toBeNull();
-    expect(store().getState().soloedStem).toBeNull();
   });
 
   it("closing the song forgets the gains and the solo", () => {
@@ -1550,9 +1587,11 @@ describe("a take's own mixer", () => {
     expect(gainsOut).toEqual([0.5, 0.25]);
   });
 
-  it("mixes only the soloed take", () => {
+  it("mixes only the soloed take among the takes, and the stems as they are", () => {
+    const before = mod.buildMixSources({ ...store().getState(), song: song(), duration: 200 })!;
     store().getState().toggleTakeSolo("t2");
     const out = mod.buildMixSources({ ...store().getState(), song: song(), duration: 200 })!;
-    expect(out.sources.map((x) => x.path)).toEqual(["/takes/t2.wav"]);
+    expect(out.sources.filter((x) => x.isTake).map((x) => x.path)).toEqual(["/takes/t2.wav"]);
+    expect(out.sources.filter((x) => !x.isTake)).toEqual(before.sources.filter((x) => !x.isTake));
   });
 });

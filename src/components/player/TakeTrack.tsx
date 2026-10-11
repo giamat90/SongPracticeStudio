@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent, type RefCallback } from "react";
-import { usePlayerStore, getEngine, TAKE_TRACK_KEY } from "../../stores/player";
+import { usePlayerStore, getEngine } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
 import type { Song, Take } from "../../lib/types";
 
@@ -193,7 +193,7 @@ interface TakeTrackProps {
 function TakeTrack({ take, label, isActive, isAudible, song, containerRef }: TakeTrackProps) {
   const takePlayback   = usePlayerStore((s) => s.takePlayback);
   const isLaneMuted    = usePlayerStore((s) => s.mutedTakeIds.includes(take.id));
-  const isLaneSoloed   = usePlayerStore((s) => s.soloedStem === TAKE_TRACK_KEY && s.soloedTakeId === take.id);
+  const isLaneSoloed   = usePlayerStore((s) => s.soloedTakeId === take.id);
   const gain           = usePlayerStore((s) => s.takeGains[take.id] ?? 1);
   const toggleTakeMute = usePlayerStore((s) => s.toggleTakeMute);
   const toggleTakeSolo = usePlayerStore((s) => s.toggleTakeSolo);
@@ -247,7 +247,11 @@ function TakeTrack({ take, label, isActive, isAudible, song, containerRef }: Tak
             className={`stem-track__mute${isLaneMuted ? " stem-track__mute--on" : ""}`}
             onClick={() => toggleTakeMute(take.id)}
             aria-pressed={isLaneMuted}
-            title={isLaneMuted ? `Unmute ${label}` : `Mute ${label}`}
+            title={
+              isLaneMuted
+                ? `Unmute ${label}`
+                : `Mute ${label}. The main take mute and solo above still come first.`
+            }
             aria-label={isLaneMuted ? `Unmute ${label}` : `Mute ${label}`}
           >
             M
@@ -256,7 +260,11 @@ function TakeTrack({ take, label, isActive, isAudible, song, containerRef }: Tak
             className={`stem-track__solo${isLaneSoloed ? " stem-track__solo--on" : ""}`}
             onClick={() => toggleTakeSolo(take.id)}
             aria-pressed={isLaneSoloed}
-            title={isLaneSoloed ? `Unsolo ${label}` : `Solo ${label}`}
+            title={
+              isLaneSoloed
+                ? `Unsolo ${label}`
+                : `Solo ${label} among the takes. The stems are not affected, and the main take mute and solo above still come first.`
+            }
             aria-label={isLaneSoloed ? `Unsolo ${label}` : `Solo ${label}`}
           >
             S

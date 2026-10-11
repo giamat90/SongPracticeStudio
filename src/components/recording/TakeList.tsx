@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { audibleTakes } from "@giamat90/mps-core/takes";
-import { usePlayerStore } from "../../stores/player";
+import { usePlayerStore, takesSilenced } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
 import type { Take } from "../../lib/types";
 
@@ -26,6 +26,7 @@ function TakeList() {
   const isRecording = usePlayerStore((s) => s.isRecording);
   const muteTakesWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
   const soloedTakeId = usePlayerStore((s) => s.soloedTakeId);
+  const takeChannelSilent = usePlayerStore((s) => takesSilenced(s));
   const deleteTake = usePlayerStore((s) => s.deleteTake);
   const renameTake = usePlayerStore((s) => s.renameTake);
 
@@ -41,6 +42,7 @@ function TakeList() {
     recording: isRecording,
     muteWhileRecording: muteTakesWhileRecording,
     soloed: soloedTakeId,
+    silenced: takeChannelSilent,
   });
 
   const displayName = (take: Take, i: number) => take.name || `Take ${i + 1}`;
