@@ -3426,6 +3426,12 @@ button.stem-track__take-name {
   overflow-y: auto;
 }
 
+/* Never let the lanes shrink to fit the cap: their waveform area has overflow hidden, so a
+   shrunk lane would hide the waveform. The section scrolls instead. */
+.stem-view__takes > * {
+  flex-shrink: 0;
+}
+
 .takes-bar {
   display: flex;
   align-items: center;
