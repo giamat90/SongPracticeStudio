@@ -12,6 +12,7 @@ function harness() {
     isPlaying: false,
     currentTime: 0,
     duration: 200,
+    transpose: 3,
     playbackRate: 1,
     activeTakeId: null,
     shownTakeIds: [],
@@ -71,7 +72,7 @@ describe("analyzer main bridge", () => {
     const msg = h.emitted[0].payload as { transport: { time: number }; shared: Record<string, unknown> };
     expect(h.emitted[0].event).toBe(EVT_STATE);
     expect(msg.transport.time).toBe(42);
-    expect(msg.shared).toMatchObject({ duration: 200, activeTakeId: "t2" });
+    expect(msg.shared).toMatchObject({ duration: 200, transpose: 3, activeTakeId: "t2" });
     expect((msg.shared.takes as unknown[]).length).toBe(2);
     expect((msg.shared.song as { id: string }).id).toBe("s1");
   });

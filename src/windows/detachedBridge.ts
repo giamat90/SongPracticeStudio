@@ -12,6 +12,7 @@ interface MutableStore<T> {
 export interface DetachedPlayer {
   song: SharedState["song"];
   duration: number;
+  transpose: number;
   currentTime: number;
   isPlaying: boolean;
   playbackRate: number;
@@ -64,6 +65,7 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
       player.setState({
         song: shared.song,
         duration: shared.duration,
+        transpose: shared.transpose,
         takes: shared.takes,
         activeTakeId: shared.activeTakeId,
         shownTakeIds: shared.shownTakeIds,

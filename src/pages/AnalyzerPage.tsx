@@ -19,6 +19,7 @@ import { usePlayerStore } from "../stores/player";
 import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels } from "../stores/panels";
 import { canSyncLyrics } from "../lib/lyrics";
+import { transposeKey } from "../lib/chords";
 import type { DetachablePanel } from "../windows/protocol";
 import { useMainBridge } from "../windows/useMainBridge";
 
@@ -40,6 +41,7 @@ interface AnalyzerPageProps {
 function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const songs   = useLibraryStore((s) => s.songs);
   const cleanup = usePlayerStore((s) => s.cleanup);
+  const transpose = usePlayerStore((s) => s.transpose);
   const song    = songs.find((s) => s.id === songId);
   const visible = useAnalyzerPanels((s) => s.visible);
   const detached = useDetachedStore((s) => s.detached);
@@ -74,7 +76,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <h1 className="analyzer-page__title">{song.title}</h1>
           <div className="analyzer-page__meta">
             {song.detectedBpm && <span>{Math.round(song.detectedBpm)} BPM</span>}
-            {song.detectedKey && <span>{song.detectedKey}</span>}
+            {song.detectedKey && <span>{transposeKey(song.detectedKey, transpose)}</span>}
           </div>
         </div>
         <PanelMenu store={useAnalyzerPanels} panels={ANALYZER_PANELS} />

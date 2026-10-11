@@ -9,6 +9,7 @@ function setup() {
   let state: DetachedPlayer = {
     song: null,
     duration: 0,
+    transpose: 0,
     currentTime: 0,
     isPlaying: false,
     playbackRate: 1,
@@ -52,12 +53,13 @@ function setup() {
     takeTrackKey: "__take__",
   });
   const message = (
-    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[] }> = {},
+    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[]; transpose: number }> = {},
   ) => ({
     transport: { time: over.time ?? 10, playing: over.playing ?? false, rate: 1, sentAt: clock },
     shared: {
       song,
       duration: 200,
+      transpose: over.transpose ?? 0,
       activeTakeId: over.activeTakeId ?? null,
       shownTakeIds: over.shownTakeIds ?? [],
       takePlayback: "all",
@@ -104,6 +106,13 @@ describe("analyzer detached bridge", () => {
     expect(t.get().song?.id).toBe("s1");
     expect(t.get().takes.map((x) => x.id)).toEqual(["t1", "t2"]);
     expect(t.get().currentTime).toBeCloseTo(30, 1);
+  });
+
+  it("mirrors the transpose so the chords there follow the main window", async () => {
+    const t = setup();
+    await t.started;
+    t.send(t.message({ transpose: -2 }));
+    expect(t.get().transpose).toBe(-2);
   });
 
   it("keeps the playhead moving between messages, and holds it when paused", async () => {
