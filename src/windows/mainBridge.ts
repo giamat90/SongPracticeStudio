@@ -17,6 +17,7 @@ export interface PlayerPort {
   shownTakeIds: string[];
   takePlayback: "all" | "selected";
   mutedTakeIds: string[];
+  soloedTakeId: string | null;
   muteTakesWhileRecording: boolean;
   isRecording: boolean;
   takes: Take[];
@@ -81,6 +82,7 @@ export function startMainBridge(deps: MainBridgeDeps): Promise<{ dispose(): void
         shownTakeIds: p.shownTakeIds,
         takePlayback: p.takePlayback,
         mutedTakeIds: p.mutedTakeIds,
+        soloedTakeId: p.soloedTakeId,
         muteTakesWhileRecording: p.muteTakesWhileRecording,
         isRecording: p.isRecording,
         takes: p.takes,

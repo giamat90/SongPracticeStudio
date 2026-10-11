@@ -1057,3 +1057,43 @@ describe("which takes are heard", () => {
     expect(again.take.setVolume).toHaveBeenLastCalledWith(0);
   });
 });
+
+describe("each take's own volume", () => {
+  it("multiplies the take's gain with the take channel's volume", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks(["a", "b"]);
+    engine.setTakeVolume(0.8);
+    engine.setTakeGains({ a: 0.5 });
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0.4);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0.8);
+  });
+
+  it("keeps a silent take silent whatever its gain", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks([]);
+    engine.setTakeGains({ a: 1 });
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+  });
+
+  it("applies a gain that was chosen before the take finished loading", async () => {
+    const { engine } = await loadedEngine();
+    engine.setAudibleTakeTracks(["late"]);
+    engine.setTakeVolume(0.5);
+    engine.setTakeGains({ late: 0.5 });
+    const late = await withTake(engine, { id: "late", duration: 10, start: 0, active: false });
+    expect(late.take.setVolume).toHaveBeenLastCalledWith(0.25);
+  });
+
+  it("clearing the takes forgets the gains", async () => {
+    const { engine } = await loadedEngine();
+    await withTake(engine, { id: "a", duration: 10, start: 0 });
+    engine.setTakeGains({ a: 0.2 });
+    engine.clearTakeTrack();
+    engine.setAudibleTakeTracks(["a"]);
+    const again = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    expect(again.take.setVolume).toHaveBeenLastCalledWith(1);
+  });
+});

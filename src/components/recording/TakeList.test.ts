@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
     shownTakeIds: [] as string[],
     takePlayback: "all" as "all" | "selected",
     mutedTakeIds: [] as string[],
+    soloedTakeId: null as string | null,
     isRecording: false,
     muteTakesWhileRecording: true,
     toggleTake: () => {},
@@ -38,6 +39,7 @@ beforeEach(() => {
   h.state.shownTakeIds = [];
   h.state.takePlayback = "all";
   h.state.mutedTakeIds = [];
+  h.state.soloedTakeId = null;
   h.state.isRecording = false;
   h.state.muteTakesWhileRecording = true;
 });
@@ -62,6 +64,13 @@ describe("takes list", () => {
     h.state.activeTakeId = "b";
     h.state.mutedTakeIds = ["a"];
     expect(marks(render())).toEqual(["silent", "playing", "hidden"]);
+  });
+
+  it("marks only the soloed take as playing", () => {
+    h.state.shownTakeIds = ["a", "b"];
+    h.state.activeTakeId = "b";
+    h.state.soloedTakeId = "a";
+    expect(marks(render())).toEqual(["playing", "silent", "hidden"]);
   });
 
   it("in selected-only mode only the selected take is playing", () => {

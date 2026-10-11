@@ -13,6 +13,8 @@ const h = vi.hoisted(() => {
     shownTakeIds: [] as string[],
     takePlayback: "all" as "all" | "selected",
     mutedTakeIds: [] as string[],
+    soloedStem: null as string | null,
+    soloedTakeId: null as string | null,
     isRecording: false,
     muteTakesWhileRecording: true,
     takes: [] as unknown[],
@@ -25,6 +27,7 @@ const h = vi.hoisted(() => {
 vi.mock("../../stores/player", () => ({
   usePlayerStore: Object.assign((sel: (s: unknown) => unknown) => sel(h.state), { getState: () => h.state }),
   getEngine: () => ({}),
+  TAKE_TRACK_KEY: "__take__",
 }));
 vi.mock("./TimeRuler", h.stub("ruler"));
 vi.mock("./ChordRow", h.stub("chordRow"));

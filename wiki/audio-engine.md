@@ -133,9 +133,12 @@ The engine keeps a `Map<id, TakeTrack>` instead of one take: every take with a l
 
 - `loadTakeTrack(id, filePath, container, startOffset, audioOffset, manualOffset)`; loading an id that is already loaded replaces it. A take removed while it was still decoding is destroyed when it finishes instead of leaking.
 - **Who is heard and who is selected are separate.** `setAudibleTakeTracks(ids)` is the set of takes that play at `setTakeVolume(v)` (the effective volume of the "take" channel, mute / solo already applied); every other loaded take has volume 0 **but keeps playing in its window and being drift-corrected**, so unmuting is instant and nothing re-seeks. `setActiveTakeTrack(id | null)` is the selected take only (what `getTrackSamples("take")` reads); it does not change what is heard.
+- `setTakeGains({ id: gain })` is each take's own volume, multiplied with the channel volume (1 when absent). The store keeps it as `takeGains`, never persisted.
 - `setTakeManualOffset(id, offset)`, `removeTakeTrack(id)`, `clearTakeTrack()` (all, and forgets who was audible).
 - Play / pause / seek / rate / output device / zoom / scroll / window sync / drift correction loop over every loaded take.
 
 **The store derives the audible set.** `shownTakeIds`, `activeTakeId`, `takePlayback` (`"all"` | `"selected"`), `mutedTakeIds` (lane mutes), `isRecording` and `muteTakesWhileRecording` go through `audibleTakes()` from `@giamat90/mps-core/takes`, and a single `usePlayerStore.subscribe` pushes the result to the engine whenever one of them changes, so no action has to remember to. `takePlayback` and `muteTakesWhileRecording` are remembered in `localStorage` (`sps_take_prefs`).
+
+A take soloed on its lane is the take channel soloed (stems go silent as for any solo) plus `soloedTakeId`; `audibleTakes({ soloed })` then returns only that take. `toggleSolo` of anything else clears it, hiding / deleting the take clears it.
 
 Behaviour: clicking a take in the list shows it (and selects it), clicking a shown one selects it (in selected-only mode that also switches the sound), clicking the selected one hides it (the most recently shown remaining take becomes the selected one). With "all shown" every shown take plays together and **M** on a lane silences one. Starting a recording with `muteTakesWhileRecording` on (the default) silences the takes and drops the selection, as before; with it off they keep playing and the selection stays. Takes are mixed into the export exactly as they are heard.

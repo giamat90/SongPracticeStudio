@@ -19,6 +19,7 @@ export interface DetachedPlayer {
   shownTakeIds: string[];
   takePlayback: "all" | "selected";
   mutedTakeIds: string[];
+  soloedTakeId: string | null;
   muteTakesWhileRecording: boolean;
   isRecording: boolean;
   takes: Take[];
@@ -63,6 +64,7 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
         shownTakeIds: shared.shownTakeIds,
         takePlayback: shared.takePlayback,
         mutedTakeIds: shared.mutedTakeIds,
+        soloedTakeId: shared.soloedTakeId,
         muteTakesWhileRecording: shared.muteTakesWhileRecording,
         isRecording: shared.isRecording,
         isPlaying: transport.playing,

@@ -121,6 +121,10 @@ interface PlayerState {
   takePlayback: TakePlayback;
   // Takes the user silenced on their own lane
   mutedTakeIds: string[];
+  // The take soloed on its lane (only meaningful while the take channel is soloed)
+  soloedTakeId: string | null;
+  // Each take's own volume (1 when absent), on top of the take channel's
+  takeGains: Record<string, number>;
   // Keep the takes quiet while a new one is recorded
   muteTakesWhileRecording: boolean;
   takeVolume: number;
@@ -184,6 +188,8 @@ interface PlayerActions {
   hideTake: (takeId: string) => void;
   setTakePlayback: (mode: TakePlayback) => void;
   toggleTakeMute: (takeId: string) => void;
+  toggleTakeSolo: (takeId: string) => void;
+  setTakeGain: (takeId: string, gain: number) => void;
   setMuteTakesWhileRecording: (mute: boolean) => void;
   setTakeVolume: (v: number) => void;
   // Timeline zoom/pan actions
@@ -262,13 +268,14 @@ export function buildMixSources(state: PlayerState): {
       muted: state.mutedTakeIds,
       recording: false,
       muteWhileRecording: false,
+      soloed: soloedTakeOf(state),
     });
     for (const id of audible) {
       const take = takes.find((t) => t.id === id);
       if (!take) continue;
       sources.push({
         path: take.filepath,
-        gain: takeGain,
+        gain: takeGain * (state.takeGains[id] ?? 1),
         isTake: true,
         startPosition: take.startPosition,
         audioOffset: take.audioOffset ?? 0,
@@ -285,6 +292,10 @@ export function buildMixSources(state: PlayerState): {
     endSec: state.punchOut ?? state.duration,
   };
 }
+
+// A take soloed on its own lane: the take channel is soloed and names the take.
+const soloedTakeOf = (s: { soloedStem: string | null; soloedTakeId: string | null }): string | null =>
+  s.soloedStem === TAKE_TRACK_KEY ? s.soloedTakeId : null;
 
 const selectionOf = (s: { shownTakeIds: string[]; activeTakeId: string | null }): TakeSelection => ({
   shown: s.shownTakeIds,
@@ -325,7 +336,19 @@ function _persistTakePrefs(prefs: typeof DEFAULT_TAKE_PREFS): void {
 
 export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => {
   const applySelection = (next: TakeSelection) => {
-    set({ shownTakeIds: [...next.shown], activeTakeId: next.active });
+    const s = get();
+    const lost = s.soloedTakeId !== null && !next.shown.includes(s.soloedTakeId);
+    set({
+      shownTakeIds: [...next.shown],
+      activeTakeId: next.active,
+      ...(lost
+        ? { soloedTakeId: null, soloedStem: s.soloedStem === TAKE_TRACK_KEY ? null : s.soloedStem }
+        : {}),
+    });
+    if (lost) {
+      const { song, stemVolumes, mutedStems, soloedStem, takeVolume } = get();
+      if (song) applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, soloedStem, takeVolume);
+    }
   };
 
   return {
@@ -352,6 +375,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   shownTakeIds: [],
   activeTakeId: null,
   mutedTakeIds: [],
+  soloedTakeId: null,
+  takeGains: {},
   ..._loadTakePrefs(),
   takeVolume: 1.0,
   recordingOffsets: _loadOffsets(),
@@ -417,6 +442,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       shownTakeIds: [],
       activeTakeId: null,
       mutedTakeIds: [],
+      soloedTakeId: null,
+      takeGains: {},
       takeVolume: 1.0,
       isRecording: false,
       isSavingTake: false,
@@ -495,7 +522,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   toggleSolo: (name) => {
     const { soloedStem, mutedStems, stemVolumes, song, takeVolume } = get();
     const newSolo = soloedStem === name ? null : name;
-    set({ soloedStem: newSolo });
+    set({ soloedStem: newSolo, soloedTakeId: null });
     if (song) {
       applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, newSolo, takeVolume);
     }
@@ -545,6 +572,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       shownTakeIds: [],
       activeTakeId: null,
       mutedTakeIds: [],
+      soloedTakeId: null,
+      takeGains: {},
       takeVolume: 1.0,
     });
   },
@@ -833,6 +862,10 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       shownTakeIds: [...next.shown],
       activeTakeId: next.active,
       mutedTakeIds: state.mutedTakeIds.filter((id) => ids.includes(id)),
+      takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => ids.includes(id))),
+      ...(state.soloedTakeId !== null && !ids.includes(state.soloedTakeId)
+        ? { soloedTakeId: null, soloedStem: state.soloedStem === TAKE_TRACK_KEY ? null : state.soloedStem }
+        : {}),
     }));
   },
 
@@ -846,6 +879,8 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       shownTakeIds: [...next.shown],
       activeTakeId: next.active,
       mutedTakeIds: state.mutedTakeIds.filter((id) => id !== takeId),
+      takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => id !== takeId)),
+      ...(state.soloedTakeId === takeId ? { soloedTakeId: null, soloedStem: state.soloedStem === TAKE_TRACK_KEY ? null : state.soloedStem } : {}),
     }));
   },
 
@@ -873,6 +908,20 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     setTakeManualOffsetApi(song.id, takeId, rounded).catch((e: unknown) =>
       console.error("[player] failed to persist take manual offset:", e)
     );
+  },
+
+  toggleTakeSolo: (takeId) => {
+    const { soloedStem, soloedTakeId, mutedStems, stemVolumes, song, takeVolume } = get();
+    const on = soloedStem === TAKE_TRACK_KEY && soloedTakeId === takeId;
+    const newSolo = on ? null : TAKE_TRACK_KEY;
+    set({ soloedStem: newSolo, soloedTakeId: on ? null : takeId });
+    if (song) {
+      applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, newSolo, takeVolume);
+    }
+  },
+
+  setTakeGain: (takeId, gain) => {
+    set((s) => ({ takeGains: { ...s.takeGains, [takeId]: Math.max(0, Math.min(1, gain)) } }));
   },
 
   setActiveTake: (takeId) => applySelection(showTake(selectionOf(get()), takeId)),
@@ -951,6 +1000,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
 function pushTakeAudio(state: PlayerState): void {
   const eng = getEngine();
   eng.setActiveTakeTrack(state.activeTakeId);
+  eng.setTakeGains(state.takeGains);
   eng.setAudibleTakeTracks(
     audibleTakes({
       shown: state.shownTakeIds,
@@ -959,6 +1009,7 @@ function pushTakeAudio(state: PlayerState): void {
       muted: state.mutedTakeIds,
       recording: state.isRecording,
       muteWhileRecording: state.muteTakesWhileRecording,
+      soloed: soloedTakeOf(state),
     }),
   );
 }
@@ -972,6 +1023,9 @@ usePlayerStore.subscribe((state, prev) => {
     state.activeTakeId === prev.activeTakeId &&
     state.takePlayback === prev.takePlayback &&
     state.mutedTakeIds === prev.mutedTakeIds &&
+    state.soloedTakeId === prev.soloedTakeId &&
+    state.soloedStem === prev.soloedStem &&
+    state.takeGains === prev.takeGains &&
     state.isRecording === prev.isRecording &&
     state.muteTakesWhileRecording === prev.muteTakesWhileRecording
   ) {

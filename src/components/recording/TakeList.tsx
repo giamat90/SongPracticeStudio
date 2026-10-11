@@ -25,6 +25,7 @@ function TakeList() {
   const mutedTakeIds = usePlayerStore((s) => s.mutedTakeIds);
   const isRecording = usePlayerStore((s) => s.isRecording);
   const muteTakesWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
+  const soloedTakeId = usePlayerStore((s) => s.soloedTakeId);
   const deleteTake = usePlayerStore((s) => s.deleteTake);
   const renameTake = usePlayerStore((s) => s.renameTake);
 
@@ -39,6 +40,7 @@ function TakeList() {
     muted: mutedTakeIds,
     recording: isRecording,
     muteWhileRecording: muteTakesWhileRecording,
+    soloed: soloedTakeId,
   });
 
   const displayName = (take: Take, i: number) => take.name || `Take ${i + 1}`;

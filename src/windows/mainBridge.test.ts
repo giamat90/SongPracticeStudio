@@ -15,6 +15,7 @@ function harness() {
     shownTakeIds: [],
     takePlayback: "all",
     mutedTakeIds: [],
+    soloedTakeId: null,
     muteTakesWhileRecording: true,
     isRecording: false,
     takes: [take("t1"), take("t2")],

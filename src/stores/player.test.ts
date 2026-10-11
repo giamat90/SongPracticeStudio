@@ -40,6 +40,7 @@ vi.mock("../audio/engine", () => ({
     removeTakeTrack = vi.fn();
     setActiveTakeTrack = vi.fn();
     setAudibleTakeTracks = vi.fn();
+    setTakeGains = vi.fn();
     setTakeManualOffset = vi.fn();
     reloadStemsFromPaths = vi.fn(async () => {});
     zoomAll = vi.fn();
@@ -1459,5 +1460,99 @@ describe("cleanup", () => {
 
   it("works before any recorder exists", () => {
     expect(() => store().getState().cleanup()).not.toThrow();
+  });
+});
+
+describe("a take's own mixer", () => {
+  beforeEach(async () => {
+    await loadedSong();
+    store().setState({
+      takes: [take(), take({ id: "t2", filepath: "/takes/t2.wav" })],
+      shownTakeIds: ["t1", "t2"],
+      activeTakeId: "t2",
+    });
+  });
+
+  const audible = () => (eng().setAudibleTakeTracks as ReturnType<typeof vi.fn>).mock.lastCall?.[0];
+  const gains = () => (eng().setTakeGains as ReturnType<typeof vi.fn>).mock.lastCall?.[0];
+
+  it("setTakeGain stores the take's volume and hands the engine every gain", () => {
+    store().getState().setTakeGain("t1", 0.4);
+    expect(store().getState().takeGains).toEqual({ t1: 0.4 });
+    expect(gains()).toEqual({ t1: 0.4 });
+  });
+
+  it("keeps a take's volume between 0 and 1", () => {
+    store().getState().setTakeGain("t1", 3);
+    store().getState().setTakeGain("t2", -1);
+    expect(store().getState().takeGains).toEqual({ t1: 1, t2: 0 });
+  });
+
+  it("soloing a take lane solos the take channel and names the take, so only it is heard", () => {
+    store().getState().toggleTakeSolo("t1");
+    expect(store().getState().soloedStem).toBe(mod.TAKE_TRACK_KEY);
+    expect(store().getState().soloedTakeId).toBe("t1");
+    expect(audible()).toEqual(["t1"]);
+  });
+
+  it("soloing the same lane again releases it", () => {
+    store().getState().toggleTakeSolo("t1");
+    store().getState().toggleTakeSolo("t1");
+    expect(store().getState().soloedStem).toBeNull();
+    expect(store().getState().soloedTakeId).toBeNull();
+    expect(audible()).toEqual(["t1", "t2"]);
+  });
+
+  it("soloing another lane moves the solo", () => {
+    store().getState().toggleTakeSolo("t1");
+    store().getState().toggleTakeSolo("t2");
+    expect(store().getState().soloedTakeId).toBe("t2");
+    expect(audible()).toEqual(["t2"]);
+  });
+
+  it("soloing a track or the take channel itself clears a lane solo", () => {
+    store().getState().toggleTakeSolo("t1");
+    store().getState().toggleSolo("vocals");
+    expect(store().getState().soloedTakeId).toBeNull();
+    expect(audible()).toEqual(["t1", "t2"]);
+  });
+
+  it("hiding the soloed take drops the solo, so the stems come back", () => {
+    store().getState().toggleTakeSolo("t1");
+    store().getState().hideTake("t1");
+    expect(store().getState().soloedTakeId).toBeNull();
+    expect(store().getState().soloedStem).toBeNull();
+  });
+
+  it("deleting a take forgets its volume, mute and solo", async () => {
+    store().setState({ mutedTakeIds: ["t1"], takeGains: { t1: 0.3, t2: 0.9 } });
+    store().getState().toggleTakeSolo("t1");
+    h.api.deleteTakeApi.mockResolvedValue(undefined);
+    await store().getState().deleteTake("t1");
+    expect(store().getState().takeGains).toEqual({ t2: 0.9 });
+    expect(store().getState().mutedTakeIds).toEqual([]);
+    expect(store().getState().soloedTakeId).toBeNull();
+    expect(store().getState().soloedStem).toBeNull();
+  });
+
+  it("closing the song forgets the gains and the solo", () => {
+    store().getState().setTakeGain("t1", 0.2);
+    store().getState().toggleTakeSolo("t1");
+    store().getState().cleanup();
+    expect(store().getState().takeGains).toEqual({});
+    expect(store().getState().soloedTakeId).toBeNull();
+  });
+
+  it("mixes each take at the channel's gain times its own", () => {
+    store().setState({ takeVolume: 0.5, takeGains: { t2: 0.5 } });
+    const out = mod.buildMixSources({ ...store().getState(), song: song(), duration: 200 })!;
+    const gainsOut = out.sources.filter((x) => x.isTake).map((x) => x.gain);
+    expect(gainsOut).toEqual([0.5, 0.25]);
+  });
+
+  it("mixes only the soloed take", () => {
+    store().getState().toggleTakeSolo("t2");
+    const out = mod.buildMixSources({ ...store().getState(), song: song(), duration: 200 })!;
+    expect(out.sources.map((x) => x.path)).toEqual(["/takes/t2.wav"]);
   });
 });

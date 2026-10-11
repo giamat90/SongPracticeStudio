@@ -3450,3 +3450,9 @@ button.stem-track__take-name {
   visibility: hidden;
   pointer-events: none;
 }
+
+.waveform__take-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
