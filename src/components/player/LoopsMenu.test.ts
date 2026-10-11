@@ -37,7 +37,7 @@ describe("LoopsMenu", () => {
 
   it("shows only the button while closed, with the number of saved loops", () => {
     expect(render()).toContain("Loops ▾");
-    expect(render()).not.toContain("Saved loops");
+    expect(render()).not.toContain("loops-menu__heading");
     h.state.song = { id: "s", title: "S", stems: [], loops: [{ id: "a", name: "A", start: 1, end: 5 }] };
     expect(render()).toContain("Loops (1)");
   });
