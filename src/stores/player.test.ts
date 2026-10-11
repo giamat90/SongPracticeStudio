@@ -12,7 +12,7 @@ const h = vi.hoisted(() => {
     state,
     api: {
       saveTake: vi.fn(), listTakes: vi.fn(), deleteTakeApi: vi.fn(), renameTakeApi: vi.fn(),
-      setTakeManualOffsetApi: vi.fn(), pitchShiftSong: vi.fn(), setMetronomeOffsetApi: vi.fn(),
+      setTakeManualOffsetApi: vi.fn(), pitchShiftSong: vi.fn(), setMetronomeOffsetApi: vi.fn(), setSongLoopsApi: vi.fn(),
     },
     metronome: { start: vi.fn(), stop: vi.fn() },
     rec,
@@ -1465,6 +1465,60 @@ describe("metronome offset", () => {
     h.api.setMetronomeOffsetApi.mockRejectedValue(new Error("io"));
     store().getState().setMetronomeOffset(3);
     await vi.waitFor(() => expect(err).toHaveBeenCalled());
+  });
+});
+
+describe("named loops", () => {
+  const withLoops = (loops: { id: string; name: string; start: number; end: number }[]) => song({ loops });
+
+  beforeEach(async () => {
+    await loadedSong();
+    h.api.setSongLoopsApi.mockImplementation(async (_id: string, loops: unknown[]) => song({ loops: loops as Song["loops"] }));
+  });
+
+  it("saves the punch region under a trimmed name, persists it and mirrors it onto the song", async () => {
+    store().getState().setPunchIn(10);
+    store().getState().setPunchOut(20);
+    await store().getState().saveLoop("  Chorus ");
+    const [songId, sent] = h.api.setSongLoopsApi.mock.calls[0];
+    expect(songId).toBe("s1");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ name: "Chorus", start: 10, end: 20 });
+    expect(store().getState().song?.loops?.map((l) => l.name)).toEqual(["Chorus"]);
+  });
+
+  it("refuses to save without a punch region", async () => {
+    await expect(store().getState().saveLoop("Chorus")).rejects.toThrow(/region/i);
+    expect(h.api.setSongLoopsApi).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a validation message and keeps the list", async () => {
+    store().getState().setPunchIn(10);
+    store().getState().setPunchOut(20);
+    await expect(store().getState().saveLoop("   ")).rejects.toThrow(/name/i);
+    expect(store().getState().song?.loops ?? []).toEqual([]);
+  });
+
+  it("keeps the old list when the backend refuses", async () => {
+    store().getState().setPunchIn(10);
+    store().getState().setPunchOut(20);
+    h.api.setSongLoopsApi.mockRejectedValue("disk full");
+    await expect(store().getState().saveLoop("Chorus")).rejects.toBe("disk full");
+    expect(store().getState().song?.loops ?? []).toEqual([]);
+  });
+
+  it("renames and deletes a saved loop", async () => {
+    store().setState({ song: withLoops([{ id: "a", name: "A", start: 1, end: 5 }, { id: "b", name: "B", start: 6, end: 9 }]) });
+    await store().getState().renameLoop("b", " Outro ");
+    expect(store().getState().song?.loops?.map((l) => l.name)).toEqual(["A", "Outro"]);
+    await store().getState().deleteLoop("a");
+    expect(store().getState().song?.loops?.map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("applying a region sets the punch region, turns the loop on and moves to its start", () => {
+    store().getState().applyLoopRegion(30, 45);
+    expect(store().getState()).toMatchObject({ punchIn: 30, punchOut: 45, punchLoop: true });
+    expect(h.state.currentTime).toBe(30);
   });
 });
 

@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import StemView from "../components/player/StemView";
 import DownloadAllButton from "../components/player/DownloadAllButton";
 import ExportMixButton from "../components/player/ExportMixButton";
+import LoopsMenu from "../components/player/LoopsMenu";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
 import TransportControls from "../components/player/TransportControls";
@@ -22,6 +23,7 @@ import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels } from "../stores/panels";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
+import { installPlayerShortcuts } from "../lib/shortcuts";
 import type { DetachablePanel } from "../windows/protocol";
 import { useMainBridge } from "../windows/useMainBridge";
 
@@ -57,6 +59,8 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
     return () => { cleanup(); };
   }, [songId]);
 
+  useEffect(() => installPlayerShortcuts(() => usePlayerStore.getState()), []);
+
   if (!song) {
     return (
       <div className="analyzer-page">
@@ -90,6 +94,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
       <div className="analyzer-page__topbar">
         <TransportControls />
         <LoopButton />
+        <LoopsMenu />
         <TempoControl detectedBpm={song.detectedBpm} />
         <KeyTranspose />
         <div className="analyzer-page__io-group">
