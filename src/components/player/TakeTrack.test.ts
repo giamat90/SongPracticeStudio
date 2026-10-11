@@ -33,13 +33,14 @@ vi.mock("../../lib/tauri", () => ({ exportTake: async () => {} }));
 import TakeTrack from "./TakeTrack";
 
 const take = { id: "t1", songId: "s1", recordedAt: "2026-10-10T10:00:00Z", filepath: "/t/t1.wav", startPosition: 0 };
-const render = (over: { isActive?: boolean; isAudible?: boolean } = {}) =>
+const render = (over: { isActive?: boolean; isAudible?: boolean; silence?: string | null } = {}) =>
   renderToStaticMarkup(
     createElement(TakeTrack, {
       take,
       label: "Take 1",
       isActive: over.isActive ?? true,
       isAudible: over.isAudible ?? true,
+      silence: (over.silence ?? null) as never,
       song: { id: "s1", title: "Song" } as never,
       containerRef: () => {},
     }),
@@ -97,6 +98,32 @@ describe("take lane", () => {
     const html = render();
     expect(html).toContain("The stems are not affected, and the main take mute and solo above still come first");
     expect(html).toContain("The main take mute and solo above still come first");
+  });
+
+  it("marks the selected lane even when it is silent, and says why", () => {
+    const cases: [string | null, string][] = [
+      [null, "Selected"],
+      ["muted", "Selected \u00B7 muted"],
+      ["channel", "Selected \u00B7 takes muted"],
+      ["recording", "Selected \u00B7 silent while recording"],
+      ["soloed-other", "Selected \u00B7 another take soloed"],
+    ];
+    for (const [silence, text] of cases) {
+      const html = render({ isActive: true, isAudible: silence === null, silence });
+      expect(html, String(silence)).toContain("waveform__take-state");
+      expect(html, String(silence)).toContain(text);
+      expect(html.includes("waveform__take-state--silent"), String(silence)).toBe(silence !== null);
+    }
+  });
+
+  it("says Playing for the selected take in selected-only mode", () => {
+    h.state.takePlayback = "selected";
+    expect(render({ isActive: true })).toContain("\u25B6 Playing");
+  });
+
+  it("shows no selection label on a lane that is not selected, silent or not", () => {
+    expect(render({ isActive: false, isAudible: false, silence: "not-selected" })).not.toContain("waveform__take-state");
+    expect(render({ isActive: false })).not.toContain("waveform__take-state");
   });
 
   it("dims a lane that is not heard", () => {
