@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
     takeVolume: 1,
     mutedStems: {} as Record<string, boolean>,
     soloedStem: null as string | null,
+    takes: [{ id: "a" }, { id: "b" }] as { id: string }[],
+    deleteAllTakes: () => {},
     setTakePlayback: () => {},
     setMuteTakesWhileRecording: () => {},
     setTakeVolume: () => {},
@@ -34,6 +36,7 @@ beforeEach(() => {
   h.state.muteTakesWhileRecording = true;
   h.state.mutedStems = {};
   h.state.soloedStem = null;
+  h.state.takes = [{ id: "a" }, { id: "b" }];
 });
 
 describe("takes bar", () => {
@@ -56,5 +59,14 @@ describe("takes bar", () => {
     expect(html).toContain("This main mute wins over the mute and solo on each take");
     expect(html).toContain("Solo on a take then picks one take among them");
     expect(html).toContain('type="range"');
+  });
+
+  it("offers a delete-all button, asks nothing until it is pressed, and is off when there are no takes", () => {
+    const html = render();
+    expect(html).toContain('aria-label="Delete all takes"');
+    expect(html).not.toContain("takes-bar__confirm");
+    expect(html).not.toMatch(/aria-label="Delete all takes"[^>]*disabled|disabled[^>]*aria-label="Delete all takes"/);
+    h.state.takes = [];
+    expect(render()).toMatch(/<button[^>]*disabled[^>]*aria-label="Delete all takes"|<button[^>]*aria-label="Delete all takes"[^>]*disabled/);
   });
 });

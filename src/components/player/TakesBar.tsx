@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { usePlayerStore, TAKE_TRACK_KEY } from "../../stores/player";
 
 /**
@@ -15,8 +16,25 @@ function TakesBar() {
   const isSoloed = usePlayerStore((s) => s.soloedStem === TAKE_TRACK_KEY);
   const toggleMute = usePlayerStore((s) => s.toggleMute);
   const toggleSolo = usePlayerStore((s) => s.toggleSolo);
+  const takeCount = usePlayerStore((s) => s.takes.length);
+  const deleteAllTakes = usePlayerStore((s) => s.deleteAllTakes);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAll = async () => {
+    setDeleting(true);
+    try {
+      await deleteAllTakes();
+    } catch (e) {
+      console.error("[TakesBar] could not delete all the takes:", e);
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
+  };
 
   return (
+    <>
     <div className="takes-bar">
       <span className="stem-track__label waveform__label--take">🎙 Takes</span>
       <label className="takes-bar__option" title="When on, only the selected take plays and clicking another take switches to it. When off, every shown take plays together; use M on a lane to silence one.">
@@ -70,12 +88,37 @@ function TakesBar() {
           className="stem-track__volume"
           title="Volume of the takes"
         />
-        {/* Same width as a lane's download button, so the sliders line up with the other tracks' */}
-        <span className="stem-track__download takes-bar__spacer" aria-hidden="true">
-          &darr;
-        </span>
+        {/* Same slot as a lane's download button, so the sliders line up with the other tracks' */}
+        <button
+          className="stem-track__download takes-bar__delete"
+          onClick={() => setConfirming(true)}
+          disabled={takeCount === 0 || deleting}
+          title="Delete all the recorded takes"
+          aria-label="Delete all takes"
+        >
+          &times;
+        </button>
       </div>
     </div>
+      {confirming && (
+        <div className="takes-bar__confirm" role="alertdialog" aria-label="Delete all takes">
+          <span>
+            Delete {takeCount === 1 ? "the only take" : `all ${takeCount} takes`}? This cannot be undone.
+          </span>
+          <button
+            className="takes-bar__confirm-yes"
+            onClick={handleDeleteAll}
+            disabled={deleting}
+            autoFocus
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+          <button className="takes-bar__confirm-no" onClick={() => setConfirming(false)} disabled={deleting}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
