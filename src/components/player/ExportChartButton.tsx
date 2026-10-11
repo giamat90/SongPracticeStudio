@@ -42,6 +42,7 @@ export default function ExportChartButton({ song }: ExportChartButtonProps) {
     try {
       await redetectSongChords(song.id);
       await useLibraryStore.getState().fetchSongs();
+      usePlayerStore.setState((s) => (s.song ? { song: { ...s.song, hasChords: true } } : {}));
       usePlayerStore.getState().bumpChordsRevision();
     } catch (e) {
       console.error("[ExportChartButton] chord re-detection failed:", e);

@@ -118,6 +118,6 @@ Needs the weights in `~/.songpracticestudio/models/` (or `~/.cache/torch/hub/che
 
 - **Frozen sidecar:** built with `build.py`'s arguments (plus `--hidden-import=torchaudio.pipelines`, without the vendored ffmpeg/Demucs weights) and smoke-tested on 2026-10-10: it starts in ~11 s, runs the real wav2vec2 model through `align_lyrics` (32/32 words placed on a 40 s clip of a real vocals stem, ~29 s including model load), and resolves `find_lyrics`. The installer produced by `release.yml` has not been exercised, so check Lyrics once on a release candidate.
 - The model is not bundled; the first sync needs internet.
-- No cancel button: a sync runs to completion, and other sidecar commands wait for it.
+- **Cancel** (SPS-only for now): the panel's Cancel button calls `cancel_lyrics_sync`, which sets a flag the running `sync_lyrics` polls every 200 ms (`run_sidecar_command_cancellable`). A running alignment cannot be interrupted in Python, so the sidecar process is stopped and starts again on its next use; the model download is atomic (`.part` then rename), so a cancelled download leaves nothing half-written. The sync call fails with "Cancelled." Other sidecar commands still wait while a sync runs. VPS has no cancel yet (its lyrics store lives in `mps-core`).
 - One lyric track per song; no manual per-line timing edits.
 - Lyrics are shown in the analyzer only, not on the library cards.

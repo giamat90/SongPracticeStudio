@@ -6,7 +6,7 @@ vi.mock("../../stores/player", () => ({
   MAX_CAPO_FRET: 7,
   usePlayerStore: Object.assign(
     (sel: (s: unknown) => unknown) => sel({ currentTime: 0, seek: () => {}, transpose: 0, capo: 0, setCapo: () => {} }),
-    { getState: () => ({ currentTime: 0, transpose: 0, capo: 0 }) },
+    { getState: () => ({ currentTime: 0, transpose: 0, capo: 0 }), setState: () => {} },
   ),
 }));
 vi.mock("../../stores/library", () => ({ useLibraryStore: { getState: () => ({ fetchSongs: async () => {} }) } }));

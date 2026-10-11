@@ -72,7 +72,7 @@ Steps (`processor.py`):
 1. Demucs (model per the cascade above) → writes each requested stem's WAV (progress 0→0.75)
 2. BPM detection via `librosa.beat.tempo` on the original file (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
-4. Chord detection — windowed chroma → 24 major/minor chord-template matching (1s hops) over the whole song, writes `chords.json`; non-fatal on failure (0.92→0.96)
+4. Chord detection — windowed chroma → chord-template matching: 24 major/minor triads, plus 7, maj7 and min7 chords when the seventh clearly beats the best triad (`_SEVENTH_MARGIN`), plus a slash-chord `bass` note read from the bass stem when it holds one chord tone other than the root for most of a window (`_BASS_DOMINANCE`); originally 24 major/minor chord-template matching (1s hops) over the whole song, writes `chords.json`; non-fatal on failure (0.92→0.96)
 5. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.96→1.0). Read back by the `read_bass_tab` command (`library::read_bass_tab`: `None` when the file does not exist, an error when it does not parse) and shown by `BassTabPanel`; there is no flag on `Song`, the file's presence is the test. Note format: `{time, duration, pitch, string, fret}`, strings 0=E 1=A 2=D 3=G.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — the last two are booleans (whether each JSON file was successfully written), not the data itself; chords are fetched separately via `read_song_chords` once `Song.hasChords` is true.
@@ -124,6 +124,16 @@ Renders a single mixdown WAV from a list of sources, honoring the frontend's liv
 ```
 
 Each source is loaded only over the `[startSec, endSec)` window; takes are aligned via `fileTime = projectTime - startPosition + audioOffset`. A take that begins *inside* the window is preceded by silence (before 2026-10-09 it slid to the window start whenever the window began before the take), and the first `audioOffset` seconds of its file are never played, matching live playback. Sources are resampled/upmixed to a common rate and channel count, summed with per-source gain, then peak-safe scaled before writing.
+
+### `detect_chords`
+
+Detects a song's chords again from its separated stems (their sum stands in for the mix, the `bass` stem gives slash-chord bass notes) and writes `chords.json` (version 2) to `outputPath`. Used by the app's "Re-detect chords" button so songs imported before sevenths and slash chords existed can be upgraded without re-separating.
+
+```json
+{"cmd": "detect_chords", "stemPaths": {"other": "/song/other.wav", "bass": "/song/bass.wav"}, "outputPath": "/song/chords.json"}
+```
+
+Replies `{"segments": <count>}`; an empty `stemPaths` is an error.
 
 ### `pitch_shift`
 
