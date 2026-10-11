@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.46] - 2026-10-12
+
+### Added
+- A **×** button on the Takes bar deletes every recorded take at once, after an inline confirmation. If one take cannot be deleted, the takes that could not be are kept.
+
+### Fixed
+- The app now waits up to 90 s (was 30 s) for the audio engine to start, so the first import or lyrics sync after a cold start no longer fails on a slow disk.
+
 ## [0.0.45] - 2026-10-11
 
 ### Fixed

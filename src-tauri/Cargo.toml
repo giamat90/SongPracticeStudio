@@ -1,6 +1,6 @@
 [package]
 name = "song-practice-studio"
-version = "0.0.45"
+version = "0.0.46"
 description = "Stem separation player — split any song into instrument tracks"
 authors = ["GiaMat90"]
 license = ""
