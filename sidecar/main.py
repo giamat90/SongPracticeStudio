@@ -129,6 +129,11 @@ def main():
                 )
                 send({"type": "result", "cmd": "pitch_shift", "data": result})
 
+            elif cmd.get("cmd") == "detect_chords":
+                from processor import detect_chords_from_stems
+                result = detect_chords_from_stems(cmd["stemPaths"], cmd["outputPath"])
+                send({"type": "result", "cmd": "detect_chords", "data": result})
+
             elif cmd.get("cmd") == "align_lyrics":
                 result = lyrics.align_lyrics(
                     cmd["vocalsPath"],

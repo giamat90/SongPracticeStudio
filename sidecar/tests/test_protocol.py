@@ -192,6 +192,19 @@ def test_pitch_shift_writes_every_named_stem_and_streams_progress(sidecar, tmp_p
     assert progress and progress[-1]["value"] == 1.0 and all(p["cmd"] == "pitch_shift" for p in progress)
 
 
+def test_detect_chords_writes_chords_json_from_the_stems(sidecar, tmp_path):
+    other = write_wav(tmp_path / "other.wav", sum(sine(f, SR, 4.0, amp=0.15) for f in (261.63, 329.63, 392.0)), SR)
+    out = tmp_path / "chords.json"
+    msg, _ = sidecar.call({"cmd": "detect_chords", "stemPaths": {"other": other}, "outputPath": str(out)})
+    assert msg["type"] == "result" and msg["cmd"] == "detect_chords" and msg["data"]["segments"] >= 1
+    assert out.exists()
+
+
+def test_detect_chords_with_no_stems_is_an_error(sidecar, tmp_path):
+    msg, _ = sidecar.call({"cmd": "detect_chords", "stemPaths": {}, "outputPath": str(tmp_path / "c.json")})
+    assert msg["type"] == "error" and msg["cmd"] == "detect_chords"
+
+
 def test_process_of_a_missing_file_reports_an_error_naming_the_command(sidecar, tmp_path):
     msg, _ = sidecar.call({"cmd": "process", "filePath": str(tmp_path / "gone.mp3"), "outputDir": str(tmp_path / "o"), "stemsToExtract": ["vocals"]}, timeout=180)
     assert msg["type"] == "error" and msg["cmd"] == "process" and "Traceback" in msg["traceback"]
@@ -260,7 +273,7 @@ def test_the_commands_main_py_handles_are_exactly_the_ones_documented():
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
     assert handled == {
         "process", "import_yt", "convert_take", "normalize_take", "mix_export", "pitch_shift",
-        "align_lyrics", "find_lyrics", "ping", "quit",
+        "detect_chords", "align_lyrics", "find_lyrics", "ping", "quit",
     }
 
 

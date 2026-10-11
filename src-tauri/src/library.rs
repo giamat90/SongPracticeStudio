@@ -96,6 +96,9 @@ pub struct ChordSegment {
     pub start: f64,
     pub end: f64,
     pub chord: String,
+    /// The bass note when it is a chord tone other than the root (a slash chord).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bass: Option<String>,
 }
 
 /// A user-named, flat (non-nested) grouping of songs.
@@ -212,6 +215,20 @@ pub fn rename(song_id: &str, title: &str) -> Result<Song, String> {
 #[derive(Deserialize)]
 struct ChordsFile {
     segments: Vec<ChordSegment>,
+}
+
+/// Record that a song now has a `chords.json`.
+pub fn mark_chords_detected(song_id: &str) -> Result<Song, String> {
+    let mut lib = load()?;
+    let song = lib
+        .songs
+        .iter_mut()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    song.has_chords = true;
+    let updated = song.clone();
+    save(&lib)?;
+    Ok(updated)
 }
 
 /// Read the detected chord segments for a song from its `chords.json`.
@@ -720,6 +737,37 @@ mod tests {
 
         fs::write(dir.join("bass_tab.json"), "{{").unwrap();
         assert!(read_bass_tab("a").unwrap_err().contains("Parse bass tab"));
+    }
+
+    #[test]
+    fn a_slash_chords_bass_note_is_kept_and_a_plain_chord_has_none() {
+        let home = TestHome::new();
+        let dir = home.path().join("library").join("a");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("chords.json"),
+            r#"{"version":2,"duration":8,"segments":[{"start":0,"end":4,"chord":"C:maj","bass":"E"},{"start":4,"end":8,"chord":"G:7"}]}"#,
+        )
+        .unwrap();
+        let mut a = song("a", "A");
+        a.directory = dir.to_string_lossy().to_string();
+        add(a).unwrap();
+
+        let segments = read_chords("a").unwrap();
+        assert_eq!(segments[0].bass.as_deref(), Some("E"));
+        assert_eq!(segments[1].bass, None);
+        let json = serde_json::to_string(&segments[1]).unwrap();
+        assert!(!json.contains("bass"), "{json}");
+    }
+
+    #[test]
+    fn marking_chords_detected_sets_the_flag_and_persists_it() {
+        let _home = TestHome::new();
+        add(song("a", "A")).unwrap();
+        assert!(!load_songs().unwrap()[0].has_chords);
+        assert!(mark_chords_detected("a").unwrap().has_chords);
+        assert!(load_songs().unwrap()[0].has_chords);
+        assert!(mark_chords_detected("ghost").unwrap_err().contains("ghost"));
     }
 
     #[test]

@@ -64,6 +64,27 @@ CHORD_TEMPLATES.update({
     f"{NOTE_NAMES[shift]}:min": np.roll(_MINOR_TRIAD, shift) for shift in range(12)
 })
 
+# Four-note chords, matched only when the seventh is clearly there.
+_SEVENTH_SHAPES = {
+    "7":    np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]),
+    "maj7": np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1]),
+    "min7": np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0]),
+}
+SEVENTH_TEMPLATES = {
+    f"{NOTE_NAMES[shift]}:{quality}": np.roll(shape, shift)
+    for quality, shape in _SEVENTH_SHAPES.items()
+    for shift in range(12)
+}
+
+# Semitones above the root that are chord tones, for slash-chord bass notes.
+_CHORD_TONE_OFFSETS = {
+    "maj": {4, 7},
+    "min": {3, 7},
+    "7": {4, 7, 10},
+    "maj7": {4, 7, 11},
+    "min7": {3, 7, 10},
+}
+
 BASS_OPEN_MIDI = [28, 33, 38, 43]
 BASS_MAX_FRET  = 24
 
@@ -175,13 +196,22 @@ _NO_CHORD_RMS_RATIO = 0.05
 _NO_CHORD_LABEL = "N"
 
 
-def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0) -> list:
-    """
-    Windowed chroma → chord-template matching over the whole song.
-    Returns a list of {"start", "end", "chord"} segments (chord like "C:maj").
-    """
-    y, sr = librosa.load(input_path, sr=SAMPLE_RATE, mono=True)
+# A seventh chord has to beat the best plain triad by this much (cosine score)
+# before it is named: a faint seventh, or noise, should not turn C into Cmaj7.
+_SEVENTH_MARGIN = 0.02
+# The bass has to hold one pitch class this share of a window's bass energy
+# for a slash chord to be reported.
+_BASS_DOMINANCE = 0.5
+_BASS_FMIN_NOTE = "C1"
 
+
+def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
+    """
+    Windowed chroma -> chord-template matching over the whole signal.
+    Returns {"start", "end", "chord"} segments (chord like "C:maj", "G:7",
+    "A:min7"), with "bass" (a note name) when the bass stem plays a chord tone
+    other than the root.
+    """
     hop_length  = 512
     frame_dur   = hop_length / sr
     frames_per_window = max(1, round(hop_seconds / frame_dur))
@@ -190,26 +220,61 @@ def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0) -> list:
     rms    = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     n_frames = chroma.shape[1]
 
-    template_names   = list(CHORD_TEMPLATES.keys())
-    template_matrix  = np.stack([CHORD_TEMPLATES[n] for n in template_names])
-    template_norms   = template_matrix / (np.linalg.norm(template_matrix, axis=1, keepdims=True) + 1e-9)
+    bass_chroma = None
+    if bass_y is not None and len(bass_y) > 0:
+        bass_chroma = librosa.feature.chroma_cqt(
+            y=bass_y, sr=sr, hop_length=hop_length, fmin=librosa.note_to_hz(_BASS_FMIN_NOTE), n_octaves=4,
+        )
+
+    def _unit(templates):
+        names = list(templates.keys())
+        matrix = np.stack([templates[n] for n in names]).astype(float)
+        return names, matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-9)
+
+    triad_names, triad_matrix = _unit(CHORD_TEMPLATES)
+    seventh_names, seventh_matrix = _unit(SEVENTH_TEMPLATES)
 
     max_rms = float(rms.max()) if len(rms) else 0.0
 
+    def _label_window(chroma_win, bass_win):
+        norm = np.linalg.norm(chroma_win) + 1e-9
+        unit = chroma_win / norm
+        triad_scores = triad_matrix @ unit
+        best = int(np.argmax(triad_scores))
+        name, score = triad_names[best], float(triad_scores[best])
+        seventh_scores = seventh_matrix @ unit
+        s_best = int(np.argmax(seventh_scores))
+        if float(seventh_scores[s_best]) > score + _SEVENTH_MARGIN:
+            name = seventh_names[s_best]
+
+        bass_note = None
+        if bass_win is not None and bass_win.sum() > 1e-6:
+            pc = int(np.argmax(bass_win))
+            if bass_win[pc] / bass_win.sum() >= _BASS_DOMINANCE:
+                root = NOTE_NAMES.index(name.split(":")[0])
+                offset = (pc - root) % 12
+                if offset != 0 and offset in _CHORD_TONE_OFFSETS[name.split(":")[1]]:
+                    bass_note = NOTE_NAMES[pc]
+        return (name, bass_note)
+
     window_labels = []
     window_times  = []
+    no_chord = (_NO_CHORD_LABEL, None)
     i = 0
     while i < n_frames:
         j = min(i + frames_per_window, n_frames)
+        if window_labels and j - i < frames_per_window / 2:
+            break
         chroma_win = chroma[:, i:j].mean(axis=1)
         rms_win    = float(rms[i:j].mean()) if j > i else 0.0
 
         if max_rms <= 0 or rms_win < _NO_CHORD_RMS_RATIO * max_rms:
-            label = _NO_CHORD_LABEL
+            label = no_chord
         else:
-            norm = np.linalg.norm(chroma_win) + 1e-9
-            scores = template_norms @ (chroma_win / norm)
-            label  = template_names[int(np.argmax(scores))]
+            bass_win = None
+            if bass_chroma is not None and bass_chroma.shape[1] >= j:
+                bass_win = bass_chroma[:, i:j].mean(axis=1)
+            label = _label_window(chroma_win, bass_win)
 
         window_labels.append(label)
         window_times.append(i * frame_dur)
@@ -229,18 +294,60 @@ def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0) -> list:
     # Merge consecutive identical labels into segments, dropping "N".
     duration = n_frames * frame_dur
     segments = []
+
+    def _emit(start, end, label):
+        if label[0] == _NO_CHORD_LABEL:
+            return
+        seg = {"start": round(start, 3), "end": round(end, 3), "chord": label[0]}
+        if label[1] is not None:
+            seg["bass"] = label[1]
+        segments.append(seg)
+
     seg_start = window_times[0] if window_times else 0.0
-    seg_label = window_labels[0] if window_labels else _NO_CHORD_LABEL
+    seg_label = window_labels[0] if window_labels else no_chord
     for t, label in zip(window_times[1:], window_labels[1:]):
         if label != seg_label:
-            if seg_label != _NO_CHORD_LABEL:
-                segments.append({"start": round(seg_start, 3), "end": round(t, 3), "chord": seg_label})
+            _emit(seg_start, t, seg_label)
             seg_start = t
             seg_label = label
-    if window_labels and seg_label != _NO_CHORD_LABEL:
-        segments.append({"start": round(seg_start, 3), "end": round(duration, 3), "chord": seg_label})
+    if window_labels:
+        _emit(seg_start, duration, seg_label)
 
     return segments
+
+
+def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: str | None = None) -> list:
+    y, sr = librosa.load(input_path, sr=SAMPLE_RATE, mono=True)
+    bass_y = None
+    if bass_path:
+        bass_y, _ = librosa.load(bass_path, sr=SAMPLE_RATE, mono=True)
+    return _chords_from_signal(y, sr, bass_y, hop_seconds)
+
+
+def detect_chords_from_stems(stem_paths: dict, output_path: str) -> dict:
+    """
+    Detect the chords again from a song's separated stems (their sum stands in
+    for the mix) and write them to `output_path` as chords.json.
+    """
+    if not stem_paths:
+        raise ValueError("No stems to detect chords from")
+    mix = None
+    for path in stem_paths.values():
+        y, _ = librosa.load(path, sr=SAMPLE_RATE, mono=True)
+        if mix is None:
+            mix = y.copy()
+        else:
+            n = max(len(mix), len(y))
+            mix = np.pad(mix, (0, n - len(mix)))
+            mix[: len(y)] += y
+    bass_y = None
+    if "bass" in stem_paths:
+        bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
+    segments = _chords_from_signal(mix, SAMPLE_RATE, bass_y)
+    duration = len(mix) / SAMPLE_RATE
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump({"version": 2, "duration": duration, "segments": segments}, f)
+    return {"segments": len(segments)}
 
 
 def _assign_fret(midi_pitch: int, prev_string: int, prev_fret: int) -> tuple:
@@ -456,10 +563,10 @@ def process(
     _log("Detecting chords...")
     chords_written = False
     try:
-        chord_segments = _detect_chords_chroma(input_path)
+        chord_segments = _detect_chords_chroma(input_path, bass_path=stem_paths.get("bass"))
         chords_path = os.path.join(output_dir, "chords.json")
         with open(chords_path, "w", encoding="utf-8") as f:
-            json.dump({"version": 1, "duration": duration, "segments": chord_segments}, f)
+            json.dump({"version": 2, "duration": duration, "segments": chord_segments}, f)
         _log(f"Chords written: {len(chord_segments)} segments → {chords_path}")
         chords_written = True
     except Exception as e:

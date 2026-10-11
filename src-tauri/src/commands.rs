@@ -671,6 +671,38 @@ pub async fn pitch_shift_song(
     pitch_shift_song_impl(&state, song_dir, stem_names, n_steps)
 }
 
+/// Detect a song's chords again from its separated stems, replacing `chords.json`.
+pub(crate) fn redetect_chords_impl(state: &SidecarState, song_id: &str) -> Result<Song, String> {
+    let song = library::load_songs()?
+        .into_iter()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    let dir = Path::new(&song.directory);
+    let stem_paths: serde_json::Map<String, serde_json::Value> = song
+        .stems
+        .iter()
+        .filter_map(|name| {
+            let path = dir.join(format!("{name}.wav"));
+            path.exists().then(|| (name.clone(), serde_json::Value::String(path.to_string_lossy().to_string())))
+        })
+        .collect();
+    if stem_paths.is_empty() {
+        return Err("This song has no stems to detect chords from".to_string());
+    }
+    let cmd = serde_json::json!({
+        "cmd": "detect_chords",
+        "stemPaths": stem_paths,
+        "outputPath": dir.join("chords.json").to_string_lossy(),
+    });
+    run_sidecar_command(state, &cmd, Duration::from_secs(300), |_, _| {})?;
+    library::mark_chords_detected(song_id)
+}
+
+#[tauri::command]
+pub async fn redetect_song_chords(state: State<'_, SidecarState>, song_id: String) -> Result<Song, String> {
+    redetect_chords_impl(&state, &song_id)
+}
+
 /// Lyrics sync progress event payload (emitted to frontend as "lyrics-progress").
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
