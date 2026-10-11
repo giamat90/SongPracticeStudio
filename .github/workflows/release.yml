@@ -281,12 +281,14 @@ jobs:
         run: |
           dest="vendor/ffmpeg/aarch64-apple-darwin"
           mkdir -p "$dest"
-          curl -L "https://evermeet.cx/ffmpeg/getrelease/zip" -o ffmpeg.zip
+          # evermeet.cx answers 429 when both apps build at once: fail on HTTP errors and retry.
+          curl -fL --retry 8 --retry-delay 20 --retry-all-errors "https://evermeet.cx/ffmpeg/getrelease/zip" -o ffmpeg.zip
           unzip -o ffmpeg.zip -d ffmpeg-extracted
           cp ffmpeg-extracted/ffmpeg "$dest/ffmpeg"
           chmod +x "$dest/ffmpeg"
           rm -rf ffmpeg.zip ffmpeg-extracted
-          curl -L "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip" -o ffprobe.zip
+          sleep 10
+          curl -fL --retry 8 --retry-delay 20 --retry-all-errors "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip" -o ffprobe.zip
           unzip -o ffprobe.zip -d ffprobe-extracted
           cp ffprobe-extracted/ffprobe "$dest/ffprobe"
           chmod +x "$dest/ffprobe"
