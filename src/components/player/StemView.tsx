@@ -8,7 +8,7 @@ import TakeTrack from "./TakeTrack";
 import TakesBar from "./TakesBar";
 import type { Song, Take } from "../../lib/types";
 import { computeZoomToCursor, computePan, wheelDeltaPixels, clamp } from "@giamat90/mps-core/zoomPan";
-import { audibleTakes, takeSilence } from "@giamat90/mps-core/takes";
+import { audibleTakes } from "@giamat90/mps-core/takes";
 
 interface StemViewProps {
   song: Song;
@@ -32,7 +32,7 @@ function StemView({ song }: StemViewProps) {
   const shownTakes = shownTakeIds
     .map((id) => takes.find((t) => t.id === id))
     .filter((t): t is Take => t !== undefined);
-  const audibility = {
+  const audibleIds = audibleTakes({
     shown: shownTakeIds,
     active: activeTakeId,
     playback: takePlayback,
@@ -41,8 +41,7 @@ function StemView({ song }: StemViewProps) {
     muteWhileRecording,
     soloed: soloedTakeId,
     silenced: takeChannelSilent,
-  };
-  const audibleIds = audibleTakes(audibility);
+  });
   // Lane containers by take id, and the takes currently loaded into the engine
   const takeRails     = useRef(new Map<string, HTMLDivElement>());
   const loadedTakes   = useRef(new Set<string>());
@@ -174,7 +173,6 @@ function StemView({ song }: StemViewProps) {
             label={take.name || `Take ${takes.indexOf(take) + 1}`}
             isActive={take.id === activeTakeId}
             isAudible={audibleIds.includes(take.id)}
-            silence={takeSilence(audibility, take.id)}
             song={song}
             containerRef={(el) => {
               if (el) takeRails.current.set(take.id, el);

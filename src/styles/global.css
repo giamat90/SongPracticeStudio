@@ -3457,30 +3457,10 @@ button.stem-track__take-name {
   gap: 0.4rem;
 }
 
-/* The selected take is marked whether or not it is heard: a tinted header with an accent edge,
-   a frame around its waveform (an outline, so the rail keeps its pixel alignment) and a label. */
+/* The selected take's header is tinted with an accent edge, heard or not. */
 .stem-track--take.stem-track--active > .stem-track__header {
   background: rgba(233, 69, 96, 0.14);
   box-shadow: inset 0.2rem 0 0 var(--accent);
   border-radius: 4px;
   padding-left: 0.4rem;
-}
-
-.stem-track--take.stem-track--active > .stem-track__body {
-  outline: 0.12rem solid var(--accent);
-  outline-offset: -0.12rem;
-}
-
-.waveform__take-state {
-  font-size: 0.65rem;
-  color: var(--text-primary);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: 0 0.45rem;
-  white-space: nowrap;
-}
-
-.waveform__take-state--silent {
-  border-style: dashed;
-  color: var(--text-secondary);
 }

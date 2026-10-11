@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent, type RefCallback } from "react";
 import { usePlayerStore, getEngine } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
-import type { TakeSilence } from "@giamat90/mps-core/takes";
 import type { Song, Take } from "../../lib/types";
 
 // Chunk-based alternative to dragging: fine enough to correct residual sync
@@ -9,26 +8,6 @@ import type { Song, Take } from "../../lib/types";
 // around 20-30ms), without needing many presses for larger corrections.
 const TAKE_NUDGE_STEP_S = 0.01;
 const TAKE_NUDGE_COARSE_MULTIPLIER = 5; // Shift+Arrow = 50ms
-
-/** What the selected take's lane says about itself; the selection must be visible even when it is silent. */
-function selectedTakeLabel(playback: "all" | "selected", silence: TakeSilence | null): { text: string; hint: string } {
-  switch (silence) {
-    case null:
-      return playback === "selected"
-        ? { text: "\u25B6 Playing", hint: "The selected take is the one you hear." }
-        : { text: "Selected", hint: "The selected take. Click another take's name to select it instead." };
-    case "muted":
-      return { text: "Selected \u00B7 muted", hint: "This take is selected but muted on its own lane: press M on the lane to hear it." };
-    case "channel":
-      return { text: "Selected \u00B7 takes muted", hint: "This take is selected, but the main take mute (or another track's solo) silences every take." };
-    case "recording":
-      return { text: "Selected \u00B7 silent while recording", hint: "Takes are silent while recording; see the toggle in the takes bar." };
-    case "soloed-other":
-      return { text: "Selected \u00B7 another take soloed", hint: "Another take is soloed on its lane, so only that one plays." };
-    default:
-      return { text: "Selected", hint: "The selected take." };
-  }
-}
 
 function PunchOverlay() {
   const punchIn     = usePlayerStore((s) => s.punchIn);
@@ -207,13 +186,11 @@ interface TakeTrackProps {
   isActive: boolean;
   /** Whether this take is heard right now; a silent lane is dimmed. */
   isAudible: boolean;
-  /** Why it is not heard (null when it is). The selected lane says so, so the selection never disappears. */
-  silence: TakeSilence | null;
   song: Song;
   containerRef: RefCallback<HTMLDivElement>;
 }
 
-function TakeTrack({ take, label, isActive, isAudible, silence, song, containerRef }: TakeTrackProps) {
+function TakeTrack({ take, label, isActive, isAudible, song, containerRef }: TakeTrackProps) {
   const takePlayback   = usePlayerStore((s) => s.takePlayback);
   const isLaneMuted    = usePlayerStore((s) => s.mutedTakeIds.includes(take.id));
   const isLaneSoloed   = usePlayerStore((s) => s.soloedTakeId === take.id);
@@ -255,14 +232,6 @@ function TakeTrack({ take, label, isActive, isAudible, silence, song, containerR
           >
             🎙 {label}
           </button>
-          {isActive && (
-            <span
-              className={`waveform__take-state${silence ? " waveform__take-state--silent" : ""}`}
-              title={selectedTakeLabel(takePlayback, silence).hint}
-            >
-              {selectedTakeLabel(takePlayback, silence).text}
-            </span>
-          )}
           <button
             className="stem-track__take-hide"
             onClick={() => hideTake(take.id)}
