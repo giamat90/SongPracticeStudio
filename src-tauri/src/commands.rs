@@ -332,6 +332,24 @@ pub async fn read_song_chords(song_id: String) -> Result<Vec<ChordSegment>, Stri
     library::read_chords(&song_id)
 }
 
+#[tauri::command]
+pub async fn read_bass_tab(song_id: String) -> Result<Option<library::BassTab>, String> {
+    library::read_bass_tab(&song_id)
+}
+
+/// The Save As filter for a file this app builds itself, from its extension.
+pub(crate) fn export_filter_for(name: &str) -> Result<(&'static str, &'static [&'static str]), String> {
+    let ext = Path::new(name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase());
+    match ext.as_deref() {
+        Some("txt") => Ok(("Text", &["txt"])),
+        Some("mid") => Ok(("MIDI", &["mid"])),
+        _ => Err(format!("Cannot export a file named {name}")),
+    }
+}
+
 /// Ask the user where to save a file. `None` means they cancelled.
 async fn choose_save_path(
     app: &AppHandle,
@@ -359,6 +377,20 @@ async fn choose_save_path(
         Some(path) => Ok(Some(path.as_path().ok_or("Invalid path")?.to_path_buf())),
         None => Ok(None),
     }
+}
+
+/// Offer `data` through a Save As dialog and write it to the chosen location.
+async fn save_bytes_via_dialog(app: &AppHandle, data: &[u8], suggested_name: &str) -> Result<(), String> {
+    let (filter_name, extensions) = export_filter_for(suggested_name)?;
+    if let Some(dest) = choose_save_path(app, suggested_name, filter_name, extensions).await? {
+        std::fs::write(dest, data).map_err(|e| format!("Write failed: {e}"))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn export_file(app: AppHandle, data: Vec<u8>, suggested_name: String) -> Result<(), String> {
+    save_bytes_via_dialog(&app, &data, &suggested_name).await
 }
 
 /// Offer `src` through a Save As dialog and copy it to the chosen location.
@@ -1104,6 +1136,24 @@ mod tests {
         assert_eq!(segments.len(), 1);
         assert_eq!((segments[0].start, segments[0].end, segments[0].chord.as_str()), (0.0, 4.0, "C:maj"));
         assert!(run(read_song_chords("ghost".into())).unwrap_err().contains("ghost"));
+    }
+
+    #[test]
+    fn export_filter_follows_the_extension_and_refuses_anything_else() {
+        assert_eq!(export_filter_for("Song - Chords.txt").unwrap().0, "Text");
+        assert_eq!(export_filter_for("Song - Bass.MID").unwrap().1, &["mid"]);
+        assert!(export_filter_for("evil.exe").is_err());
+        assert!(export_filter_for("noextension").is_err());
+    }
+
+    #[test]
+    fn bass_tab_command_is_none_for_a_song_without_one() {
+        let _home = TestHome::new();
+        library::add(song_from_result(
+            "a", "A".into(), storage::song_dir("a").to_string_lossy().to_string(), &json!({"duration": 1.0}),
+        ))
+        .unwrap();
+        assert!(run(read_bass_tab("a".into())).unwrap().is_none());
     }
 
     // ── the sidecar's silent-failure paths ────────────────────────────────

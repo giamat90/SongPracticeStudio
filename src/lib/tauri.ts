@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   ChordSegment, Folder, ProcessingStatus, Song, StemName, Take,
 } from "./types";
+import type { BassTabData } from "./bassTab";
 
 /** Process a song file through the Python sidecar */
 export async function processSong(filePath: string, stemsToExtract?: StemName[], highQuality?: boolean): Promise<Song> {
@@ -105,6 +106,16 @@ export async function deleteTakeApi(songId: string, takeId: string): Promise<voi
 /** Rename a take (empty/whitespace name clears it back to the default "Take N" label) */
 export async function renameTakeApi(songId: string, takeId: string, name: string): Promise<Take> {
   return invoke<Take>("rename_take", { songId, takeId, name });
+}
+
+/** A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem */
+export async function readBassTab(songId: string): Promise<BassTabData | null> {
+  return invoke<BassTabData | null>("read_bass_tab", { songId });
+}
+
+/** Offer a file the app built (a .txt or .mid) through a Save As dialog */
+export async function exportFile(data: number[], suggestedName: string): Promise<void> {
+  return invoke("export_file", { data, suggestedName });
 }
 
 /** Rename a song's library title. Empty/whitespace is rejected. */

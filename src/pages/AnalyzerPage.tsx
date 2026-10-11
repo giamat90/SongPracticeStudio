@@ -2,6 +2,8 @@ import { useEffect, type ReactNode } from "react";
 import StemView from "../components/player/StemView";
 import DownloadAllButton from "../components/player/DownloadAllButton";
 import ExportMixButton from "../components/player/ExportMixButton";
+import ExportChartButton from "../components/player/ExportChartButton";
+import BassTabPanel from "../components/player/BassTabPanel";
 import TransportControls from "../components/player/TransportControls";
 import LoopButton from "../components/player/LoopButton";
 import TempoControl from "../components/player/TempoControl";
@@ -81,6 +83,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
         </div>
         <PanelMenu store={useAnalyzerPanels} panels={ANALYZER_PANELS} />
         <DownloadAllButton song={song} />
+        <ExportChartButton song={song} />
         <ExportMixButton />
       </header>
 
@@ -110,6 +113,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
 
         <div className="analyzer-page__stems">
           <StemView song={song} />
+          <BassTabPanel song={song} />
         </div>
 
         {docked("takes") && (

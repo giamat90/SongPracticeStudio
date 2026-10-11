@@ -73,7 +73,7 @@ Steps (`processor.py`):
 2. BPM detection via `librosa.beat.tempo` on the original file (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — windowed chroma → 24 major/minor chord-template matching (1s hops) over the whole song, writes `chords.json`; non-fatal on failure (0.92→0.96)
-5. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.96→1.0). **Backend-only as of this writing** — nothing in `commands.rs`/`library.rs` reads `bass_tab.json` back or persists a flag for it (unlike chords, which get `has_chords` on `Song` + the `read_song_chords` command), and no frontend component consumes it on `master`; a viewer exists only on the unmerged `feat/bass-tab` branch.
+5. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.96→1.0). Read back by the `read_bass_tab` command (`library::read_bass_tab`: `None` when the file does not exist, an error when it does not parse) and shown by `BassTabPanel`; there is no flag on `Song`, the file's presence is the test. Note format: `{time, duration, pitch, string, fret}`, strings 0=E 1=A 2=D 3=G.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — the last two are booleans (whether each JSON file was successfully written), not the data itself; chords are fetched separately via `read_song_chords` once `Song.hasChords` is true.
 
