@@ -11,7 +11,7 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ## Shared code (`@giamat90/mps-core`)
 
-Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
+Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
 
 ---
 
@@ -133,6 +133,7 @@ SongPracticeStudio/
 │   │   ├── player/
 │   │   │   ├── StemView.tsx       ← TimeRuler + all StemTracks + TakeTrack
 │   │   │   ├── ExportMixButton.tsx ← export current mix as WAV (rendered in AnalyzerPage header)
+│   │   │   ├── LoopsMenu.tsx      ← saved named loops + bar sections (analyzer topbar)
 │   │   │   ├── ExportChartButton.tsx ← chord sheet as .txt, with a capo choice (AnalyzerPage header)
 │   │   │   ├── BassTabPanel.tsx   ← scrolling four-string bass tab + Export MIDI (below the stems)
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)
@@ -168,7 +169,7 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← process_song, import_youtube, read_song_chords, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
+    ├── commands.rs   ← process_song, import_youtube, read_song_chords, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)

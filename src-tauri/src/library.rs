@@ -32,6 +32,61 @@ pub struct Song {
     // reshuffles an existing library.
     #[serde(default)]
     pub sort_index: i32,
+    // Regions the user saved under a name, in time order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub loops: Vec<NamedLoop>,
+}
+
+/// A region of a song saved under a name, to loop with one click.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedLoop {
+    pub id: String,
+    pub name: String,
+    pub start: f64,
+    pub end: f64,
+}
+
+const MAX_LOOPS: usize = 100;
+const MAX_LOOP_NAME_CHARS: usize = 80;
+const MIN_LOOP_SECONDS: f64 = 0.25;
+
+/// Trim the names, check every loop and return them in time order.
+fn clean_loops(loops: Vec<NamedLoop>) -> Result<Vec<NamedLoop>, String> {
+    if loops.len() > MAX_LOOPS {
+        return Err(format!("Too many loops (at most {MAX_LOOPS})"));
+    }
+    let mut cleaned: Vec<NamedLoop> = Vec::with_capacity(loops.len());
+    for mut l in loops {
+        l.name = l.name.trim().to_string();
+        if l.name.is_empty() || l.name.chars().count() > MAX_LOOP_NAME_CHARS {
+            return Err("A loop needs a name of 1 to 80 characters".to_string());
+        }
+        if !l.start.is_finite() || !l.end.is_finite() || l.start < 0.0 || l.end - l.start < MIN_LOOP_SECONDS {
+            return Err(format!("The region of \"{}\" must run forward and be at least a quarter of a second long", l.name));
+        }
+        if l.id.is_empty() || cleaned.iter().any(|c| c.id == l.id) {
+            return Err("Every loop needs its own id".to_string());
+        }
+        cleaned.push(l);
+    }
+    cleaned.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.end.total_cmp(&b.end)));
+    Ok(cleaned)
+}
+
+/// Replace a song's saved loops and persist them.
+pub fn set_loops(song_id: &str, loops: Vec<NamedLoop>) -> Result<Song, String> {
+    let cleaned = clean_loops(loops)?;
+    let mut lib = load()?;
+    let song = lib
+        .songs
+        .iter_mut()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    song.loops = cleaned;
+    let updated = song.clone();
+    save(&lib)?;
+    Ok(updated)
 }
 
 /// A single detected chord segment, read on demand from `chords.json`.
@@ -345,6 +400,7 @@ mod tests {
             has_chords: false,
             folder_id: None,
             sort_index: 0,
+            loops: vec![],
         }
     }
 
@@ -541,6 +597,59 @@ mod tests {
         let cleared = update_metronome_offset("a", None).unwrap();
         assert_eq!(cleared.metronome_offset, None);
         assert_eq!(load_songs().unwrap()[0].metronome_offset, None);
+    }
+
+    fn named(id: &str, name: &str, start: f64, end: f64) -> NamedLoop {
+        NamedLoop { id: id.to_string(), name: name.to_string(), start, end }
+    }
+
+    #[test]
+    fn loops_are_trimmed_sorted_and_persisted() {
+        let _home = TestHome::new();
+        add(song("a", "A")).unwrap();
+        let updated = set_loops("a", vec![named("l2", " Chorus ", 30.0, 40.0), named("l1", "Verse", 5.0, 15.0)]).unwrap();
+        assert_eq!(updated.loops.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), ["Verse", "Chorus"]);
+        assert_eq!(load_songs().unwrap()[0].loops, updated.loops);
+    }
+
+    #[test]
+    fn loops_can_be_cleared() {
+        let _home = TestHome::new();
+        add(song("a", "A")).unwrap();
+        set_loops("a", vec![named("l1", "Verse", 5.0, 15.0)]).unwrap();
+        assert!(set_loops("a", vec![]).unwrap().loops.is_empty());
+        assert!(load_songs().unwrap()[0].loops.is_empty());
+    }
+
+    #[test]
+    fn bad_loops_are_rejected_and_leave_the_file_alone() {
+        let _home = TestHome::new();
+        add(song("a", "A")).unwrap();
+        set_loops("a", vec![named("l1", "Keep", 1.0, 5.0)]).unwrap();
+        for bad in [
+            vec![named("x", "  ", 1.0, 5.0)],
+            vec![named("x", &"n".repeat(81), 1.0, 5.0)],
+            vec![named("x", "Backwards", 9.0, 5.0)],
+            vec![named("x", "Tiny", 1.0, 1.1)],
+            vec![named("x", "Negative", -1.0, 5.0)],
+            vec![named("x", "Nan", f64::NAN, 5.0)],
+            vec![named("x", "A", 1.0, 5.0), named("x", "B", 6.0, 9.0)],
+            vec![named("", "No id", 1.0, 5.0)],
+        ] {
+            assert!(set_loops("a", bad).is_err());
+        }
+        assert!(set_loops("a", (0..101).map(|i| named(&format!("l{i}"), "x", i as f64, i as f64 + 1.0)).collect()).is_err());
+        assert!(set_loops("ghost", vec![]).unwrap_err().contains("ghost"));
+        assert_eq!(load_songs().unwrap()[0].loops.len(), 1);
+    }
+
+    #[test]
+    fn a_library_written_before_loops_existed_still_loads() {
+        let _home = TestHome::new();
+        add(song("a", "A")).unwrap();
+        let raw = std::fs::read_to_string(library_path()).unwrap();
+        assert!(!raw.contains("loops"), "an empty loop list is not written");
+        assert!(load_songs().unwrap()[0].loops.is_empty());
     }
 
     #[test]

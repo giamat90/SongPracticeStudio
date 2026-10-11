@@ -1,3 +1,7 @@
+import type { NamedLoop } from "@giamat90/mps-core/loops";
+
+export type { NamedLoop };
+
 export type StemName = "vocals" | "drums" | "bass" | "guitar" | "piano" | "other";
 
 export interface Song {
@@ -11,6 +15,7 @@ export interface Song {
   stems: StemName[];
   metronomeOffset?: number;
   hasChords?: boolean;
+  loops?: NamedLoop[];
   folderId?: string | null;
   sortIndex: number;
 }

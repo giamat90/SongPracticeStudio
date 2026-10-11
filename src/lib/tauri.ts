@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
-  ChordSegment, Folder, ProcessingStatus, Song, StemName, Take,
+  ChordSegment, Folder, NamedLoop, ProcessingStatus, Song, StemName, Take,
 } from "./types";
 import type { BassTabData } from "./bassTab";
 
@@ -116,6 +116,11 @@ export async function readBassTab(songId: string): Promise<BassTabData | null> {
 /** Offer a file the app built (a .txt or .mid) through a Save As dialog */
 export async function exportFile(data: number[], suggestedName: string): Promise<void> {
   return invoke("export_file", { data, suggestedName });
+}
+
+/** Replace the song's saved named loops; the backend trims names and keeps them in time order */
+export async function setSongLoopsApi(songId: string, loops: NamedLoop[]): Promise<Song> {
+  return invoke<Song>("set_song_loops", { songId, loops });
 }
 
 /** Rename a song's library title. Empty/whitespace is rejected. */

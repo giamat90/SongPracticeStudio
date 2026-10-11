@@ -3619,3 +3619,156 @@ button.stem-track__take-name {
   font-family: inherit;
   font-size: 0.75rem;
 }
+
+/* Loops menu */
+.loops-menu__popover {
+  right: auto;
+  left: 0;
+  min-width: 17rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.loops-menu__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.loops-menu__list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.loops-menu__sections {
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.loops-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.loops-menu__apply {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.loops-menu__apply:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.loops-menu__apply:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.loops-menu__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loops-menu__time {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.loops-menu__icon {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.loops-menu__icon:hover {
+  color: var(--accent);
+}
+
+.loops-menu__save {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.loops-menu__input,
+.loops-menu__select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.loops-menu__select {
+  flex: 0 0 auto;
+  text-transform: none;
+}
+
+.loops-menu__button {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loops-menu__button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.loops-menu__button:disabled,
+.loops-menu__input:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.loops-menu__empty,
+.loops-menu__hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.loops-menu__message {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--accent);
+}

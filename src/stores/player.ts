@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { AudioEngine } from "../audio/engine";
 import { VocalRecorder } from "@giamat90/mps-core/recorder";
-import type { Song, StemName, Take } from "../lib/types";
-import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, pitchShiftSong } from "../lib/tauri";
+import type { NamedLoop, Song, StemName, Take } from "../lib/types";
+import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, setSongLoopsApi, pitchShiftSong } from "../lib/tauri";
+import { addLoop, removeLoop, renameLoop as renameLoopIn } from "@giamat90/mps-core/loops";
 import {
   audibleTakes,
   hideTake,
@@ -196,6 +197,11 @@ interface PlayerActions {
   // Timeline zoom/pan actions
   setZoom: (minPxPerSec: number, scrollTime: number) => void;
   setScrollTime: (scrollTime: number) => void;
+  // Named loops: saved regions of the song
+  saveLoop: (name: string) => Promise<void>;
+  renameLoop: (id: string, name: string) => Promise<void>;
+  deleteLoop: (id: string) => Promise<void>;
+  applyLoopRegion: (start: number, end: number) => void;
   // Metronome downbeat anchor action
   setMetronomeOffset: (t: number) => void;
   // Count-in actions
@@ -350,6 +356,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       activeTakeId: next.active,
       ...(lost ? { soloedTakeId: null } : {}),
     });
+  };
+
+  const persistLoops = async (songId: string, loops: NamedLoop[]) => {
+    const saved = await setSongLoopsApi(songId, loops);
+    const current = get().song;
+    if (current && current.id === songId) set({ song: { ...current, loops: saved.loops ?? [] } });
   };
 
   return {
@@ -991,6 +1003,31 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     setMetronomeOffsetApi(song.id, clamped).catch((e: unknown) =>
       console.error("[player] failed to persist metronome offset:", e)
     );
+  },
+
+  saveLoop: async (name) => {
+    const { song, punchIn, punchOut, duration } = get();
+    if (!song) return;
+    if (punchIn === null || punchOut === null) throw new Error("Set a punch region first");
+    const next = addLoop(song.loops ?? [], { id: crypto.randomUUID(), name, start: punchIn, end: punchOut }, duration);
+    await persistLoops(song.id, next);
+  },
+
+  renameLoop: async (id, name) => {
+    const { song } = get();
+    if (!song) return;
+    await persistLoops(song.id, renameLoopIn(song.loops ?? [], id, name));
+  },
+
+  deleteLoop: async (id) => {
+    const { song } = get();
+    if (!song) return;
+    await persistLoops(song.id, removeLoop(song.loops ?? [], id));
+  },
+
+  applyLoopRegion: (start, end) => {
+    set({ punchIn: start, punchOut: end, punchLoop: true });
+    get().seek(start);
   },
 
   setCountInBars: (bars) => {

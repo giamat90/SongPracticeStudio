@@ -16,6 +16,7 @@ interface Song {
   processedAt: string;  // ISO timestamp
   directory: string;    // absolute path to ~/.songpracticestudio/library/{id}/
   stems: StemName[];    // e.g. ["vocals","drums","bass","guitar","piano","other"]
+  loops?: NamedLoop[];  // saved named regions, see set_song_loops
   hasChords?: boolean;  // true if chords.json was written during processing — see read_song_chords
   metronomeOffset?: number; // song time (s) where the metronome's beat 1 lands
   folderId?: string | null; // library folder this song belongs to; null/absent = root
@@ -146,6 +147,7 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `delete_song` | `songId: string` | `void` |
 | `read_bass_tab` | `songId: string` | `BassTab` or `null` (`bass_tab.json`: `{version, duration, notes[]}`; `null` when the song has none) |
 | `export_file` | `data: u8[], suggestedName: string` | `void` (Save As for a file the app built; only `.txt` and `.mid` names are accepted) |
+| `set_song_loops` | `songId: string, loops: NamedLoop[]` | `Song` (replaces the saved loops; names trimmed, at most 100, 1-80 characters, regions at least 0.25 s, unique ids, stored in time order) |
 | `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected) |
 | `set_metronome_offset` | `songId: string, offset?: f64` | `Song` (persists the metronome's downbeat anchor; `null` clears it back to song start) |
 | `read_song_chords` | `songId: string` | `ChordSegment[]` (reads `chords.json` on demand; empty if the song predates chord detection or detection failed) |

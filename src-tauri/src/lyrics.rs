@@ -231,6 +231,7 @@ mod tests {
             has_chords: false,
             folder_id: None,
             sort_index: 0,
+            loops: vec![],
         };
         library::add(song.clone()).unwrap();
         song

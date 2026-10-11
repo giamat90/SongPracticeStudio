@@ -28,6 +28,7 @@ pub fn run() {
             commands::list_songs,
             commands::delete_song,
             commands::rename_song,
+            commands::set_song_loops,
             commands::set_metronome_offset,
             commands::list_folders,
             commands::create_folder,

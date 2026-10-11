@@ -236,6 +236,7 @@ fn lyrics_sync_goes_through_the_real_sidecar_and_is_persisted() {
         has_chords: false,
         folder_id: None,
         sort_index: 0,
+        loops: vec![],
     })
     .unwrap();
 
