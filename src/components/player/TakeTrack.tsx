@@ -94,9 +94,8 @@ function TakeSyncControls({ take }: { take: Take }) {
     setTakeManualOffset(take.id, (take.manualOffset ?? 0) + step);
   };
 
-  // Scoped (not global) so arrow keys only nudge while this control has
-  // focus — click it or Tab to it. Avoids claiming the arrow keys app-wide
-  // since there's no other keyboard shortcut in the app yet to coordinate with.
+  // Scoped so arrow keys only nudge while this control has focus (click it or
+  // Tab to it). preventDefault makes the global transport shortcuts ignore the key.
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
