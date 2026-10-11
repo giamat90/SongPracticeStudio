@@ -44,7 +44,7 @@ function StemView({ song }: StemViewProps) {
   });
   // Lane containers by take id, and the takes currently loaded into the engine
   const takeRails     = useRef(new Map<string, HTMLDivElement>());
-  const loadedTakes   = useRef(new Set<string>());
+  const loadedTakes   = useRef(new Map<string, HTMLElement>());
   const isLoading     = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -71,27 +71,30 @@ function StemView({ song }: StemViewProps) {
   }, [song.id]);
 
   // Keep the engine's take tracks in step with the lanes on screen: load the
-  // ones that appeared, drop the ones that were hidden or deleted.
+  // ones that appeared, drop the ones that were hidden or deleted. A take is also
+  // loaded again when its lane's container element is not the one it was loaded
+  // into (the lanes were re-created, e.g. by a layout change or a hot reload),
+  // otherwise its waveform would stay drawn into an element that is gone.
   useEffect(() => {
     const eng = getEngine();
     const wanted = new Set(shownTakes.map((t) => t.id));
-    for (const id of [...loadedTakes.current]) {
+    for (const id of [...loadedTakes.current.keys()]) {
       if (wanted.has(id)) continue;
       eng.removeTakeTrack(id);
       loadedTakes.current.delete(id);
     }
     for (const take of shownTakes) {
       const rail = takeRails.current.get(take.id);
-      if (loadedTakes.current.has(take.id) || !rail) continue;
-      loadedTakes.current.add(take.id);
+      if (!rail || loadedTakes.current.get(take.id) === rail) continue;
+      loadedTakes.current.set(take.id, rail);
       eng.loadTakeTrack(take.id, take.filepath, rail, take.startPosition, take.audioOffset ?? 0, take.manualOffset ?? 0)
         .then(() => setTakeVolume(usePlayerStore.getState().takeVolume))
         .catch((e: unknown) => {
-          loadedTakes.current.delete(take.id);
+          if (loadedTakes.current.get(take.id) === rail) loadedTakes.current.delete(take.id);
           console.error("[StemView] loadTakeTrack failed:", e);
         });
     }
-  }, [shownTakeIds, takes]);
+  });
 
   // Ctrl+wheel zoom-to-cursor / shift+wheel pan. Attached as a native,
   // non-passive listener — React's onWheel prop is passive since React 17,
