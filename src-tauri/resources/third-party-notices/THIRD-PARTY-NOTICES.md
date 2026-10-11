@@ -13,7 +13,7 @@ dynamically linked into any compiled binary in this application).
   `ffmpeg-LICENSE.txt` alongside this file, or
   https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 - Windows build source: https://github.com/BtbN/FFmpeg-Builds
-- macOS build source: https://evermeet.cx/ffmpeg/
+- macOS build source: https://github.com/eugeneware/ffmpeg-static (release b6.1.1, FFmpeg 6.1.1 static build, arm64)
 
 ## Demucs pretrained model weights
 

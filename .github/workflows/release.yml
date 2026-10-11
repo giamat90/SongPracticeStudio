@@ -273,7 +273,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: sidecar/vendor/ffmpeg
-          key: ffmpeg-aarch64-apple-darwin-v1
+          key: ffmpeg-aarch64-apple-darwin-v2
 
       - name: Download static ffmpeg
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -281,18 +281,14 @@ jobs:
         run: |
           dest="vendor/ffmpeg/aarch64-apple-darwin"
           mkdir -p "$dest"
-          # evermeet.cx answers 429 when both apps build at once: fail on HTTP errors and retry.
-          curl -fL --retry 8 --retry-delay 20 --retry-all-errors "https://evermeet.cx/ffmpeg/getrelease/zip" -o ffmpeg.zip
-          unzip -o ffmpeg.zip -d ffmpeg-extracted
-          cp ffmpeg-extracted/ffmpeg "$dest/ffmpeg"
-          chmod +x "$dest/ffmpeg"
-          rm -rf ffmpeg.zip ffmpeg-extracted
-          sleep 10
-          curl -fL --retry 8 --retry-delay 20 --retry-all-errors "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip" -o ffprobe.zip
-          unzip -o ffprobe.zip -d ffprobe-extracted
-          cp ffprobe-extracted/ffprobe "$dest/ffprobe"
-          chmod +x "$dest/ffprobe"
-          rm -rf ffprobe.zip ffprobe-extracted
+          # GitHub-hosted static builds (pinned tag): evermeet.cx rate-limits (429) the
+          # ffprobe download from CI, which left releases as drafts without macOS builds.
+          base="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1"
+          for tool in ffmpeg ffprobe; do
+            curl -fL --retry 5 --retry-delay 10 --retry-all-errors "$base/$tool-darwin-arm64" -o "$dest/$tool"
+            chmod +x "$dest/$tool"
+            file "$dest/$tool"
+          done
 
       # ── 5c. Vendor the default-quality Demucs model weights (htdemucs,
       #        htdemucs_6s) so the installed app doesn't need internet
