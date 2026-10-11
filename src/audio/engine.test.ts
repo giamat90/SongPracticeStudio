@@ -91,10 +91,18 @@ async function loadedEngine(names: string[] = STEMS) {
   return { engine, stems, ...byName } as { engine: AudioEngine; stems: any[]; vocals: any; drums: any; bass: any };
 }
 
-async function withTake(engine: AudioEngine, opts: { duration: number; start: number; audioOffset?: number; manual?: number }) {
+async function withTake(
+  engine: AudioEngine,
+  opts: { duration: number; start: number; audioOffset?: number; manual?: number; id?: string; active?: boolean },
+) {
   ws.config.readyDuration = opts.duration;
   const el = container();
-  await engine.loadTakeTrack("/t.wav", el, opts.start, opts.audioOffset ?? 0, opts.manual ?? 0);
+  const id = opts.id ?? "t1";
+  await engine.loadTakeTrack(id, `/${id}.wav`, el, opts.start, opts.audioOffset ?? 0, opts.manual ?? 0);
+  if (opts.active !== false) {
+    engine.setActiveTakeTrack(id);
+    engine.setAudibleTakeTracks([id]);
+  }
   ws.config.readyDuration = 100;
   return { take: ws.instances[ws.instances.length - 1], el };
 }
@@ -510,7 +518,7 @@ describe("take track", () => {
     engine.zoomAll(10, 0);
     const { take, el } = await withTake(engine, { duration: 20, start: 10 });
     vocals.currentTime = 15;
-    engine.setTakeManualOffset(2);
+    engine.setTakeManualOffset("t1", 2);
     expect(style(el).marginLeft).toBe(`${(10 + 2) * 10}px`);
     expect(take.seekTo).toHaveBeenLastCalledWith((15 - 12) / 20);
   });
@@ -519,7 +527,7 @@ describe("take track", () => {
     const { engine } = await loadedEngine();
     engine.zoomAll(10, 0);
     const { el } = await withTake(engine, { duration: 20, start: 1 });
-    engine.setTakeManualOffset(-3);
+    engine.setTakeManualOffset("t1", -3);
     expect(style(el).marginLeft).toBe(`${(1 - 3) * 10}px`);
   });
 
@@ -528,7 +536,7 @@ describe("take track", () => {
     const { take } = await withTake(engine, { duration: 20, start: 10 });
     engine.clearTakeTrack();
     expect(take.destroy).toHaveBeenCalled();
-    expect(() => engine.setTakeManualOffset(1)).not.toThrow();
+    expect(() => engine.setTakeManualOffset("t1", 1)).not.toThrow();
     vocals.currentTime = 15;
     engine.play();
     expect(take.play).not.toHaveBeenCalled();
@@ -545,7 +553,7 @@ describe("take track", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { engine } = await loadedEngine();
     ws.config.failWith = new Error("decode failure");
-    await expect(engine.loadTakeTrack("/t.wav", container())).rejects.toThrow("decode failure");
+    await expect(engine.loadTakeTrack("t1", "/t.wav", container())).rejects.toThrow("decode failure");
   });
 
   it("resumes the take mid-play when loaded while the playhead is inside its window", async () => {
@@ -831,5 +839,261 @@ describe("destroy", () => {
     next.engine.play();
     runFrame(1000);
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+describe("several takes at once", () => {
+  it("keeps every loaded take in sync with its own window, playing them all", async () => {
+    const { engine, vocals } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 10 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 12, active: false });
+    vocals.currentTime = 13;
+    engine.play();
+    expect(a.take.play).toHaveBeenCalled();
+    expect(b.take.play).toHaveBeenCalled();
+    engine.seekTo(15);
+    expect(a.take.seekTo).toHaveBeenLastCalledWith((15 - 10) / 10);
+    expect(b.take.seekTo).toHaveBeenLastCalledWith((15 - 12) / 10);
+  });
+
+  it("only the active take is audible, the others are silent but still loaded", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.setTakeVolume(0.7);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0.7);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0);
+  });
+
+  it("switching the active take swaps who is audible without stopping or reloading anything", async () => {
+    const { engine, vocals } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    vocals.currentTime = 2;
+    engine.play();
+    engine.setTakeVolume(0.8);
+    a.take.pause.mockClear();
+    b.take.pause.mockClear();
+    engine.setActiveTakeTrack("b");
+    engine.setAudibleTakeTracks(["b"]);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0.8);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(a.take.pause).not.toHaveBeenCalled();
+    expect(a.take.destroy).not.toHaveBeenCalled();
+    expect(engine.activeTakeId).toBe("b");
+  });
+
+  it("a take loaded after the choice is silent until it is the active one", async () => {
+    const { engine } = await loadedEngine();
+    engine.setAudibleTakeTracks(["a"]);
+    engine.setTakeVolume(0.9);
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0);
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0.9);
+  });
+
+  it("an empty audible set silences them all, and no selected take reads as none", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    engine.setActiveTakeTrack(null);
+    engine.setAudibleTakeTracks([]);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(engine.activeTakeId).toBeNull();
+  });
+
+  it("removing one take leaves the others", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.removeTakeTrack("a");
+    expect(a.take.destroy).toHaveBeenCalled();
+    expect(b.take.destroy).not.toHaveBeenCalled();
+    expect(() => engine.removeTakeTrack("a")).not.toThrow();
+  });
+
+  it("clearing removes every take and the active choice", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.clearTakeTrack();
+    expect(a.take.destroy).toHaveBeenCalled();
+    expect(b.take.destroy).toHaveBeenCalled();
+    expect(engine.activeTakeId).toBeNull();
+  });
+
+  it("sizes and positions each take's rail on its own, and again on zoom", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 20, start: 10 });
+    const b = await withTake(engine, { id: "b", duration: 30, start: 40, audioOffset: 5, active: false });
+    engine.zoomAll(10, 5);
+    expect(style(a.el).marginLeft).toBe(`${(10 - 5) * 10}px`);
+    expect(style(a.el).width).toBe(`${20 * 10}px`);
+    expect(style(b.el).marginLeft).toBe(`${(40 - 5) * 10}px`);
+    expect(style(b.el).width).toBe(`${(30 - 5) * 10}px`);
+  });
+
+  it("a manual offset moves only that take", async () => {
+    const { engine } = await loadedEngine();
+    engine.zoomAll(10, 0);
+    const a = await withTake(engine, { id: "a", duration: 20, start: 10 });
+    const b = await withTake(engine, { id: "b", duration: 20, start: 10, active: false });
+    engine.setTakeManualOffset("b", 3);
+    expect(style(a.el).marginLeft).toBe("100px");
+    expect(style(b.el).marginLeft).toBe(`${13 * 10}px`);
+  });
+
+  it("clicking a take's own waveform seeks the song through that take's offsets", async () => {
+    const { engine, vocals } = await loadedEngine();
+    await withTake(engine, { id: "a", duration: 30, start: 10 });
+    const b = await withTake(engine, { id: "b", duration: 30, start: 20, audioOffset: 2, active: false });
+    b.take.emit("interaction", 6);
+    expect(vocals.seekTo).toHaveBeenLastCalledWith((6 - 2 + 20) / 100);
+  });
+
+  it("starts and stops each take at its own window as the playhead moves", async () => {
+    const { engine, vocals } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 20, active: false });
+    vocals.currentTime = 1;
+    engine.play();
+    expect(a.take.play).toHaveBeenCalledTimes(1);
+    expect(b.take.play).not.toHaveBeenCalled();
+    vocals.currentTime = 21;
+    runFrame();
+    expect(a.take.pause).toHaveBeenCalled();
+    expect(b.take.play).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-aims every playing take that has drifted", async () => {
+    const { engine, vocals } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 50, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 50, start: 0, active: false });
+    vocals.currentTime = 10;
+    engine.play();
+    a.take.currentTime = 10.5;
+    b.take.currentTime = 9.4;
+    runFrame(300);
+    expect(a.take.setTime).toHaveBeenCalledWith(10);
+    expect(b.take.setTime).toHaveBeenCalledWith(10);
+  });
+
+  it("destroys a take that was removed while it was still decoding", async () => {
+    const { engine } = await loadedEngine();
+    ws.config.autoReady = false;
+    const loading = engine.loadTakeTrack("a", "/a.wav", container(), 0, 0, 0);
+    const pending = ws.instances[ws.instances.length - 1];
+    engine.removeTakeTrack("a");
+    pending.emit("ready");
+    await loading;
+    expect(pending.destroy).toHaveBeenCalled();
+    expect(engine.activeTakeId).toBeNull();
+  });
+
+  it("loading the same take again replaces it", async () => {
+    const { engine } = await loadedEngine();
+    const first = await withTake(engine, { id: "a", duration: 20, start: 0 });
+    await withTake(engine, { id: "a", duration: 20, start: 0 });
+    expect(first.take.destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("which takes are heard", () => {
+  it("every take in the audible set plays at the same volume, together", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    const c = await withTake(engine, { id: "c", duration: 10, start: 0, active: false });
+    engine.setTakeVolume(0.6);
+    engine.setAudibleTakeTracks(["a", "c"]);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0.6);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(c.take.setVolume).toHaveBeenLastCalledWith(0.6);
+  });
+
+  it("who is heard does not depend on which take is selected", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.setActiveTakeTrack("a");
+    engine.setAudibleTakeTracks(["b"]);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(1);
+  });
+
+  it("changing the selected take alone leaves the sound as it is", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks(["a"]);
+    a.take.setVolume.mockClear();
+    engine.setActiveTakeTrack("b");
+    expect(a.take.setVolume).not.toHaveBeenCalled();
+  });
+
+  it("an empty set silences every take without unloading them", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0 });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks(["a", "b"]);
+    engine.setAudibleTakeTracks([]);
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0);
+    expect(a.take.destroy).not.toHaveBeenCalled();
+  });
+
+  it("a take that finishes loading after the set was chosen is heard at once if it belongs to it", async () => {
+    const { engine } = await loadedEngine();
+    engine.setAudibleTakeTracks(["late"]);
+    engine.setTakeVolume(0.5);
+    const late = await withTake(engine, { id: "late", duration: 10, start: 0, active: false });
+    expect(late.take.setVolume).toHaveBeenLastCalledWith(0.5);
+  });
+
+  it("clearing the takes forgets who was audible", async () => {
+    const { engine } = await loadedEngine();
+    await withTake(engine, { id: "a", duration: 10, start: 0 });
+    engine.clearTakeTrack();
+    const again = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    expect(again.take.setVolume).toHaveBeenLastCalledWith(0);
+  });
+});
+
+describe("each take's own volume", () => {
+  it("multiplies the take's gain with the take channel's volume", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    const b = await withTake(engine, { id: "b", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks(["a", "b"]);
+    engine.setTakeVolume(0.8);
+    engine.setTakeGains({ a: 0.5 });
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0.4);
+    expect(b.take.setVolume).toHaveBeenLastCalledWith(0.8);
+  });
+
+  it("keeps a silent take silent whatever its gain", async () => {
+    const { engine } = await loadedEngine();
+    const a = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    engine.setAudibleTakeTracks([]);
+    engine.setTakeGains({ a: 1 });
+    expect(a.take.setVolume).toHaveBeenLastCalledWith(0);
+  });
+
+  it("applies a gain that was chosen before the take finished loading", async () => {
+    const { engine } = await loadedEngine();
+    engine.setAudibleTakeTracks(["late"]);
+    engine.setTakeVolume(0.5);
+    engine.setTakeGains({ late: 0.5 });
+    const late = await withTake(engine, { id: "late", duration: 10, start: 0, active: false });
+    expect(late.take.setVolume).toHaveBeenLastCalledWith(0.25);
+  });
+
+  it("clearing the takes forgets the gains", async () => {
+    const { engine } = await loadedEngine();
+    await withTake(engine, { id: "a", duration: 10, start: 0 });
+    engine.setTakeGains({ a: 0.2 });
+    engine.clearTakeTrack();
+    engine.setAudibleTakeTracks(["a"]);
+    const again = await withTake(engine, { id: "a", duration: 10, start: 0, active: false });
+    expect(again.take.setVolume).toHaveBeenLastCalledWith(1);
   });
 });

@@ -9,7 +9,19 @@ import {
   parseCommand,
 } from "./protocol";
 
-const shared = { song: null, duration: 120, activeTakeId: null, takes: [] };
+const shared = {
+  song: null,
+  duration: 120,
+  activeTakeId: null,
+  shownTakeIds: [],
+  takePlayback: "all",
+  mutedTakeIds: [],
+  soloedTakeId: null,
+  takesSilenced: false,
+  muteTakesWhileRecording: true,
+  isRecording: false,
+  takes: [],
+};
 const transport = { time: 1, playing: false, rate: 1, sentAt: 100 };
 
 describe("detachable panels", () => {
@@ -32,7 +44,7 @@ describe("detachable panels", () => {
 describe("parseCommand", () => {
   it("accepts the four commands a detached panel may send", () => {
     expect(parseCommand({ type: "seek", time: 12.5 })).toEqual({ type: "seek", time: 12.5 });
-    expect(parseCommand({ type: "setActiveTake", id: "t1" })).toEqual({ type: "setActiveTake", id: "t1" });
+    expect(parseCommand({ type: "toggleTake", id: "t1" })).toEqual({ type: "toggleTake", id: "t1" });
     expect(parseCommand({ type: "deleteTake", id: "t1" })).toEqual({ type: "deleteTake", id: "t1" });
     expect(parseCommand({ type: "renameTake", id: "t1", name: "Verse" })).toEqual({
       type: "renameTake",
@@ -83,6 +95,16 @@ describe("shared state", () => {
       { ...shared, duration: "120" },
       { ...shared, duration: Number.NaN },
       { ...shared, activeTakeId: 3 },
+      { ...shared, shownTakeIds: "t1" },
+      { ...shared, shownTakeIds: [""] },
+      { ...shared, shownTakeIds: undefined },
+      { ...shared, takePlayback: "both" },
+      { ...shared, takePlayback: undefined },
+      { ...shared, mutedTakeIds: "t1" },
+      { ...shared, mutedTakeIds: [""] },
+      { ...shared, muteTakesWhileRecording: "yes" },
+      { ...shared, soloedTakeId: 5 },
+      { ...shared, isRecording: undefined },
       { ...shared, takes: {} },
       { ...shared, takes: [{ name: "no id" }] },
       { ...shared, song: 7 },

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { usePlayerStore, getEngine } from "../../stores/player";
+import { usePlayerStore, getEngine, takesSilenced } from "../../stores/player";
 import { useAnalyzerPanels } from "../../stores/panels";
 import TimeRuler from "./TimeRuler";
 import ChordRow from "./ChordRow";
 import StemTrack from "./StemTrack";
 import TakeTrack from "./TakeTrack";
-import type { Song } from "../../lib/types";
+import TakesBar from "./TakesBar";
+import type { Song, Take } from "../../lib/types";
 import { computeZoomToCursor, computePan, wheelDeltaPixels, clamp } from "@giamat90/mps-core/zoomPan";
+import { audibleTakes } from "@giamat90/mps-core/takes";
 
 interface StemViewProps {
   song: Song;
@@ -15,15 +17,35 @@ interface StemViewProps {
 function StemView({ song }: StemViewProps) {
   const loadSong      = usePlayerStore((s) => s.loadSong);
   const activeTakeId  = usePlayerStore((s) => s.activeTakeId);
+  const shownTakeIds  = usePlayerStore((s) => s.shownTakeIds);
+  const takePlayback  = usePlayerStore((s) => s.takePlayback);
+  const mutedTakeIds  = usePlayerStore((s) => s.mutedTakeIds);
+  const isRecording   = usePlayerStore((s) => s.isRecording);
+  const muteWhileRecording = usePlayerStore((s) => s.muteTakesWhileRecording);
+  const soloedTakeId  = usePlayerStore((s) => s.soloedTakeId);
+  const takeChannelSilent = usePlayerStore((s) => takesSilenced(s));
   const takes         = usePlayerStore((s) => s.takes);
-  const takeVolume    = usePlayerStore((s) => s.takeVolume);
   const showChords    = useAnalyzerPanels((s) => s.visible.chords);
   const setTakeVolume = usePlayerStore((s) => s.setTakeVolume);
   const timelineRef   = useRef<HTMLDivElement>(null);
   const stemRefs      = useRef<Record<string, HTMLDivElement | null>>({});
-  const takeRef       = useRef<HTMLDivElement | null>(null);
+  const shownTakes = shownTakeIds
+    .map((id) => takes.find((t) => t.id === id))
+    .filter((t): t is Take => t !== undefined);
+  const audibleIds = audibleTakes({
+    shown: shownTakeIds,
+    active: activeTakeId,
+    playback: takePlayback,
+    muted: mutedTakeIds,
+    recording: isRecording,
+    muteWhileRecording,
+    soloed: soloedTakeId,
+    silenced: takeChannelSilent,
+  });
+  // Lane containers by take id, and the takes currently loaded into the engine
+  const takeRails     = useRef(new Map<string, HTMLDivElement>());
+  const loadedTakes   = useRef(new Map<string, HTMLElement>());
   const isLoading     = useRef(false);
-  const loadedTakeId  = useRef<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,22 +70,31 @@ function StemView({ song }: StemViewProps) {
     return () => { isLoading.current = false; };
   }, [song.id]);
 
-  // Load (or clear) the take track whenever the active take changes.
+  // Keep the engine's take tracks in step with the lanes on screen: load the
+  // ones that appeared, drop the ones that were hidden or deleted. A take is also
+  // loaded again when its lane's container element is not the one it was loaded
+  // into (the lanes were re-created, e.g. by a layout change or a hot reload),
+  // otherwise its waveform would stay drawn into an element that is gone.
   useEffect(() => {
     const eng = getEngine();
-    if (!activeTakeId) {
-      eng.clearTakeTrack();
-      loadedTakeId.current = null;
-      return;
+    const wanted = new Set(shownTakes.map((t) => t.id));
+    for (const id of [...loadedTakes.current.keys()]) {
+      if (wanted.has(id)) continue;
+      eng.removeTakeTrack(id);
+      loadedTakes.current.delete(id);
     }
-    if (activeTakeId === loadedTakeId.current) return;
-    const take = takes.find((t) => t.id === activeTakeId);
-    if (!take || !takeRef.current) return;
-    loadedTakeId.current = activeTakeId;
-    eng.loadTakeTrack(take.filepath, takeRef.current, take.startPosition, take.audioOffset ?? 0, take.manualOffset ?? 0)
-      .then(() => setTakeVolume(takeVolume))
-      .catch((e: unknown) => console.error("[StemView] loadTakeTrack failed:", e));
-  }, [activeTakeId, takes]);
+    for (const take of shownTakes) {
+      const rail = takeRails.current.get(take.id);
+      if (!rail || loadedTakes.current.get(take.id) === rail) continue;
+      loadedTakes.current.set(take.id, rail);
+      eng.loadTakeTrack(take.id, take.filepath, rail, take.startPosition, take.audioOffset ?? 0, take.manualOffset ?? 0)
+        .then(() => setTakeVolume(usePlayerStore.getState().takeVolume))
+        .catch((e: unknown) => {
+          if (loadedTakes.current.get(take.id) === rail) loadedTakes.current.delete(take.id);
+          console.error("[StemView] loadTakeTrack failed:", e);
+        });
+    }
+  });
 
   // Ctrl+wheel zoom-to-cursor / shift+wheel pan. Attached as a native,
   // non-passive listener — React's onWheel prop is passive since React 17,
@@ -123,8 +154,6 @@ function StemView({ song }: StemViewProps) {
     return () => ro.disconnect();
   }, []);
 
-  const activeTake = takes.find((t) => t.id === activeTakeId);
-
   return (
     <div className="stem-view">
       {loadError && <div className="stem-view__error">{loadError}</div>}
@@ -139,12 +168,24 @@ function StemView({ song }: StemViewProps) {
             containerRef={(el) => { stemRefs.current[name] = el; }}
           />
         ))}
-        {activeTake && (
+        {shownTakes.length > 0 && (
+          <div className="stem-view__takes" role="group" aria-label="Recorded takes">
+            <TakesBar />
+            {shownTakes.map((take) => (
           <TakeTrack
-            take={activeTake}
+            key={take.id}
+            take={take}
+            label={take.name || `Take ${takes.indexOf(take) + 1}`}
+            isActive={take.id === activeTakeId}
+            isAudible={audibleIds.includes(take.id)}
             song={song}
-            containerRef={(el) => { takeRef.current = el; }}
+            containerRef={(el) => {
+              if (el) takeRails.current.set(take.id, el);
+              else takeRails.current.delete(take.id);
+            }}
           />
+            ))}
+          </div>
         )}
       </div>
     </div>

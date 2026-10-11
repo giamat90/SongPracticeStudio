@@ -3366,3 +3366,115 @@ body,
 .detached-host__body .chord-carousel {
   margin: 0 auto;
 }
+
+/* Several takes at once: the one that is heard is lit, the others stay as silent lanes */
+.take-item--shown {
+  border-color: var(--bg-surface);
+  opacity: 0.85;
+}
+
+.take-item__state {
+  flex-shrink: 0;
+  width: 1rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.take-item--active .take-item__state {
+  color: var(--accent);
+}
+
+button.stem-track__take-name {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.stem-track--silent .waveform__take-rail {
+  opacity: 0.45;
+}
+
+.stem-track__take-hide {
+  background: transparent;
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+}
+
+.stem-track__take-hide:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+/* The recorded takes are set apart from the stems by a divider only: they are part of the
+   same widget and scroll with it, not in a scroll area of their own. */
+.stem-view__takes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 0.15rem solid var(--bg-surface);
+}
+
+/* A lane's waveform area has overflow hidden, so a lane must never be squeezed. */
+.stem-view__takes > * {
+  flex-shrink: 0;
+}
+
+.takes-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.25rem 0.1rem;
+}
+
+/* The take channel's mute / solo / volume sit at the far right, like every other track's */
+.takes-bar > .stem-track__controls {
+  margin-left: auto;
+}
+
+.takes-bar__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.takes-bar__option input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.stem-track--take.stem-track--active .waveform__label--take {
+  text-decoration: underline;
+}
+
+.takes-bar__spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.waveform__take-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* The selected take's header is tinted with an accent edge, heard or not. */
+.stem-track--take.stem-track--active > .stem-track__header {
+  background: rgba(233, 69, 96, 0.14);
+  box-shadow: inset 0.2rem 0 0 var(--accent);
+  border-radius: 4px;
+  padding-left: 0.4rem;
+}

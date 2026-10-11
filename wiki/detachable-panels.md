@@ -9,8 +9,8 @@ The main window stays the only owner of the audio engine, the microphone, record
 | Event | Direction | Content |
 |---|---|---|
 | `mps:hello` | detached → main | `{ panelId }`, once, after listening |
-| `mps:state` | main → detached | transport snapshot `{ time, playing, rate, sentAt }` and the shared state: song, duration, takes, active take id |
-| `mps:command` | detached → main | `seek`, `setActiveTake`, `deleteTake`, `renameTake` |
+| `mps:state` | main → detached | transport snapshot `{ time, playing, rate, sentAt }` and the shared state: song, duration, takes, active take id, which takes are shown |
+| `mps:command` | detached → main | `seek`, `toggleTake`, `deleteTake`, `renameTake` |
 | `mps:docked` | Rust → main | panel id, when its window is destroyed |
 
 Time is not streamed 30 times a second: the detached window extrapolates from the snapshot (`RemoteClock`) and the main window only resends on a change, a seek or a 1 s heartbeat. Until a window says hello the main window publishes nothing and runs no timer. Takes are small here (no analysis arrays), so the whole list is mirrored, and the takes list's `fetchTakes()` is replaced by a no-op in the detached window.
@@ -53,3 +53,4 @@ Time is not streamed 30 times a second: the detached window extrapolates from th
 - Several windows of one panel (one window per panel id).
 - The component and gesture wiring (pointer capture, window creation) has no automated test: there is no DOM environment. The decisions behind them are tested (`decideDrop`, `createDockGesture`, the bridges, the Rust planner and hit-test).
 - The stems and the mixer cannot be detached; that would need the audio engine to move.
+- The Takes list in a detached window shows what is heard (▶ playing, ▷ silent, ○ hidden) from the mirrored `shownTakeIds`, `takePlayback`, `mutedTakeIds`, `muteTakesWhileRecording` and recording state; the lane mutes and the two toggles live in the main window's take bar.

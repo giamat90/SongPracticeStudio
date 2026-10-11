@@ -13,9 +13,17 @@ function setup() {
     isPlaying: false,
     playbackRate: 1,
     activeTakeId: null,
+    shownTakeIds: [],
+    takePlayback: "all" as const,
+    mutedTakeIds: [] as string[],
+    soloedTakeId: null,
+    mutedStems: {} as Record<string, boolean>,
+    soloedStem: null as string | null,
+    muteTakesWhileRecording: true,
+    isRecording: false,
     takes: [],
     seek: () => {},
-    setActiveTake: () => {},
+    toggleTake: () => {},
     deleteTake: async () => {},
     renameTake: async () => {},
     fetchTakes: async () => {
@@ -41,10 +49,25 @@ function setup() {
       return () => {};
     },
     now: () => clock,
+    takeTrackKey: "__take__",
   });
-  const message = (over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null }> = {}) => ({
+  const message = (
+    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[] }> = {},
+  ) => ({
     transport: { time: over.time ?? 10, playing: over.playing ?? false, rate: 1, sentAt: clock },
-    shared: { song, duration: 200, activeTakeId: over.activeTakeId ?? null, takes: over.takes ?? [take("t1")] },
+    shared: {
+      song,
+      duration: 200,
+      activeTakeId: over.activeTakeId ?? null,
+      shownTakeIds: over.shownTakeIds ?? [],
+      takePlayback: "all",
+      mutedTakeIds: [],
+      soloedTakeId: null,
+      takesSilenced: false,
+      muteTakesWhileRecording: true,
+      isRecording: false,
+      takes: over.takes ?? [take("t1")],
+    },
   });
   return {
     started,
@@ -98,9 +121,10 @@ describe("analyzer detached bridge", () => {
     const t = setup();
     await t.started;
     t.send(t.message());
-    t.get().setActiveTake("t1");
+    t.get().toggleTake("t1");
     expect(t.get().activeTakeId).toBe("t1");
-    expect(t.emitted[t.emitted.length - 1]).toEqual({ event: EVT_COMMAND, payload: { type: "setActiveTake", id: "t1" } });
+    expect(t.get().shownTakeIds).toEqual(["t1"]);
+    expect(t.emitted[t.emitted.length - 1]).toEqual({ event: EVT_COMMAND, payload: { type: "toggleTake", id: "t1" } });
   });
 
   it("turns delete, rename and seek into commands without touching the disk or the engine", async () => {
@@ -123,6 +147,14 @@ describe("analyzer detached bridge", () => {
     const t = setup();
     await t.started;
     await expect(t.get().fetchTakes()).resolves.toBeUndefined();
+  });
+
+  it("shows the main take mute in the store the Takes list reads", async () => {
+    const t = setup();
+    await t.started;
+    t.send({ ...t.message(), shared: { ...t.message().shared, takesSilenced: true } });
+    expect(t.get().mutedStems).toEqual({ __take__: true });
+    expect(t.get().soloedStem).toBeNull();
   });
 
   it("ignores a malformed state message", async () => {

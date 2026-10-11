@@ -4,7 +4,7 @@ import { panelsToClose } from "@giamat90/mps-core/windows";
 import { closeDetachedPanel, closeDetachedWindows } from "../lib/tauri";
 import { useDetachedStore } from "../stores/detached";
 import { useAnalyzerPanels } from "../stores/panels";
-import { usePlayerStore } from "../stores/player";
+import { takesSilenced, usePlayerStore } from "../stores/player";
 import { startMainBridge } from "./mainBridge";
 import { DETACHABLE_PANELS, EVT_DOCKED } from "./protocol";
 
@@ -23,6 +23,7 @@ export function useMainBridge(): void {
       emit: (event, payload) => emit(event, payload),
       listen: (event, cb) => listen(event, (e) => cb(e.payload)),
       now: () => Date.now(),
+      takesSilenced: () => takesSilenced(usePlayerStore.getState()),
     })
       .then((b) => {
         if (cancelled) b.dispose();

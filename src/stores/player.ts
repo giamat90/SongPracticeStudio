@@ -3,6 +3,15 @@ import { AudioEngine } from "../audio/engine";
 import { VocalRecorder } from "@giamat90/mps-core/recorder";
 import type { Song, StemName, Take } from "../lib/types";
 import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, pitchShiftSong } from "../lib/tauri";
+import {
+  audibleTakes,
+  hideTake,
+  reconcileTakes,
+  showTake,
+  toggleTake,
+  type TakePlayback,
+  type TakeSelection,
+} from "@giamat90/mps-core/takes";
 import { metronome } from "@giamat90/mps-core/metronome";
 import { countInDurationSeconds } from "@giamat90/mps-core/metronomeSync";
 
@@ -105,7 +114,19 @@ interface PlayerState {
   isRecording: boolean;
   isSavingTake: boolean;
   takes: Take[];
+  // Takes with a lane on screen (in the order they were shown), and the one that is heard.
+  shownTakeIds: string[];
   activeTakeId: string | null;
+  // Which of the shown takes are heard: all together, or only the selected one
+  takePlayback: TakePlayback;
+  // Takes the user silenced on their own lane
+  mutedTakeIds: string[];
+  // The take soloed on its lane (only meaningful while the take channel is soloed)
+  soloedTakeId: string | null;
+  // Each take's own volume (1 when absent), on top of the take channel's
+  takeGains: Record<string, number>;
+  // Keep the takes quiet while a new one is recorded
+  muteTakesWhileRecording: boolean;
   takeVolume: number;
   // Per-device recording latency calibration, persisted to localStorage
   recordingOffsets: Record<string, CalibrationEntry>;
@@ -162,6 +183,14 @@ interface PlayerActions {
   renameTake: (takeId: string, name: string) => Promise<void>;
   setTakeManualOffset: (takeId: string, offset: number) => void;
   setActiveTake: (takeId: string) => void;
+  // A click in the takes list: show it, switch to it, or hide it when it is the active one
+  toggleTake: (takeId: string) => void;
+  hideTake: (takeId: string) => void;
+  setTakePlayback: (mode: TakePlayback) => void;
+  toggleTakeMute: (takeId: string) => void;
+  toggleTakeSolo: (takeId: string) => void;
+  setTakeGain: (takeId: string, gain: number) => void;
+  setMuteTakesWhileRecording: (mute: boolean) => void;
   setTakeVolume: (v: number) => void;
   // Timeline zoom/pan actions
   setZoom: (minPxPerSec: number, scrollTime: number) => void;
@@ -217,7 +246,7 @@ export function buildMixSources(state: PlayerState): {
   startSec: number;
   endSec: number;
 } | null {
-  const { song, stemVolumes, mutedStems, soloedStem, takeVolume, activeTakeId, takes } = state;
+  const { song, stemVolumes, mutedStems, soloedStem, takeVolume, takes } = state;
   if (!song) return null;
 
   const sources: import("../lib/tauri").MixSource[] = [];
@@ -230,12 +259,24 @@ export function buildMixSources(state: PlayerState): {
   }
 
   const takeGain = effectiveStemGain(TAKE_TRACK_KEY, takeVolume, mutedStems, soloedStem);
-  if (takeGain > 0 && activeTakeId) {
-    const take = takes.find((t) => t.id === activeTakeId);
-    if (take) {
+  if (takeGain > 0) {
+    // What is heard is what is mixed: every take that is audible right now.
+    const audible = audibleTakes({
+      shown: state.shownTakeIds,
+      active: state.activeTakeId,
+      playback: state.takePlayback,
+      muted: state.mutedTakeIds,
+      recording: false,
+      muteWhileRecording: false,
+      soloed: soloedTakeOf(state),
+      silenced: false,
+    });
+    for (const id of audible) {
+      const take = takes.find((t) => t.id === id);
+      if (!take) continue;
       sources.push({
         path: take.filepath,
-        gain: takeGain,
+        gain: takeGain * (state.takeGains[id] ?? 1),
         isTake: true,
         startPosition: take.startPosition,
         audioOffset: take.audioOffset ?? 0,
@@ -253,7 +294,64 @@ export function buildMixSources(state: PlayerState): {
   };
 }
 
-export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => ({
+// A take soloed on its own lane only chooses among the takes; it never touches the
+// stems, and the take channel's own mute / solo state outranks it.
+const soloedTakeOf = (s: { soloedTakeId: string | null }): string | null => s.soloedTakeId;
+
+/** The takes as a whole are silent: the main take mute is on, or another track is soloed. */
+export function takesSilenced(s: { mutedStems: Record<string, boolean>; soloedStem: string | null }): boolean {
+  return effectiveStemGain(TAKE_TRACK_KEY, 1, s.mutedStems, s.soloedStem) === 0;
+}
+
+const selectionOf = (s: { shownTakeIds: string[]; activeTakeId: string | null }): TakeSelection => ({
+  shown: s.shownTakeIds,
+  active: s.activeTakeId,
+});
+
+// The two choices about takes that outlive a session: how shown takes are heard,
+// and whether they are muted while a new one is recorded.
+const TAKE_PREFS_KEY = "sps_take_prefs";
+const DEFAULT_TAKE_PREFS: { takePlayback: TakePlayback; muteTakesWhileRecording: boolean } = {
+  takePlayback: "all",
+  muteTakesWhileRecording: true,
+};
+
+function _loadTakePrefs(): typeof DEFAULT_TAKE_PREFS {
+  try {
+    const raw = localStorage.getItem(TAKE_PREFS_KEY);
+    if (raw === null) return DEFAULT_TAKE_PREFS;
+    const v = JSON.parse(raw) as { takePlayback?: unknown; muteTakesWhileRecording?: unknown } | null;
+    return {
+      takePlayback: v?.takePlayback === "selected" ? "selected" : "all",
+      muteTakesWhileRecording:
+        typeof v?.muteTakesWhileRecording === "boolean" ? v.muteTakesWhileRecording : DEFAULT_TAKE_PREFS.muteTakesWhileRecording,
+    };
+  } catch (e) {
+    console.warn("[player] could not read the take preferences:", e);
+    return DEFAULT_TAKE_PREFS;
+  }
+}
+
+function _persistTakePrefs(prefs: typeof DEFAULT_TAKE_PREFS): void {
+  try {
+    localStorage.setItem(TAKE_PREFS_KEY, JSON.stringify(prefs));
+  } catch (e) {
+    console.warn("[player] could not save the take preferences:", e);
+  }
+}
+
+export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => {
+  const applySelection = (next: TakeSelection) => {
+    const s = get();
+    const lost = s.soloedTakeId !== null && !next.shown.includes(s.soloedTakeId);
+    set({
+      shownTakeIds: [...next.shown],
+      activeTakeId: next.active,
+      ...(lost ? { soloedTakeId: null } : {}),
+    });
+  };
+
+  return {
   song: null,
   isPlaying: false,
   currentTime: 0,
@@ -274,7 +372,12 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   isRecording: false,
   isSavingTake: false,
   takes: [],
+  shownTakeIds: [],
   activeTakeId: null,
+  mutedTakeIds: [],
+  soloedTakeId: null,
+  takeGains: {},
+  ..._loadTakePrefs(),
   takeVolume: 1.0,
   recordingOffsets: _loadOffsets(),
   usedLatencyFallback: false,
@@ -336,7 +439,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       transpose: 0,
       isTransposing: false,
       takes: [],
+      shownTakeIds: [],
       activeTakeId: null,
+      mutedTakeIds: [],
+      soloedTakeId: null,
+      takeGains: {},
       takeVolume: 1.0,
       isRecording: false,
       isSavingTake: false,
@@ -462,7 +569,11 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
       isRecording: false,
       isSavingTake: false,
       takes: [],
+      shownTakeIds: [],
       activeTakeId: null,
+      mutedTakeIds: [],
+      soloedTakeId: null,
+      takeGains: {},
       takeVolume: 1.0,
     });
   },
@@ -569,15 +680,13 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const { song } = get();
     if (!song) return;
 
-    // Deselect any active take before recording a new one. The previous take
-    // stays saved (takes.json is never touched) and re-selectable from the
-    // take list, but it's dropped from playback so the performer records
-    // against the stem mix alone — not their last attempt. Nulling
-    // activeTakeId drives StemView's clearTakeTrack() via its activeTakeId
-    // effect; the direct clearTakeTrack() closes the gap before React flushes.
-    if (get().activeTakeId) {
+    // With "mute takes while recording" on (the default), drop the selected take
+    // before recording a new one: every take stays saved (takes.json is never
+    // touched) and shown, but none is heard, so the performer records against the
+    // stem mix alone — not their last attempt. With it off the takes keep playing
+    // and the selection is left alone.
+    if (get().muteTakesWhileRecording && get().activeTakeId) {
       set({ activeTakeId: null });
-      getEngine().clearTakeTrack();
     }
 
     const eng = getEngine();
@@ -645,9 +754,17 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     }
 
     eng.setInteract(false);
-    eng.seekTo(recordingStartPos);
-    eng.play();
-    rec.start();
+    // isRecording only flips below; silence the takes first so none is heard in between.
+    if (get().muteTakesWhileRecording) eng.setAudibleTakeTracks([]);
+    try {
+      eng.seekTo(recordingStartPos);
+      eng.play();
+      rec.start();
+    } catch (e) {
+      // The takes were silenced above for a recording that did not start.
+      pushTakeAudio(get());
+      throw e;
+    }
 
     // Calibrated value takes full priority — skip AudioContext measurement when present.
     // Stale entries (a device they were measured with disappeared) are not trusted.
@@ -717,11 +834,15 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
         );
       }
 
+      // Show and select the new take — StemView loads it into a lane of its
+      // own; the takes already shown stay where they are.
+      const next = showTake(selectionOf(get()), take.id);
       set((state) => ({
         isSavingTake: false,
         currentTime: 0,
         takes: [...state.takes, take],
-        activeTakeId: take.id,
+        shownTakeIds: [...next.shown],
+        activeTakeId: next.active,
       }));
     } catch (e) {
       rec.releaseStream();
@@ -734,16 +855,30 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const { song } = get();
     if (!song) return;
     const takes = await listTakes(song.id);
-    set({ takes });
+    const ids = takes.map((t) => t.id);
+    const next = reconcileTakes(selectionOf(get()), ids);
+    set((state) => ({
+      takes,
+      shownTakeIds: [...next.shown],
+      activeTakeId: next.active,
+      mutedTakeIds: state.mutedTakeIds.filter((id) => ids.includes(id)),
+      takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => ids.includes(id))),
+      ...(state.soloedTakeId !== null && !ids.includes(state.soloedTakeId) ? { soloedTakeId: null } : {}),
+    }));
   },
 
   deleteTake: async (takeId) => {
     const { song } = get();
     if (!song) return;
     await deleteTakeApi(song.id, takeId);
+    const next = hideTake(selectionOf(get()), takeId);
     set((state) => ({
       takes: state.takes.filter((t) => t.id !== takeId),
-      activeTakeId: state.activeTakeId === takeId ? null : state.activeTakeId,
+      shownTakeIds: [...next.shown],
+      activeTakeId: next.active,
+      mutedTakeIds: state.mutedTakeIds.filter((id) => id !== takeId),
+      takeGains: Object.fromEntries(Object.entries(state.takeGains).filter(([id]) => id !== takeId)),
+      ...(state.soloedTakeId === takeId ? { soloedTakeId: null } : {}),
     }));
   },
 
@@ -767,13 +902,43 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     const rounded = Math.round(offset * 100) / 100;
     const updated = { ...take, manualOffset: rounded || undefined };
     set({ takes: takes.map((t) => (t.id === takeId ? updated : t)) });
-    getEngine().setTakeManualOffset(rounded);
+    getEngine().setTakeManualOffset(takeId, rounded);
     setTakeManualOffsetApi(song.id, takeId, rounded).catch((e: unknown) =>
       console.error("[player] failed to persist take manual offset:", e)
     );
   },
 
-  setActiveTake: (takeId) => set({ activeTakeId: takeId }),
+  toggleTakeSolo: (takeId) => {
+    set((s) => ({ soloedTakeId: s.soloedTakeId === takeId ? null : takeId }));
+  },
+
+  setTakeGain: (takeId, gain) => {
+    set((s) => ({ takeGains: { ...s.takeGains, [takeId]: Math.max(0, Math.min(1, gain)) } }));
+  },
+
+  setActiveTake: (takeId) => applySelection(showTake(selectionOf(get()), takeId)),
+
+  toggleTake: (takeId) => applySelection(toggleTake(selectionOf(get()), takeId)),
+
+  hideTake: (takeId) => applySelection(hideTake(selectionOf(get()), takeId)),
+
+  setTakePlayback: (mode) => {
+    set({ takePlayback: mode });
+    _persistTakePrefs({ takePlayback: mode, muteTakesWhileRecording: get().muteTakesWhileRecording });
+  },
+
+  toggleTakeMute: (takeId) => {
+    set((state) => ({
+      mutedTakeIds: state.mutedTakeIds.includes(takeId)
+        ? state.mutedTakeIds.filter((id) => id !== takeId)
+        : [...state.mutedTakeIds, takeId],
+    }));
+  },
+
+  setMuteTakesWhileRecording: (mute) => {
+    set({ muteTakesWhileRecording: mute });
+    _persistTakePrefs({ takePlayback: get().takePlayback, muteTakesWhileRecording: mute });
+  },
 
   setTakeVolume: (v) => {
     set({ takeVolume: v });
@@ -821,4 +986,44 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     _countInResolve = null;
     resolve(false);
   },
-}));
+  };
+});
+
+function pushTakeAudio(state: PlayerState): void {
+  const eng = getEngine();
+  eng.setActiveTakeTrack(state.activeTakeId);
+  eng.setTakeGains(state.takeGains);
+  eng.setAudibleTakeTracks(
+    audibleTakes({
+      shown: state.shownTakeIds,
+      active: state.activeTakeId,
+      playback: state.takePlayback,
+      muted: state.mutedTakeIds,
+      recording: state.isRecording,
+      muteWhileRecording: state.muteTakesWhileRecording,
+      soloed: soloedTakeOf(state),
+      silenced: takesSilenced(state),
+    }),
+  );
+}
+
+// What is heard follows from the takes shown, the selection, the playback mode,
+// the lane mutes and whether a recording is under way. Derived here, once, so no
+// action has to remember to tell the engine.
+usePlayerStore.subscribe((state, prev) => {
+  if (
+    state.shownTakeIds === prev.shownTakeIds &&
+    state.activeTakeId === prev.activeTakeId &&
+    state.takePlayback === prev.takePlayback &&
+    state.mutedTakeIds === prev.mutedTakeIds &&
+    state.soloedTakeId === prev.soloedTakeId &&
+    state.soloedStem === prev.soloedStem &&
+    state.mutedStems === prev.mutedStems &&
+    state.takeGains === prev.takeGains &&
+    state.isRecording === prev.isRecording &&
+    state.muteTakesWhileRecording === prev.muteTakesWhileRecording
+  ) {
+    return;
+  }
+  pushTakeAudio(state);
+});

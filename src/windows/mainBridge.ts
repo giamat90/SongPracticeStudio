@@ -14,9 +14,15 @@ export interface PlayerPort {
   duration: number;
   playbackRate: number;
   activeTakeId: string | null;
+  shownTakeIds: string[];
+  takePlayback: "all" | "selected";
+  mutedTakeIds: string[];
+  soloedTakeId: string | null;
+  muteTakesWhileRecording: boolean;
+  isRecording: boolean;
   takes: Take[];
   seek(time: number): void;
-  setActiveTake(id: string): void;
+  toggleTake(id: string): void;
   deleteTake(id: string): Promise<void>;
   renameTake(id: string, name: string): Promise<void>;
 }
@@ -26,6 +32,8 @@ export interface MainBridgeDeps {
   emit: (event: string, payload: unknown) => void | Promise<void>;
   listen: (event: string, cb: (payload: unknown) => void) => Promise<() => void>;
   now: () => number;
+  /** The main take mute is on, or another track is soloed: no take is heard. */
+  takesSilenced: () => boolean;
 }
 
 function applyCommand(p: PlayerPort, command: Command): void {
@@ -33,14 +41,14 @@ function applyCommand(p: PlayerPort, command: Command): void {
     case "seek":
       p.seek(command.time);
       break;
-    case "setActiveTake":
+    case "toggleTake":
     case "deleteTake":
     case "renameTake": {
       if (!p.takes.some((t) => t.id === command.id)) {
         console.warn(`[detached] ${command.type} names a take that does not exist:`, command.id);
         break;
       }
-      if (command.type === "setActiveTake") p.setActiveTake(command.id);
+      if (command.type === "toggleTake") p.toggleTake(command.id);
       else if (command.type === "deleteTake") {
         p.deleteTake(command.id).catch((e: unknown) => console.error("[detached] could not delete the take:", e));
       } else {
@@ -69,7 +77,19 @@ export function startMainBridge(deps: MainBridgeDeps): Promise<{ dispose(): void
     },
     shared: () => {
       const p = player.getState();
-      return { song: p.song, duration: p.duration, activeTakeId: p.activeTakeId, takes: p.takes };
+      return {
+        song: p.song,
+        duration: p.duration,
+        activeTakeId: p.activeTakeId,
+        shownTakeIds: p.shownTakeIds,
+        takePlayback: p.takePlayback,
+        mutedTakeIds: p.mutedTakeIds,
+        soloedTakeId: p.soloedTakeId,
+        takesSilenced: deps.takesSilenced(),
+        muteTakesWhileRecording: p.muteTakesWhileRecording,
+        isRecording: p.isRecording,
+        takes: p.takes,
+      };
     },
     parseCommand,
     apply: (command) => applyCommand(player.getState(), command),
