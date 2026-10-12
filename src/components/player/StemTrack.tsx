@@ -46,6 +46,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
   const toggleMute   = usePlayerStore((s) => s.toggleMute);
   const toggleSolo   = usePlayerStore((s) => s.toggleSolo);
   const shown        = useWaveformPanels((s) => s.visible[name as WaveformPanelId] ?? true);
+  const toggleShown  = () => useWaveformPanels.getState().toggle(name as WaveformPanelId);
 
   const stemPath = `${song.directory.replace(/\\/g, "/")}/${name}.wav`;
   const icon     = STEM_ICONS[name] ?? "🎵";
@@ -60,7 +61,25 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
   return (
     <div className={`stem-track${shown ? "" : " stem-track--collapsed"}`}>
       <div className="stem-track__header">
-        <span className="stem-track__label">{icon} {label}</span>
+        <div className="stem-track__title">
+          <button
+            type="button"
+            className={`stem-track__toggle${shown ? "" : " stem-track__toggle--minimized"}`}
+            onClick={toggleShown}
+            aria-expanded={shown}
+            aria-label={`${shown ? "Minimize" : "Expand"} ${label} waveform`}
+            title={
+              shown
+                ? "Shrink this waveform to a strip. It keeps playing, and M, S and the volume still apply."
+                : "Show this waveform again"
+            }
+          >
+            <svg viewBox="0 0 10 6" aria-hidden="true">
+              <polyline points="1,5 5,1 9,5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span className="stem-track__label">{icon} {label}</span>
+        </div>
         <div className="stem-track__controls">
           <button
             className={`stem-track__mute${isMuted ? " stem-track__mute--on" : ""}`}
@@ -95,14 +114,6 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
             aria-label={`Download ${label}`}
           >
             ↓
-          </button>
-          <button
-            className="stem-track__hide"
-            onClick={() => useWaveformPanels.getState().setVisible(name as WaveformPanelId, false)}
-            title={`Hide the ${label} waveform. It keeps playing, and M, S and the volume still apply. Bring it back from the Panels menu.`}
-            aria-label={`Hide ${label} waveform`}
-          >
-            &times;
           </button>
         </div>
       </div>

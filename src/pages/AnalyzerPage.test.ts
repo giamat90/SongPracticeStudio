@@ -183,24 +183,8 @@ describe("AnalyzerPage waveform area", () => {
     expect(shown(html)).toContain("stems");
   });
 
-  it("collapses the area when every stem is hidden and no take is shown", async () => {
-    expect(await render({}, undefined, { vocals: false, drums: false })).toContain(COLLAPSED);
-  });
-
-  it("keeps the area while one stem is left, or a take is shown", async () => {
-    expect(await render({}, undefined, { vocals: false })).not.toContain(COLLAPSED);
-    h.player.takes = [{ id: "t1" }];
-    h.player.shownTakeIds = ["t1"];
+  it("keeps the area, and so the strips, when every stem is minimized", async () => {
     expect(await render({}, undefined, { vocals: false, drums: false })).not.toContain(COLLAPSED);
-  });
-
-  it("does not count a stem hidden on a song that does not have it", async () => {
-    expect(await render({}, undefined, { bass: false, guitar: false })).not.toContain(COLLAPSED);
-  });
-
-  it("does not count a shown take that no longer exists", async () => {
-    h.player.shownTakeIds = ["gone"];
-    expect(await render({}, undefined, { vocals: false, drums: false })).toContain(COLLAPSED);
   });
 
   it("is not affected by the other panels being hidden", async () => {

@@ -5,8 +5,9 @@ import type { StemName } from "../lib/types";
 // those panels are unmounted when hidden and can be moved or detached, whereas
 // the stems own what the audio engine draws into, so hiding them only collapses
 // them and the audio is never affected. `waveforms` is the whole stem area and
-// the stem ids are its tracks; recorded takes have their own show/hide in the
-// take list. The bass tab sits under the stems and is a plain show/hide.
+// the stem ids are its tracks, where "not visible" means shrunk to the strip
+// with the name, M, S and volume (the arrow on the strip, or the Panels menu);
+// recorded takes have their own show/hide in the take list. The bass tab sits under the stems and is a plain show/hide.
 export const WAVEFORM_PANELS = [
   { id: "waveforms", label: "Waveforms", defaultVisible: true },
   { id: "bassTab", label: "Bass tab", defaultVisible: true },
@@ -41,16 +42,7 @@ export function waveformMenuItems(stems: readonly StemName[]): WaveformMenuItem[
   return items;
 }
 
-/** Whether the stem area has anything to draw: switched on, and at least one stem or take that is not hidden. */
-export function waveformsOnScreen(
-  visible: Visible,
-  { stems, shownTakes }: { stems: readonly StemName[]; shownTakes: number },
-): boolean {
-  if (!visible.waveforms) return false;
-  return stems.some((name) => visible[name]) || shownTakes > 0;
-}
-
-/** Why a hidden stem may be silent or alone: its waveform is gone but its mute and solo still apply. */
+/** Why a minimized stem may be silent or alone: its waveform is shrunk to a strip but its mute and solo still apply. */
 export function hiddenStemTags(
   visible: Visible,
   {

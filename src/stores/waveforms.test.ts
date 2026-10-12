@@ -63,34 +63,6 @@ describe("waveformMenuItems", () => {
   });
 });
 
-describe("waveformsOnScreen", () => {
-  const stems = ["vocals", "drums"] as const;
-
-  it("is on while the area is on and a stem is left", async () => {
-    const { waveformsOnScreen } = await fresh();
-    expect(waveformsOnScreen(ON, { stems, shownTakes: 0 })).toBe(true);
-    expect(waveformsOnScreen({ ...ON, vocals: false }, { stems, shownTakes: 0 })).toBe(true);
-  });
-
-  it("is off when the area is off, whatever else is on", async () => {
-    const { waveformsOnScreen } = await fresh();
-    expect(waveformsOnScreen({ ...ON, waveforms: false }, { stems, shownTakes: 3 })).toBe(false);
-  });
-
-  it("is off when every stem of the song is hidden and no take is shown, and back on with a take", async () => {
-    const { waveformsOnScreen } = await fresh();
-    const hidden = { ...ON, vocals: false, drums: false };
-    expect(waveformsOnScreen(hidden, { stems, shownTakes: 0 })).toBe(false);
-    expect(waveformsOnScreen(hidden, { stems, shownTakes: 1 })).toBe(true);
-  });
-
-  it("looks only at the stems the song has", async () => {
-    const { waveformsOnScreen } = await fresh();
-    expect(waveformsOnScreen({ ...ON, vocals: false, drums: false }, { stems: ["vocals", "drums"], shownTakes: 0 })).toBe(false);
-    expect(waveformsOnScreen({ ...ON, vocals: false, drums: false }, { stems: ["vocals", "bass"], shownTakes: 0 })).toBe(true);
-  });
-});
-
 describe("hiddenStemTags", () => {
   const stems = ["vocals", "drums"] as const;
 
