@@ -1,5 +1,6 @@
 import type { RefCallback } from "react";
 import { usePlayerStore } from "../../stores/player";
+import { useWaveformPanels, type WaveformPanelId } from "../../stores/waveforms";
 import { exportStem } from "../../lib/tauri";
 import type { Song } from "../../lib/types";
 
@@ -44,6 +45,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
   const setStemVolume = usePlayerStore((s) => s.setStemVolume);
   const toggleMute   = usePlayerStore((s) => s.toggleMute);
   const toggleSolo   = usePlayerStore((s) => s.toggleSolo);
+  const shown        = useWaveformPanels((s) => s.visible[name as WaveformPanelId] ?? true);
 
   const stemPath = `${song.directory.replace(/\\/g, "/")}/${name}.wav`;
   const icon     = STEM_ICONS[name] ?? "🎵";
@@ -56,7 +58,7 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
   };
 
   return (
-    <div className="stem-track">
+    <div className={`stem-track${shown ? "" : " stem-track--collapsed"}`}>
       <div className="stem-track__header">
         <span className="stem-track__label">{icon} {label}</span>
         <div className="stem-track__controls">
@@ -93,6 +95,14 @@ function StemTrack({ name, song, containerRef }: StemTrackProps) {
             aria-label={`Download ${label}`}
           >
             ↓
+          </button>
+          <button
+            className="stem-track__hide"
+            onClick={() => useWaveformPanels.getState().setVisible(name as WaveformPanelId, false)}
+            title={`Hide the ${label} waveform. It keeps playing, and M, S and the volume still apply. Bring it back from the Panels menu.`}
+            aria-label={`Hide ${label} waveform`}
+          >
+            &times;
           </button>
         </div>
       </div>

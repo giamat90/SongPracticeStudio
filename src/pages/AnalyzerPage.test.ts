@@ -10,7 +10,10 @@ const h = vi.hoisted(() => {
   return {
     stub,
     library: { songs: [] as unknown[] },
-    player: { cleanup: () => {} },
+    player: {
+      cleanup: () => {}, takes: [] as { id: string }[], shownTakeIds: [] as string[],
+      mutedStems: {} as Record<string, boolean>, soloedStem: null as string | null,
+    },
     detached: {} as Record<string, boolean>,
   };
 });
@@ -47,16 +50,27 @@ vi.mock("../components/lyrics/LyricsPanel", h.stub("lyrics"));
 vi.mock("../components/panels/PanelMenu", async () => {
   const { createElement: el } = await import("react");
   return {
-    default: ({ panels }: { panels: { id: string }[] }) =>
-      el("div", { "data-c": "panelMenu", "data-ids": panels.map((p) => p.id).join(",") }),
+    default: ({
+      panels, fixed,
+    }: {
+      panels: { id: string }[];
+      fixed?: { items: { id: string; parts?: { id: string }[] }[]; tags?: Record<string, string> };
+    }) =>
+      el("div", {
+        "data-c": "panelMenu",
+        "data-ids": panels.map((p) => p.id).join(","),
+        "data-fixed": fixed?.items.flatMap((i) => [i.id, ...(i.parts ?? []).map((p) => p.id)]).join(","),
+        "data-tags": JSON.stringify(fixed?.tags ?? {}),
+      }),
   };
 });
 
 // zustand renders the server snapshot (the store's initial state) under
 // react-dom/server, so choices are seeded through storage and the page is
 // imported fresh for every render.
-async function render(overrides: Record<string, boolean> = {}, order?: string[]) {
+async function render(overrides: Record<string, boolean> = {}, order?: string[], waveforms: Record<string, boolean> = {}) {
   localStorage.setItem("sps_panels", JSON.stringify({ overrides, order }));
+  localStorage.setItem("sps_waveforms", JSON.stringify({ overrides: waveforms }));
   vi.resetModules();
   const { default: AnalyzerPage } = await import("./AnalyzerPage");
   return renderToStaticMarkup(createElement(AnalyzerPage, { songId: "s1", onBack: () => {} }));
@@ -68,6 +82,10 @@ const OPTIONAL = ["chords", "lyrics", "takes"];
 beforeEach(() => {
   localStorage.clear();
   h.detached = {};
+  h.player.takes = [];
+  h.player.shownTakeIds = [];
+  h.player.mutedStems = {};
+  h.player.soloedStem = null;
   h.library.songs = [{ id: "s1", title: "Song", stems: ["vocals", "drums"], detectedBpm: 120 }];
 });
 
@@ -144,5 +162,71 @@ describe("AnalyzerPage panels", () => {
   it("offers the menu every optional panel", async () => {
     const html = await render();
     expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,lyrics,takes");
+  });
+});
+
+describe("AnalyzerPage waveform area", () => {
+  const COLLAPSED = "analyzer-page__waveforms--collapsed";
+  const withBass = () => {
+    h.library.songs = [{ id: "s1", title: "Song", stems: ["vocals", "drums", "bass"], detectedBpm: 120 }];
+  };
+
+  it("shows the stems by default", async () => {
+    const html = await render();
+    expect(html).toContain('class="analyzer-page__waveforms"');
+    expect(html).not.toContain(COLLAPSED);
+  });
+
+  it("collapses the area when it is switched off, and still mounts it so the audio keeps loading", async () => {
+    const html = await render({}, undefined, { waveforms: false });
+    expect(html).toContain(COLLAPSED);
+    expect(shown(html)).toContain("stems");
+  });
+
+  it("collapses the area when every stem is hidden and no take is shown", async () => {
+    expect(await render({}, undefined, { vocals: false, drums: false })).toContain(COLLAPSED);
+  });
+
+  it("keeps the area while one stem is left, or a take is shown", async () => {
+    expect(await render({}, undefined, { vocals: false })).not.toContain(COLLAPSED);
+    h.player.takes = [{ id: "t1" }];
+    h.player.shownTakeIds = ["t1"];
+    expect(await render({}, undefined, { vocals: false, drums: false })).not.toContain(COLLAPSED);
+  });
+
+  it("does not count a stem hidden on a song that does not have it", async () => {
+    expect(await render({}, undefined, { bass: false, guitar: false })).not.toContain(COLLAPSED);
+  });
+
+  it("does not count a shown take that no longer exists", async () => {
+    h.player.shownTakeIds = ["gone"];
+    expect(await render({}, undefined, { vocals: false, drums: false })).toContain(COLLAPSED);
+  });
+
+  it("is not affected by the other panels being hidden", async () => {
+    expect(await render({ chords: false, lyrics: false, takes: false })).not.toContain(COLLAPSED);
+  });
+
+  it("lists the song's own stems under the waveforms in the Panels menu", async () => {
+    const fixed = (html: string) => /data-fixed="([^"]*)"/.exec(html)?.[1];
+    expect(fixed(await render())).toBe("waveforms,vocals,drums");
+    withBass();
+    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,bassTab");
+  });
+
+  it("hides the bass tab on its own, leaving the stems and the rest alone", async () => {
+    withBass();
+    const before = shown(await render());
+    const after = shown(await render({}, undefined, { bassTab: false }));
+    expect(before.filter((c) => !after.includes(c))).toEqual(["bassTab"]);
+    expect(await render({}, undefined, { bassTab: false })).not.toContain(COLLAPSED);
+  });
+
+  it("tells the menu which hidden stem is muted or soloed", async () => {
+    const tags = (html: string) => JSON.parse((/data-tags="([^"]*)"/.exec(html)?.[1] ?? "{}").replace(/&quot;/g, '"'));
+    h.player.mutedStems = { drums: true };
+    expect(tags(await render({}, undefined, { drums: false }))).toEqual({ drums: "muted" });
+    h.player.soloedStem = "vocals";
+    expect(tags(await render({}, undefined, { vocals: false }))).toEqual({ vocals: "solo" });
   });
 });

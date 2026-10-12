@@ -23,6 +23,7 @@ import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
 import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels, type AnalyzerPanelId } from "../stores/panels";
+import { hiddenStemTags, useWaveformPanels, waveformMenuItems, waveformsOnScreen } from "../stores/waveforms";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
 import { installPlayerShortcuts } from "../lib/shortcuts";
@@ -53,16 +54,28 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const songs   = useLibraryStore((s) => s.songs);
   const cleanup = usePlayerStore((s) => s.cleanup);
   const transpose = usePlayerStore((s) => s.transpose);
+  const takes = usePlayerStore((s) => s.takes);
+  const shownTakeIds = usePlayerStore((s) => s.shownTakeIds);
+  const mutedStems = usePlayerStore((s) => s.mutedStems);
+  const soloedStem = usePlayerStore((s) => s.soloedStem);
   const song    = songs.find((s) => s.id === songId);
   const visible = useAnalyzerPanels((s) => s.visible);
   const order = useAnalyzerPanels((s) => s.order);
   const detached = useDetachedStore((s) => s.detached);
+  const waveformVisible = useWaveformPanels((s) => s.visible);
 
   useMainBridge();
 
   // On screen in this window: wanted, and not living in a window of its own.
   const docked = (id: DetachablePanel) => visible[id] && !detached[id];
   const onScreen = order.filter((id) => BODY_PANELS.includes(id) && docked(id));
+
+  // The stem area is collapsed, not removed: it owns what the audio engine draws into.
+  const stems = song?.stems ?? [];
+  const waveformsShown = waveformsOnScreen(waveformVisible, {
+    stems,
+    shownTakes: shownTakeIds.filter((id) => takes.some((t) => t.id === id)).length,
+  });
 
   useEffect(() => {
     return () => { cleanup(); };
@@ -94,7 +107,15 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
             {song.detectedKey && <span>{transposeKey(song.detectedKey, transpose)}</span>}
           </div>
         </div>
-        <PanelMenu store={useAnalyzerPanels} panels={ANALYZER_PANELS} />
+        <PanelMenu
+          store={useAnalyzerPanels}
+          panels={ANALYZER_PANELS}
+          fixed={{
+            store: useWaveformPanels,
+            items: waveformMenuItems(stems),
+            tags: hiddenStemTags(waveformVisible, { stems, muted: mutedStems, soloed: soloedStem }),
+          }}
+        />
         <DownloadAllButton song={song} />
         <ExportChartButton song={song} />
         <ExportMixButton />
@@ -121,8 +142,10 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
 
       <div className="analyzer-page__body">
         <div className="analyzer-page__stems">
-          <StemView song={song} />
-          <BassTabPanel song={song} />
+          <div className={`analyzer-page__waveforms${waveformsShown ? "" : " analyzer-page__waveforms--collapsed"}`}>
+            <StemView song={song} />
+          </div>
+          {waveformVisible.bassTab && <BassTabPanel song={song} />}
         </div>
 
         <SortablePanels store={useAnalyzerPanels} ids={onScreen} className={slotClass}>
