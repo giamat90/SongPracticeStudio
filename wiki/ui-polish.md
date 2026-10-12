@@ -18,3 +18,19 @@ Ported from VPS (`ui/polish`). Visual/UX refinement without layout changes.
 ## SPS-specific
 
 `polish.css` also covers `stem-track`, `stem-picker__chip`, `update-dialog__*`, `analyzer-page__*` and the chord chips. `.stem-track` itself gets no box-shadow because its waveform children would paint over an inset shadow.
+
+## Colour palette (accent diverges from VPS on purpose, 2026-10-12)
+
+VPS and SPS were forks with the same navy + coral-red palette, which made the two windows indistinguishable side by side. SPS keeps the VPS base (`--bg-*`, `--text-*` unchanged) and swaps only the accent family to amber. Several other bases (teal, graphite, espresso, plum, ink, slate) and accents (indigo, magenta, sky blue) were tried live; navy + amber was the choice, with the user's explicit wish that the apps differ **only by accent**.
+
+| Token | VPS | SPS |
+|---|---|---|
+| `--accent` | `#e94560` | `#d97706` (solid fills carrying white text) |
+| `--accent-hover` | `#ff6b81` | `#f59e0b` (also accent text/borders: `.loop-btn--active`, `.legend-dot--take`) |
+| `--accent-ring` | `rgba(255,107,129,.75)` | `rgba(252,211,77,.75)` |
+
+Translucent accent overlays (soft backgrounds, glows, the punch region in `TimeRuler.tsx`) are `rgba(245, 158, 11, a)`; the WaveSurfer playhead (`engine.ts` `cursorColor`) is `#fbbf24`. `--warning` stays `#fbbf24` and `STEM_COLORS` is unchanged. Amber sits near the guitar/piano stems, so check playhead and punch-region visibility there when touching it. Do not copy VPS accent values back in when porting CSS.
+
+## App icon
+
+Each app has its own icon, in the same family: dark navy rounded square with a soft glow in the accent colour. SPS: four stacked horizontal stem bars, one in amber. VPS: a five-bar waveform, centre bar in coral. Both were designed in Claude Design, exported at 1024 px and expanded with `npx tauri icon <png> -o src-tauri/icons`; the generated `android/`, `ios/` and `64x64.png` are deleted since the bundle config lists only `32x32`, `128x128`, `128x128@2x`, `icon.icns`, `icon.ico`. Before this both apps shipped the identical default Tauri logo.

@@ -62,15 +62,15 @@ export default function TimeRuler() {
       if (inT !== null && outT !== null && outT > inT) {
         const x1 = tX(inT);
         const x2 = tX(outT);
-        ctx.fillStyle = "rgba(233,69,96,0.22)";
+        ctx.fillStyle = "rgba(245,158,11,0.22)";
         ctx.fillRect(x1, 0, x2 - x1, H);
         // Boundary lines
-        ctx.strokeStyle = "rgba(233,69,96,0.85)";
+        ctx.strokeStyle = "rgba(245,158,11,0.85)";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke();
         // Top "I-beam" caps on the handles
-        ctx.fillStyle = "rgba(233,69,96,0.9)";
+        ctx.fillStyle = "rgba(245,158,11,0.9)";
         ctx.fillRect(x1 - 3, 0, 6, 4);
         ctx.fillRect(x2 - 3, 0, 6, 4);
       }
