@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.50] - 2026-10-12
+
+### Changed
+- The song page now shows the tracks first, as in VPS: the stems and bass tab on top, then the lyrics, then the takes. Long lyrics scroll in their own area instead of pushing the tracks down.
+
 ## [0.0.49] - 2026-10-12
 
 ### Changed
