@@ -55,8 +55,8 @@ vi.mock("../components/panels/PanelMenu", async () => {
 // zustand renders the server snapshot (the store's initial state) under
 // react-dom/server, so choices are seeded through storage and the page is
 // imported fresh for every render.
-async function render(overrides: Record<string, boolean> = {}) {
-  localStorage.setItem("sps_panels", JSON.stringify({ overrides }));
+async function render(overrides: Record<string, boolean> = {}, order?: string[]) {
+  localStorage.setItem("sps_panels", JSON.stringify({ overrides, order }));
   vi.resetModules();
   const { default: AnalyzerPage } = await import("./AnalyzerPage");
   return renderToStaticMarkup(createElement(AnalyzerPage, { songId: "s1", onBack: () => {} }));
@@ -118,6 +118,27 @@ describe("AnalyzerPage panels", () => {
     expect(at("stems")).toBeLessThan(at("bassTab"));
     expect(at("bassTab")).toBeLessThan(at("lyrics"));
     expect(at("lyrics")).toBeLessThan(at("takes"));
+  });
+
+  it("draws takes above lyrics when the user moved them, still under the tracks", async () => {
+    const body = (await render({}, ["chords", "takes", "lyrics"])).split("analyzer-page__body")[1];
+    const at = (c: string) => body.indexOf(`data-c="${c}"`);
+    expect(at("bassTab")).toBeLessThan(at("takes"));
+    expect(at("takes")).toBeLessThan(at("lyrics"));
+  });
+
+  it("keeps each panel's sizing class with the panel, wherever it is", async () => {
+    const html = await render({}, ["chords", "takes", "lyrics"]);
+    expect(html.indexOf("analyzer-page__takes")).toBeLessThan(html.indexOf("analyzer-page__lyrics"));
+  });
+
+  it("leaves the chords in the topbar whatever the order says", async () => {
+    const html = await render({}, ["takes", "lyrics", "chords"]);
+    expect(html.indexOf('data-c="chords"')).toBeLessThan(html.indexOf("analyzer-page__body"));
+  });
+
+  it("gives only lyrics and takes a movable slot", async () => {
+    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(2);
   });
 
   it("offers the menu every optional panel", async () => {

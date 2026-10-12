@@ -18,10 +18,11 @@ import TakeList from "../components/recording/TakeList";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
 import PanelMenu from "../components/panels/PanelMenu";
 import DetachHandle from "../components/panels/DetachHandle";
+import SortablePanels from "../components/panels/SortablePanels";
 import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
 import { useDetachedStore } from "../stores/detached";
-import { ANALYZER_PANELS, useAnalyzerPanels } from "../stores/panels";
+import { ANALYZER_PANELS, useAnalyzerPanels, type AnalyzerPanelId } from "../stores/panels";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
 import { installPlayerShortcuts } from "../lib/shortcuts";
@@ -38,6 +39,11 @@ function Detachable({ panel, inline, children }: { panel: DetachablePanel; inlin
   );
 }
 
+// The chord carousel lives in the topbar; these are the panels stacked under the tracks.
+const BODY_PANELS: readonly AnalyzerPanelId[] = ["lyrics", "takes"];
+
+const slotClass = (id: AnalyzerPanelId) => (id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined);
+
 interface AnalyzerPageProps {
   songId: string;
   onBack: () => void;
@@ -49,12 +55,14 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const transpose = usePlayerStore((s) => s.transpose);
   const song    = songs.find((s) => s.id === songId);
   const visible = useAnalyzerPanels((s) => s.visible);
+  const order = useAnalyzerPanels((s) => s.order);
   const detached = useDetachedStore((s) => s.detached);
 
   useMainBridge();
 
   // On screen in this window: wanted, and not living in a window of its own.
   const docked = (id: DetachablePanel) => visible[id] && !detached[id];
+  const onScreen = order.filter((id) => BODY_PANELS.includes(id) && docked(id));
 
   useEffect(() => {
     return () => { cleanup(); };
@@ -117,21 +125,13 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <BassTabPanel song={song} />
         </div>
 
-        {docked("lyrics") && (
-          <div className="analyzer-page__lyrics">
-            <Detachable panel="lyrics">
-              <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />
+        <SortablePanels store={useAnalyzerPanels} ids={onScreen} className={slotClass}>
+          {(id) => (
+            <Detachable panel={id}>
+              {id === "lyrics" ? <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} /> : <TakeList />}
             </Detachable>
-          </div>
-        )}
-
-        {docked("takes") && (
-          <div className="analyzer-page__takes">
-            <Detachable panel="takes">
-              <TakeList />
-            </Detachable>
-          </div>
-        )}
+          )}
+        </SortablePanels>
       </div>
     </div>
   );
