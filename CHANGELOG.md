@@ -6,6 +6,12 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.49] - 2026-10-12
+
+### Changed
+- **New look**: SPS now has its own amber accent colour, so it is easy to tell apart from VPS when both are open.
+- **New app icon**: stacked stem bars instead of the default Tauri logo.
+
 ## [0.0.48] - 2026-10-12
 
 ### Added
