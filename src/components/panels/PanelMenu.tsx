@@ -23,10 +23,11 @@ export function PanelMenuList({ panels, visible, detached, onToggle, onShowAll, 
           {detached?.[p.id] && <span className="panel-menu__tag">own window</span>}
         </label>
       ))}
+      <p className="panel-menu__hint">Drag the &#8597; grip on a panel to move it.</p>
       <div className="panel-menu__actions">
         <button type="button" onClick={onShowAll}>Show all</button>
         <button type="button" onClick={onHideAll}>Hide all</button>
-        <button type="button" onClick={onReset}>Reset</button>
+        <button type="button" onClick={onReset} title="Show the default panels in the default order">Reset</button>
       </div>
     </div>
   );
@@ -42,9 +43,11 @@ function PanelMenu<Id extends string>({ store, panels }: PanelMenuProps<Id>) {
   const root = useRef<HTMLDivElement>(null);
   const listId = useId();
   const visible = store((s) => s.visible);
+  const order = store((s) => s.order);
   const detached = useDetachedStore((s) => s.detached);
   const { toggle, showAll, hideAll, reset } = store.getState();
   const shown = panels.filter((p) => visible[p.id]).length;
+  const ordered = [...panels].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 
   useEffect(() => {
     if (!open) return;
@@ -77,7 +80,7 @@ function PanelMenu<Id extends string>({ store, panels }: PanelMenuProps<Id>) {
       {open && (
         <div className="panel-menu__popover" id={listId}>
           <PanelMenuList
-            panels={panels}
+            panels={ordered}
             visible={visible}
             detached={detached}
             onToggle={(id) => toggle(id as Id)}

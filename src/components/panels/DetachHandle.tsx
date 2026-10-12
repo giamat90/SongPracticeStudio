@@ -3,15 +3,16 @@ import { detachPanel } from "../../lib/tauri";
 import { useDetachedStore } from "../../stores/detached";
 import { decideDrop } from "@giamat90/mps-core/windows";
 import type { DetachablePanel } from "../../windows/protocol";
+import { MoveGrip } from "./SortablePanels";
 
 interface DetachHandleProps {
   panel: DetachablePanel;
 }
 
 /**
- * Sits in a corner of a panel: drag it past the edge of the window to move the
- * panel into a window of its own, or press the button to pop it out beside the
- * main window.
+ * Sits in a corner of a panel: the arrows move the panel within the window (when
+ * it is in a SortablePanels), the dots drag it past the edge of the window into
+ * a window of its own, and the button pops it out beside the main window.
  */
 function DetachHandle({ panel }: DetachHandleProps) {
   const [dragging, setDragging] = useState(false);
@@ -48,6 +49,7 @@ function DetachHandle({ panel }: DetachHandleProps) {
   return (
     <div className={`detach-handle${dragging ? " detach-handle--dragging" : ""}`}>
       {dragging && <span className="detach-handle__hint">Release outside the window to detach</span>}
+      <MoveGrip />
       <button
         type="button"
         className="detach-handle__grip"

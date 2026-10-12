@@ -260,4 +260,6 @@ The analyzer page lets the user show or hide its optional parts from the **Panel
 | `lyrics` | `LyricsPanel` | on |
 | `takes` | `TakeList` | on |
 
+**Order:** Lyrics and Takes (the two panels stacked under the stems) can be moved: the **↕ grip** in a panel's corner handle drags it above or below the other (keyboard: focus it, space, arrows, space), via `SortablePanels` (`@dnd-kit/sortable`). The chord carousel lives in the topbar and does not move, though `order` (mps-core v0.6.0, persisted in `sps_panels` with the visibility choices) lists it too. The Panels menu lists panels in that order and **Reset** restores default visibility and order. A panel that is detached keeps its place in the order and returns to it.
+
 Always on: the stems timeline, transport, tempo, transpose, mic/output, record. A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
