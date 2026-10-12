@@ -102,7 +102,7 @@ export class AudioEngine {
         height: 64,
         waveColor: color,
         progressColor: color,
-        cursorColor: "#e94560",
+        cursorColor: "#fbbf24",
         cursorWidth: 2,
         barWidth: 2,
         barGap: 1,

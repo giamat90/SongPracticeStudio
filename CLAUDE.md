@@ -188,6 +188,12 @@ SongPracticeStudio/
 
 ---
 
+## App palette
+
+SPS shares VPS's navy base and differs only by accent: amber (`--accent #d97706`, `--accent-hover #f59e0b`) instead of VPS's coral-red, so the two apps are distinguishable side by side. Each app also has its own icon (`src-tauri/icons/`, generated with `tauri icon`). Tokens in `src/styles/global.css :root`; details in `wiki/ui-polish.md`. Do not paste VPS accent values when porting CSS.
+
+---
+
 ## Stem colors
 
 Defined in `src/audio/engine.ts → STEM_COLORS`:
