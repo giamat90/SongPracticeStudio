@@ -6,6 +6,12 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.52] - 2026-10-12
+
+### Added
+- **Hide the waveforms.** The **Waveforms** entry at the top of the Panels menu hides the whole stem area, and each stem can be hidden on its own, from the menu or with the **×** next to its download button. Hiding only removes the picture: the stem keeps playing, and M, S and the volume still apply. A hidden stem that is muted or soloed is tagged in the menu.
+- **Bass tab** has its own switch in the Panels menu.
+
 ## [0.0.51] - 2026-10-12
 
 ### Added
