@@ -30,7 +30,7 @@ App
 │   │   ├── ChordRow        — chord segments as timeline chips, synced to zoom/scroll
 │   │   ├── StemTrack (×N)  — one row per stem: waveform + mute/solo + volume + download button
 │   │   └── TakeTrack       — recorded take row, aligned at its startPosition
-│   ├── LyricsPanel         — synced lyrics: paste / find online / sync, karaoke view, click a line to seek (above the stems list, outside its scroller; explains itself when the song has no vocals stem)
+│   ├── LyricsPanel         — synced lyrics: paste / find online / sync, karaoke view, click a line to seek (below the stems list and bass tab, above the takes, in its own scroller; explains itself when the song has no vocals stem)
 │   └── TakeList            — take list with select/rename/delete
 │       └── RecordingOffsetControl — per-device latency calibration wizard
 └── UpdateDialog            — auto-update modal (tauri-plugin-updater)

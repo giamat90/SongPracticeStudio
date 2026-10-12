@@ -156,7 +156,7 @@ SongPracticeStudio/
 │   │   ├── panels/
 │   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which optional panels are shown
 │   │   ├── lyrics/
-│   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, above the stems)
+│   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, below the stems)
 │   │   ├── updater/
 │   │   │   └── UpdateDialog.tsx   ← Auto-update modal
 │   │   ├── settings/
@@ -260,7 +260,7 @@ cd sidecar && python build.py
 
 ## Synced lyrics (ported from VPS, 2026-10-10)
 
-Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style above the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. The engine is `mps_core.lyrics` from the shared package; this app supplies its identity (user agent, `~/.songpracticestudio/models`, `SPS_LYRICS_ENGINE`) as an `AppIdentity` in `sidecar/main.py` (see `wiki/shared-core.md`).
+Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style below the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. The engine is `mps_core.lyrics` from the shared package; this app supplies its identity (user agent, `~/.songpracticestudio/models`, `SPS_LYRICS_ENGINE`) as an `AppIdentity` in `sidecar/main.py` (see `wiki/shared-core.md`).
 
 ---
 

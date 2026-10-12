@@ -1,12 +1,12 @@
 # Lyrics Sync
 
-Place every line and word of a song's lyrics on the separated **vocals** stem, then show them karaoke-style above the stems in the analyzer. Click a line to jump to it.
+Place every line and word of a song's lyrics on the separated **vocals** stem, then show them karaoke-style below the stems in the analyzer. Click a line to jump to it.
 
 Ported from VPS (2026-10-10, VPS PR #3) and since moved into the shared `mps-core` package (`mps_core.lyrics`, `@giamat90/mps-core/lyrics`); the design record and the original measurements live in VPS `wiki/lyrics.md` and `MPS/wiki/whats-next.md`. This page records what is different here and what was re-measured on SPS's own library.
 
 ## User flow
 
-1. Open a song → **Lyrics (add)** tab above the stems. (A song imported *without* the vocals stem shows an explanation instead: SPS lets the user pick which stems to extract, and there is nothing to align to without `vocals`.)
+1. Open a song → **Lyrics (add)** tab below the stems. (A song imported *without* the vocals stem shows an explanation instead: SPS lets the user pick which stems to extract, and there is nothing to align to without `vocals`.)
 2. Paste the lyrics, or press **Find online** (looks the song up on [LRCLIB](https://lrclib.net), a free community lyrics database; sends only the song title and duration). The found text lands in the box for review; nothing is saved yet.
 3. Press **Sync lyrics**. Progress is streamed; the first run also downloads a ~360 MB speech model once into `~/.songpracticestudio/models/` (about 100 s on the measured connection). Typical time afterwards: 10-25 s for a 3-5 minute song on CPU.
 4. The karaoke view shows every line; the line being sung is lit and centred, the sung words in it are highlighted. Clicking a line seeks to it (0.3 s early so the first word is not clipped). **Edit and re-sync** and **Remove** are beside it.

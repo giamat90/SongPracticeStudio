@@ -1923,6 +1923,12 @@ body,
   min-height: 0;
 }
 
+.analyzer-page__lyrics {
+  flex-shrink: 0;
+  max-height: 35%;
+  overflow-y: auto;
+}
+
 .analyzer-page__takes {
   flex-shrink: 0;
   max-height: 30%;
