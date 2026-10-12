@@ -124,7 +124,7 @@ SongPracticeStudio/
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
-│   │   └── waveforms.ts        ← whether the stem area, each stem and the bass tab are shown (`sps_waveforms`); hidden stems are collapsed, never unmounted
+│   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
 │   ├── lib/tauri.ts            ← IPC wrappers: processSong, listSongs, saveTake, exportStem, exportMix, …

@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.54] - 2026-10-12
+
+### Changed
+- **Waveforms shrink to a strip, as in a DAW.** The arrow at the start of each stem's header shrinks that stem to its strip (name, M, S, volume, download): **^** shrinks it, **∨** brings the waveform back. It keeps playing, and M, S and the volume still apply. This replaces the old **×**, which hid the waveform completely; the Panels menu tick for a stem is the same setting. With every stem shrunk the ruler and the strips stay.
+
 ## [0.0.53] - 2026-10-12
 
 ### Fixed

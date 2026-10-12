@@ -1923,7 +1923,7 @@ body,
   min-height: 0;
 }
 
-/* The stem area switched off, or with every stem hidden. Collapsed rather than
+/* The stem area switched off in the Panels menu. Collapsed rather than
    unmounted: it owns the containers the audio engine draws into. */
 .analyzer-page__waveforms--collapsed {
   height: 0;
@@ -2187,15 +2187,50 @@ body,
   gap: 0.25rem;
 }
 
-/* A stem the user hid. It stays in the layout at full width (WaveSurfer keeps
-   measuring a real container and the audio is untouched) but takes no height;
-   the negative margin takes back the flex gap it would otherwise leave. */
-.stem-track--collapsed {
+/* A stem the user shrank to its strip (name, M, S, volume, download), as in a
+   DAW. The waveform stays in the layout at full width (WaveSurfer keeps measuring
+   a real container and the audio is untouched) but takes no height; the negative
+   margin takes back the gap between the strip and the body. */
+.stem-track--collapsed > .stem-track__body {
   height: 0;
   overflow: hidden;
   visibility: hidden;
   pointer-events: none;
-  margin-bottom: calc(var(--lane-gap) * -1);
+  margin-top: -0.25rem;
+}
+
+.stem-track__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.stem-track__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  padding: 0.15rem 0.3rem;
+  cursor: pointer;
+}
+
+.stem-track__toggle svg {
+  width: 0.7rem;
+  height: 0.45rem;
+  transition: transform 0.15s;
+}
+
+.stem-track__toggle--minimized svg {
+  transform: rotate(180deg);
+}
+
+.stem-track__toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .stem-track__header {
@@ -2317,22 +2352,6 @@ body,
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
-}
-
-.stem-track__hide {
-  background: transparent;
-  border: 1px solid var(--bg-surface);
-  border-radius: 4px;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  line-height: 1;
-  padding: 0.1rem 0.4rem;
-  cursor: pointer;
-}
-
-.stem-track__hide:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
 }
 
 .stem-track__download:hover {

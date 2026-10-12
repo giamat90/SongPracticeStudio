@@ -44,19 +44,28 @@ beforeEach(() => {
   h.state.soloedStem = null;
 });
 
-describe("StemTrack hiding", () => {
-  it("is shown, with a hide button, until the user hides it", async () => {
+describe("StemTrack strip", () => {
+  it("is expanded, with an arrow that minimizes it, until the user shrinks it", async () => {
     const html = await render("drums");
     expect(html).toContain('class="stem-track"');
-    expect(html).toContain('aria-label="Hide Drums waveform"');
+    expect(html).toContain('aria-label="Minimize Drums waveform"');
+    expect(html).toContain('aria-expanded="true"');
   });
 
-  it("collapses only the stem that was hidden", async () => {
-    expect(await render("drums", ["drums"])).toContain("stem-track stem-track--collapsed");
+  it("minimizes only the stem that was chosen, and turns its arrow into an expand button", async () => {
+    const html = await render("drums", ["drums"]);
+    expect(html).toContain("stem-track stem-track--collapsed");
+    expect(html).toContain('aria-label="Expand Drums waveform"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain("stem-track__toggle--minimized");
     expect(await render("drums", ["vocals"])).not.toContain("--collapsed");
   });
 
-  it("keeps the container and the controls of a hidden stem in the page, so the audio engine still has it", async () => {
+  it("no longer offers a button that hides the waveform completely", async () => {
+    expect(await render("drums")).not.toContain("stem-track__hide");
+  });
+
+  it("keeps the container and the controls of a minimized stem in the page, so the audio engine still has it and M, S and the volume stay on the strip", async () => {
     const html = await render("vocals", ["vocals"]);
     expect(html).toContain("stem-track__wave");
     for (const c of ["stem-track__mute", "stem-track__solo", "stem-track__volume"]) expect(html).toContain(c);

@@ -23,7 +23,7 @@ import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
 import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels, type AnalyzerPanelId } from "../stores/panels";
-import { hiddenStemTags, useWaveformPanels, waveformMenuItems, waveformsOnScreen } from "../stores/waveforms";
+import { hiddenStemTags, useWaveformPanels, waveformMenuItems } from "../stores/waveforms";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
 import { installPlayerShortcuts } from "../lib/shortcuts";
@@ -54,8 +54,6 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const songs   = useLibraryStore((s) => s.songs);
   const cleanup = usePlayerStore((s) => s.cleanup);
   const transpose = usePlayerStore((s) => s.transpose);
-  const takes = usePlayerStore((s) => s.takes);
-  const shownTakeIds = usePlayerStore((s) => s.shownTakeIds);
   const mutedStems = usePlayerStore((s) => s.mutedStems);
   const soloedStem = usePlayerStore((s) => s.soloedStem);
   const song    = songs.find((s) => s.id === songId);
@@ -72,10 +70,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
 
   // The stem area is collapsed, not removed: it owns what the audio engine draws into.
   const stems = song?.stems ?? [];
-  const waveformsShown = waveformsOnScreen(waveformVisible, {
-    stems,
-    shownTakes: shownTakeIds.filter((id) => takes.some((t) => t.id === id)).length,
-  });
+  const waveformsShown = waveformVisible.waveforms;
 
   useEffect(() => {
     return () => { cleanup(); };
