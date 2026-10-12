@@ -1923,6 +1923,15 @@ body,
   min-height: 0;
 }
 
+/* The stem area switched off, or with every stem hidden. Collapsed rather than
+   unmounted: it owns the containers the audio engine draws into. */
+.analyzer-page__waveforms--collapsed {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .analyzer-page__lyrics {
   flex-shrink: 0;
   max-height: 35%;
@@ -2038,9 +2047,10 @@ body,
 
 /* Wraps the ruler + stem/take rows; ctrl/shift+wheel listener attaches here. */
 .stem-view__timeline {
+  --lane-gap: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--lane-gap);
 }
 
 /* Panels menu: which optional panels the analyzer page shows */
@@ -2094,6 +2104,22 @@ body,
   font-size: 0.82rem;
   color: var(--text-primary);
   cursor: pointer;
+}
+
+.panel-menu__parts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-left: 1.4rem;
+}
+
+.panel-menu__item--part {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.panel-menu__item--part input:disabled + span {
+  opacity: 0.5;
 }
 
 .panel-menu__hint {
@@ -2159,6 +2185,17 @@ body,
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+/* A stem the user hid. It stays in the layout at full width (WaveSurfer keeps
+   measuring a real container and the audio is untouched) but takes no height;
+   the negative margin takes back the flex gap it would otherwise leave. */
+.stem-track--collapsed {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  margin-bottom: calc(var(--lane-gap) * -1);
 }
 
 .stem-track__header {
@@ -2280,6 +2317,22 @@ body,
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
+}
+
+.stem-track__hide {
+  background: transparent;
+  border: 1px solid var(--bg-surface);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+}
+
+.stem-track__hide:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 .stem-track__download:hover {
