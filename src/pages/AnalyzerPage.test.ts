@@ -111,6 +111,15 @@ describe("AnalyzerPage panels", () => {
     expect(shown(await render({ lyrics: false }))).not.toContain("lyrics");
   });
 
+  it("lays the body out as tracks first, then lyrics, then takes", async () => {
+    const body = (await render()).split("analyzer-page__body")[1];
+    const at = (c: string) => body.indexOf(`data-c="${c}"`);
+    expect(at("stems")).toBeGreaterThan(-1);
+    expect(at("stems")).toBeLessThan(at("bassTab"));
+    expect(at("bassTab")).toBeLessThan(at("lyrics"));
+    expect(at("lyrics")).toBeLessThan(at("takes"));
+  });
+
   it("offers the menu every optional panel", async () => {
     const html = await render();
     expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,lyrics,takes");

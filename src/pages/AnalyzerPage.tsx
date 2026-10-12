@@ -112,16 +112,18 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
       </div>
 
       <div className="analyzer-page__body">
-        {docked("lyrics") && (
-          <Detachable panel="lyrics">
-            <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />
-          </Detachable>
-        )}
-
         <div className="analyzer-page__stems">
           <StemView song={song} />
           <BassTabPanel song={song} />
         </div>
+
+        {docked("lyrics") && (
+          <div className="analyzer-page__lyrics">
+            <Detachable panel="lyrics">
+              <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} />
+            </Detachable>
+          </div>
+        )}
 
         {docked("takes") && (
           <div className="analyzer-page__takes">
