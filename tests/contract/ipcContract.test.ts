@@ -13,7 +13,7 @@ const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\
 
 const tauriTs = read("src/lib/tauri.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/lyrics/ipc.ts");
 // Commands live in more than one module; the handler list in lib.rs names each by module.
-const commandsRs = read("src-tauri/src/commands.rs") + "\n" + read("src-tauri/src/windows.rs");
+const commandsRs = read("src-tauri/src/commands.rs") + "\n" + read("src-tauri/src/windows.rs") + "\n" + read("src-tauri/src/youtube_signin.rs");
 const libRs = read("src-tauri/src/lib.rs");
 
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -63,7 +63,7 @@ function tsInvokes(): TsInvoke[] {
 describe("IPC contract between src/lib/tauri.ts and src-tauri", () => {
   const rust = rustCommands();
   const handlerBlock = libRs.match(/generate_handler!\[([\s\S]*?)\]/)?.[1] ?? "";
-  const registered = new Set([...handlerBlock.matchAll(/(?:commands|windows)::(\w+)/g)].map((m) => m[1]));
+  const registered = new Set([...handlerBlock.matchAll(/(?:commands|windows|youtube_signin)::(\w+)/g)].map((m) => m[1]));
   const invokes = tsInvokes();
 
   it("parses a plausible number of commands on both sides (guards the regexes themselves)", () => {
@@ -104,5 +104,18 @@ describe("IPC contract between src/lib/tauri.ts and src-tauri", () => {
     const used = new Set(invokes.map((i) => i.command));
     const unused = [...rust.keys()].filter((c) => !used.has(c));
     expect(unused).toEqual([]);
+  });
+});
+
+describe("YouTube sign-in", () => {
+  it("the cookies file name the UI recognises is the one Rust writes", () => {
+    const rustName = read("src-tauri/src/youtube_signin.rs").match(/pub const COOKIES_FILE: &str = "([^"]+)"/)?.[1];
+    const tsName = read("src/lib/youtubeCookies.ts").match(/MANAGED_COOKIES_FILE = "([^"]+)"/)?.[1];
+    expect(rustName).toBeDefined();
+    expect(tsName).toBe(rustName);
+  });
+
+  it("the invoke handler keeps the sign-in window away from the app's commands", () => {
+    expect(libRs).toMatch(/youtube_signin::may_invoke\(/);
   });
 });

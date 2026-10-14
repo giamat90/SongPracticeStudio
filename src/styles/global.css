@@ -2823,6 +2823,29 @@ body,
   color: var(--text-secondary);
 }
 
+.youtube-cookies-control__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.youtube-cookies-control__error {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--accent, #e94560);
+}
+
+.youtube-cookies-control__link {
+  margin-top: 0.5rem;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Recording Offset Control */
 .rec-offset__title {
   font-size: 0.85rem;

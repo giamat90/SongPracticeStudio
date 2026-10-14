@@ -202,6 +202,7 @@ pub fn close_all(app: &AppHandle) {
             }
         }
     }
+    crate::youtube_signin::close(app);
 }
 
 /// `x` and `y` are where the user let go (logical, screen coordinates). Without

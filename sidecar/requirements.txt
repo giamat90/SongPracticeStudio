@@ -22,7 +22,11 @@ scipy
 # Keep equal to MIN_YT_DLP_VERSION in mps-core's mps_core/version_check.py
 # (one constant for both apps; sidecar/tests/test_yt_dlp_floor.py fails if this
 # line or requirements-test.txt disagrees - see MPS wiki/conventions.md#10).
-yt-dlp>=2026.8.19
+# [default] brings yt-dlp-ejs (the challenge-solver scripts, pinned by yt-dlp
+# itself) and [deno] the Deno runtime that runs them: without both, a signed-in
+# YouTube extraction fails with "The page needs to be reloaded". build.py bundles
+# the deno executable; see wiki/python-sidecar.md.
+yt-dlp[default,deno]>=2026.8.19
 pywin32; sys_platform == "win32"
 # Code shared with the sibling app (lyrics engine, yt-dlp floor): https://github.com/giamat90/mps-core
 git+https://github.com/giamat90/mps-core.git@v0.6.0#subdirectory=python

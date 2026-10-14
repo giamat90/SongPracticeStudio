@@ -153,7 +153,9 @@ class TestImportFlow:
     def test_a_missing_cookies_file_is_skipped_and_the_normal_path_continues(self, run, tmp_path, capsys):
         _, script, _, _ = run([INFO], cookies_path=str(tmp_path / "gone.txt"))
         assert "cookiefile" not in script.opts[0]
-        assert "cookies file not found" in capsys.readouterr().out
+        captured = capsys.readouterr()
+        assert "cookies file not found" in captured.err
+        assert captured.out == ""  # stdout carries the JSON-lines protocol
 
     def test_a_bot_check_walks_the_browser_cascade_in_order(self, run):
         _, script, _, _ = run([BOT, BOT, DownloadError("403"), INFO])
@@ -239,3 +241,37 @@ class TestImportFlow:
         monkeypatch.setattr(yt_importer, "process", lambda *a, **k: {})
         yt_importer.import_yt("u", str(target))
         assert target.is_dir()
+
+
+class TestJsRuntime:
+    """YouTube's signature/n challenges need a JS runtime. yt-dlp finds Deno on
+    its own in a venv; the frozen sidecar must be pointed at the bundled copy."""
+
+    @staticmethod
+    def _deno_name():
+        return "deno.exe" if os.name == "nt" else "deno"
+
+    def test_a_dev_venv_leaves_discovery_to_yt_dlp(self, monkeypatch):
+        monkeypatch.delattr("sys.frozen", raising=False)
+        assert yt_importer._js_runtime_opts() == {}
+
+    def test_the_frozen_sidecar_uses_the_deno_bundled_next_to_it(self, monkeypatch, tmp_path):
+        deno = tmp_path / self._deno_name()
+        deno.write_text("x")
+        monkeypatch.setattr("sys.frozen", True, raising=False)
+        monkeypatch.setattr("sys._MEIPASS", str(tmp_path), raising=False)
+        assert yt_importer._js_runtime_opts() == {"js_runtimes": {"deno": {"path": str(deno)}}}
+
+    def test_a_frozen_sidecar_without_deno_says_so_instead_of_failing_obscurely(self, monkeypatch, tmp_path, capsys):
+        monkeypatch.setattr("sys.frozen", True, raising=False)
+        monkeypatch.setattr("sys._MEIPASS", str(tmp_path), raising=False)
+        assert yt_importer._js_runtime_opts() == {}
+        captured = capsys.readouterr()
+        assert "Deno" in captured.err
+        assert captured.out == ""
+
+    def test_the_options_reach_yt_dlp(self, run, monkeypatch):
+        marker = {"js_runtimes": {"deno": {"path": "/x/deno"}}}
+        monkeypatch.setattr(yt_importer, "_js_runtime_opts", lambda: marker)
+        _, script, _, _ = run([{"title": "T"}])
+        assert script.opts[0]["js_runtimes"] == marker["js_runtimes"]

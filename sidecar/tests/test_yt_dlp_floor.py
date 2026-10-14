@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def floor_in(filename):
     text = (ROOT / filename).read_text(encoding="utf-8")
-    m = re.search(r"^yt-dlp>=([\d.]+)", text, re.M)
+    m = re.search(r"^yt-dlp(?:\[[\w,-]+\])?>=([\d.]+)", text, re.M)
     assert m, f"no yt-dlp floor in {filename}"
     return m.group(1)
 

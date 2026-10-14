@@ -56,6 +56,8 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["dockPanel", () => api.dockPanel(), "dock_panel", undefined],
     ["cursorOverMain", () => api.cursorOverMain(), "cursor_over_main", undefined],
     ["closeDetachedWindows", () => api.closeDetachedWindows(), "close_detached_windows", undefined],
+    ["signInYoutube", () => api.signInYoutube(), "sign_in_youtube", undefined],
+    ["signOutYoutube", () => api.signOutYoutube(), "sign_out_youtube", undefined],
     ["pitchShiftSong", () => api.pitchShiftSong("/dir", ["vocals", "bass"], -2), "pitch_shift_song",
       { songDir: "/dir", stemNames: ["vocals", "bass"], nSteps: -2 }],
   ];
