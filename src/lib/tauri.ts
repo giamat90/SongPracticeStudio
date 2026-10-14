@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
-  ChordSegment, Folder, NamedLoop, ProcessingStatus, Song, StemName, Take,
+  ChordSegment, Folder, NamedLoop, ProcessingStatus, Song, StemName, TabBar, TabRecord, TabSync, Take,
 } from "./types";
 import type { BassTabData } from "./bassTab";
 
@@ -136,6 +136,41 @@ export async function redetectSongChords(songId: string): Promise<Song> {
 /** A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem */
 export async function readBassTab(songId: string): Promise<BassTabData | null> {
   return invoke<BassTabData | null>("read_bass_tab", { songId });
+}
+
+/** A song's stored tab and its alignment; null for a song with no tab */
+export async function readSongTab(songId: string): Promise<TabRecord | null> {
+  return invoke<TabRecord | null>("read_song_tab", { songId });
+}
+
+/** Copy a Guitar Pro file next to the song, replacing any earlier tab and its alignment */
+export async function importSongTab(songId: string, sourcePath: string): Promise<TabRecord> {
+  return invoke<TabRecord>("import_song_tab", { songId, sourcePath });
+}
+
+/** Place the stored tab's bar lines on the recording; `scoreJson` is the TabScore built from the tab */
+export async function alignSongTab(songId: string, scoreJson: string): Promise<TabSync> {
+  return invoke<TabSync>("align_song_tab", { songId, scoreJson });
+}
+
+/** Store bar lines the user moved */
+export async function saveTabBars(songId: string, bars: TabBar[]): Promise<TabSync> {
+  return invoke<TabSync>("save_tab_bars", { songId, bars });
+}
+
+/** Remove the song's tab and its alignment */
+export async function deleteSongTab(songId: string): Promise<void> {
+  return invoke("delete_song_tab", { songId });
+}
+
+export interface TabProgress {
+  songId: string;
+  progress: number;
+  stage: string;
+}
+
+export function onTabProgress(callback: (progress: TabProgress) => void): Promise<UnlistenFn> {
+  return listen<TabProgress>("tab-progress", (event) => callback(event.payload));
 }
 
 /** Offer a file the app built (a .txt or .mid) through a Save As dialog */

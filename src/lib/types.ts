@@ -61,3 +61,39 @@ export interface Take {
    *  after the fact. undefined/0 means untouched (auto-detected position stands). */
   manualOffset?: number;
 }
+
+/** One played bar of a song's tab placed on its recording. */
+export interface TabBar {
+  /** Index of the bar in the tab (its master bar); a repeated bar appears once per pass. */
+  index: number;
+  occurrence: number;
+  /** Seconds into the recording at which the bar starts. */
+  time: number;
+}
+
+export interface TabSync {
+  version: number;
+  algorithm: string;
+  alignedAt: string;
+  offset: number;
+  /** Semitones the recording sounds above the tab. */
+  transpose: number;
+  usedDrums: boolean;
+  peak: number;
+  meanCost: number;
+  steadiness: number;
+  /** "good" | "check" | "poor" */
+  quality: string;
+  /** True once the user has moved a bar line. */
+  edited: boolean;
+  bars: TabBar[];
+}
+
+/** A song's stored tab and, once aligned, where its bars fall in the recording. */
+export interface TabRecord {
+  fileName: string;
+  originalName: string;
+  /** Absolute path of the stored file. */
+  path: string;
+  sync: TabSync | null;
+}

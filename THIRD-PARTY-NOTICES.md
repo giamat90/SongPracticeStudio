@@ -15,6 +15,17 @@ dynamically linked into any compiled binary in this application).
 - Windows build source: https://github.com/BtbN/FFmpeg-Builds
 - macOS build source: https://github.com/eugeneware/ffmpeg-static (release b6.1.1, FFmpeg 6.1.1 static build, arm64)
 
+## alphaTab and the Bravura music font
+
+The Tab panel reads and draws Guitar Pro files with alphaTab, bundled into the
+application's JavaScript, together with the Bravura music font it loads.
+
+- alphaTab: https://github.com/CoderLine/alphaTab, Mozilla Public License 2.0,
+  Copyright Daniel Kuschny and contributors. Unmodified; its source is at the
+  address above.
+- Bravura: https://github.com/steinbergmedia/bravura, SIL Open Font License 1.1,
+  Copyright Steinberg Media Technologies GmbH.
+
 ## Deno and yt-dlp-ejs
 
 The sidecar bundles the `deno` executable, run as a separate subprocess by

@@ -6,6 +6,7 @@ import LoopsMenu from "../components/player/LoopsMenu";
 import CapoSelect from "../components/player/CapoSelect";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
+import TabPanel from "../components/tab/TabPanel";
 import TransportControls from "../components/player/TransportControls";
 import LoopButton from "../components/player/LoopButton";
 import TempoControl from "../components/player/TempoControl";
@@ -141,6 +142,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
             <StemView song={song} />
           </div>
           {waveformVisible.bassTab && <BassTabPanel song={song} />}
+          {waveformVisible.songTab && <TabPanel song={song} />}
         </div>
 
         <SortablePanels store={useAnalyzerPanels} ids={onScreen} className={slotClass}>

@@ -45,6 +45,10 @@ cd sidecar
 
 Details in [Lyrics Sync](lyrics.md#tests). In short: the alignment algorithm is tested without torch (a numpy Viterbi checked against torchaudio's when present, and a scripted fake acoustic model); the Rust and Python path runs in CI through the model-free `SPS_LYRICS_ENGINE=uniform` engine; `tests/test_lyrics_real.py` runs real separated stems against LRCLIB and the vocal energy, **locally only** (skips without `~/.songpracticestudio`, the cached weights or network; fetched lyrics are cached in git-ignored `sidecar/tests/_local/` and never committed). The "every command Rust sends is handled" test now scans `lyrics.rs` as well as `commands.rs`.
 
+## Tab sync tests
+
+Details in [Tab sync](tab-sync.md#tests). The alignment is tested on synthetic tabs and stems with a known drifting timeline (no fixtures); `tests/tabs/realTabs.test.ts` reads the maintainer's local folder of copyrighted `.gp` files and skips without it. The score builder is tested with alphaTex strings, so repeats and tracks need no files. `integration_tests.rs` drives `align_impl` through the real sidecar.
+
 ## Known behaviours the suite documents
 
 - In the stem cascade (guitar/piano requested) the returned "other" is the residual of pass 1 plus any unrequested guitar/piano; an unrequested vocals/drums/bass is *not* folded back in, unlike a single pass. `test_cascade_other_does_not_get_unrequested_vocals_drums_or_bass_back` pins this.

@@ -109,7 +109,8 @@ SongPracticeStudio/
 ├── sidecar/
 │   ├── processor.py      ← Demucs 6s + BPM + key + chords + bass tab (main pipeline) + pitch_shift_song (transpose)
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
-│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, detect_chords, align_lyrics, find_lyrics, ping, quit)
+│   ├── tab_sync.py       ← tab sync: place a Guitar Pro tab's bar lines on the recording (chroma + kick/snare DTW); see wiki/tab-sync.md
+│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, detect_chords, align_tab, align_lyrics, find_lyrics, ping, quit)
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
@@ -157,6 +158,9 @@ SongPracticeStudio/
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete
 │   │   ├── panels/
 │   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the bass tab first
+│   │   ├── tab/
+│   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
+│   │   │   └── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek
 │   │   ├── lyrics/
 │   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, below the stems)
 │   │   ├── updater/
@@ -172,7 +176,8 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics
+    ├── commands.rs   ← process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
+    ├── tab.rs        ← tab sync: the stored tab file, tab_sync.json (atomic), validation of hand-corrected bar lines, the align_tab round trip
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
@@ -264,6 +269,12 @@ cd sidecar && python build.py
 ## Synced lyrics (ported from VPS, 2026-10-10)
 
 Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is force-aligned to `vocals.wav` and shown karaoke-style below the stems; clicking a line seeks to it. Needs the `vocals` stem (a song imported without it shows an explanation instead). The speech model (~360 MB) downloads once into `~/.songpracticestudio/models/`. Full detail, wire protocol, measured accuracy and limits: `wiki/lyrics.md`. The engine is `mps_core.lyrics` from the shared package; this app supplies its identity (user agent, `~/.songpracticestudio/models`, `SPS_LYRICS_ENGINE`) as an `AppIdentity` in `sidecar/main.py` (see `wiki/shared-core.md`).
+
+---
+
+## Tab sync (SPS only)
+
+Import a Guitar Pro tab (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the **Tab** panel under the stems; its bars are placed on the recording using the separated stems, and the tab follows the playhead (click a bar to seek, *Set bar to playhead* to correct one). alphaTab (`@coderline/alphatab`, MPL-2.0, pinned exact) reads and draws the file in the webview; the sidecar's `tab_sync.align_tab_to_stems` is the replaceable algorithm. Not in VPS (no guitar stems): see `MPS/wiki/feature-parity.md`. Full detail, measured accuracy and limits: `wiki/tab-sync.md`.
 
 ---
 

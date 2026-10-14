@@ -42,6 +42,7 @@ vi.mock("../components/player/CapoSelect", h.stub("capo"));
 vi.mock("../components/player/ExportChartButton", h.stub("exportChart"));
 vi.mock("../components/player/LoopsMenu", h.stub("loops"));
 vi.mock("../components/player/BassTabPanel", h.stub("bassTab"));
+vi.mock("../components/tab/TabPanel", h.stub("songTab"));
 vi.mock("../components/player/OutputSelector", h.stub("output"));
 vi.mock("../components/recording/MicSelector", h.stub("mic"));
 vi.mock("../components/recording/RecordButton", h.stub("record"));
@@ -193,9 +194,9 @@ describe("AnalyzerPage waveform area", () => {
 
   it("lists the song's own stems under the waveforms in the Panels menu", async () => {
     const fixed = (html: string) => /data-fixed="([^"]*)"/.exec(html)?.[1];
-    expect(fixed(await render())).toBe("waveforms,vocals,drums");
+    expect(fixed(await render())).toBe("waveforms,vocals,drums,songTab");
     withBass();
-    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,bassTab");
+    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,bassTab,songTab");
   });
 
   it("hides the bass tab on its own, leaving the stems and the rest alone", async () => {
