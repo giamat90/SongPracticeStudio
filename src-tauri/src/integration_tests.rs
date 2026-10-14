@@ -25,8 +25,22 @@ use std::sync::Mutex;
 
 const SR: u32 = 44100;
 
+thread_local! {
+    /// Held by the test's own thread until it ends, so the guard outlives `start()`.
+    static SIDECAR_SLOT: RefCell<Option<std::sync::MutexGuard<'static, ()>>> = const { RefCell::new(None) };
+}
+
+static SIDECAR_TESTS: Mutex<()> = Mutex::new(());
+
 /// A home directory plus a running sidecar, or `None` (after reporting the skip).
+///
+/// Every test here imports the audio stack in its own Python process, which takes
+/// several seconds and a few hundred MB each; run together on a small CI runner
+/// they starved one another and a sidecar was killed mid-job. So the tests that
+/// own a sidecar take turns: the slot is held until the test's thread ends.
 fn start() -> Option<(TestHome, SidecarState)> {
+    let slot = SIDECAR_TESTS.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    SIDECAR_SLOT.with(|held| *held.borrow_mut() = Some(slot));
     let home = TestHome::new();
     // The sidecar caches its yt-dlp freshness check under ~; keep it out of the real home.
     std::env::set_var("USERPROFILE", home.path());
