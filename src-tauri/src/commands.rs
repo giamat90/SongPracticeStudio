@@ -861,6 +861,50 @@ pub async fn delete_lyrics(song_id: String) -> Result<(), String> {
     crate::lyrics::delete(&song_id)
 }
 
+/// Tab alignment progress event payload (emitted to frontend as "tab-progress").
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabProgress {
+    pub song_id: String,
+    pub progress: f32,
+    pub stage: String,
+}
+
+#[tauri::command]
+pub async fn read_song_tab(song_id: String) -> Result<Option<crate::tab::TabRecord>, String> {
+    crate::tab::read(&song_id)
+}
+
+#[tauri::command]
+pub async fn import_song_tab(song_id: String, source_path: String) -> Result<crate::tab::TabRecord, String> {
+    crate::tab::import(&song_id, Path::new(&source_path))
+}
+
+#[tauri::command]
+pub async fn align_song_tab(
+    app: AppHandle,
+    state: State<'_, SidecarState>,
+    song_id: String,
+    score_json: String,
+) -> Result<crate::tab::TabSync, String> {
+    crate::tab::align_impl(&state, &song_id, &score_json, &mut |progress, stage| {
+        let payload = TabProgress { song_id: song_id.clone(), progress, stage: stage.to_string() };
+        if let Err(e) = app.emit("tab-progress", payload) {
+            log::warn!("Could not emit tab-progress: {e}");
+        }
+    })
+}
+
+#[tauri::command]
+pub async fn save_tab_bars(song_id: String, bars: Vec<crate::tab::TabBar>) -> Result<crate::tab::TabSync, String> {
+    crate::tab::save_bars(&song_id, bars)
+}
+
+#[tauri::command]
+pub async fn delete_song_tab(song_id: String) -> Result<(), String> {
+    crate::tab::delete(&song_id)
+}
+
 /// One track to include in an `export_mix` render. `gain` is the final
 /// linear volume already resolved from mute/solo/volume by the frontend —
 /// this command has no concept of mute/solo, only gains. `start_position`/

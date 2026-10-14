@@ -205,6 +205,29 @@ def test_detect_chords_with_no_stems_is_an_error(sidecar, tmp_path):
     assert msg["type"] == "error" and msg["cmd"] == "detect_chords"
 
 
+def test_align_tab_writes_the_bar_times_and_streams_progress(sidecar, tmp_path):
+    from test_tab_sync import make_score, render
+
+    score = make_score(8)
+    stems, _ = render(score, tmp_path)
+    score_path = tmp_path / "score.json"
+    score_path.write_text(json.dumps(score), encoding="utf-8")
+    out = tmp_path / "tab_sync.json"
+    msg, progress = sidecar.call({"cmd": "align_tab", "scorePath": str(score_path), "stemPaths": stems, "outputPath": str(out)}, timeout=120)
+    assert msg["type"] == "result" and msg["cmd"] == "align_tab"
+    assert msg["data"]["bars"] == 8 and msg["data"]["quality"] in ("good", "check", "poor")
+    assert json.loads(out.read_text(encoding="utf-8"))["bars"][0]["index"] == 0
+    assert progress and progress[-1]["value"] == 1.0 and all(p["cmd"] == "align_tab" for p in progress)
+
+
+def test_align_tab_of_an_unusable_tab_is_an_error_with_a_readable_message(sidecar, tmp_path):
+    score_path = tmp_path / "score.json"
+    score_path.write_text(json.dumps({"version": 1, "division": 480, "tempos": [[0, 100]], "bars": [], "notes": []}), encoding="utf-8")
+    msg, _ = sidecar.call({"cmd": "align_tab", "scorePath": str(score_path), "stemPaths": {}, "outputPath": str(tmp_path / "o.json")})
+    assert msg["type"] == "error" and msg["cmd"] == "align_tab" and msg["message"] == "Tab has no bars"
+    assert sidecar.call({"cmd": "ping"})[0]["type"] == "pong"
+
+
 def test_process_of_a_missing_file_reports_an_error_naming_the_command(sidecar, tmp_path):
     msg, _ = sidecar.call({"cmd": "process", "filePath": str(tmp_path / "gone.mp3"), "outputDir": str(tmp_path / "o"), "stemsToExtract": ["vocals"]}, timeout=180)
     assert msg["type"] == "error" and msg["cmd"] == "process" and "Traceback" in msg["traceback"]
@@ -257,7 +280,7 @@ def test_every_command_the_rust_side_sends_is_handled():
     import re
 
     src = Path(__file__).resolve().parents[2] / "src-tauri" / "src"
-    rust = "".join((src / name).read_text(encoding="utf-8") for name in ("commands.rs", "lyrics.rs"))
+    rust = "".join((src / name).read_text(encoding="utf-8") for name in ("commands.rs", "lyrics.rs", "tab.rs"))
     sent = set(re.findall(r'"cmd":\s*"(\w+)"', rust))
     main_py = (Path(__file__).resolve().parents[1] / "main.py").read_text(encoding="utf-8")
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
@@ -273,7 +296,7 @@ def test_the_commands_main_py_handles_are_exactly_the_ones_documented():
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
     assert handled == {
         "process", "import_yt", "convert_take", "normalize_take", "mix_export", "pitch_shift",
-        "detect_chords", "align_lyrics", "find_lyrics", "ping", "quit",
+        "detect_chords", "align_tab", "align_lyrics", "find_lyrics", "ping", "quit",
     }
 
 

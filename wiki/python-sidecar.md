@@ -145,6 +145,16 @@ Phase-vocoder pitch-shifts each requested stem by `nSteps` semitones (implemente
 {"cmd": "pitch_shift", "songDir": "/path/to/song", "cacheDir": "/path/to/song/pitched/2", "stemNames": ["vocals", "drums", "bass"], "nSteps": 2}
 ```
 
+### `align_tab`
+
+Places the bars of a Guitar Pro tab on the song's timeline (`tab_sync.py`, see [Tab sync](tab-sync.md)). `scorePath` is the compact score the app built with alphaTab (played bars, tempo map, guitar/bass/keyboard/drum notes); `stemPaths` the song's stems that exist. Streams `progress` (`tab-features`, `audio-features`, `offset`, `alignment`, `done`). Writes the full result to `outputPath` atomically and replies with a summary.
+
+```json
+{"cmd": "align_tab", "scorePath": "/song/tab_score.json", "stemPaths": {"guitar": "/song/guitar.wav", "drums": "/song/drums.wav"}, "outputPath": "/song/tab_sync.json.new"}
+```
+
+Result: `{offset, transpose, quality, peak, steadiness, bars}`. Errors are plain messages (`Tab has no bars`, `The song has no guitar, bass, piano or other stem to compare the tab with`, `The song's stems are silent`, `The tab and the recording do not overlap`).
+
 ### `align_lyrics`
 
 Aligns lyric text to a song's `vocals.wav` (`mps_core.lyrics`, ported from VPS 2026-10-10 and now shared, see [Lyrics Sync](lyrics.md)): CTC forced alignment over a wav2vec2 acoustic model, returning every line and word with start/end seconds. Streams `progress` (model download on first use, then the vocals processed in 20 s windows). The weights are fetched into `modelsDir` once; a file that fails to load is deleted so the next call re-downloads.

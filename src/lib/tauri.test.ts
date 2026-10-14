@@ -28,6 +28,12 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["cancelLyricsSync", () => api.cancelLyricsSync(), "cancel_lyrics_sync", undefined],
     ["redetectSongChords", () => api.redetectSongChords("s1"), "redetect_song_chords", { songId: "s1" }],
     ["readBassTab", () => api.readBassTab("s1"), "read_bass_tab", { songId: "s1" }],
+    ["readSongTab", () => api.readSongTab("s1"), "read_song_tab", { songId: "s1" }],
+    ["importSongTab", () => api.importSongTab("s1", "/t.gp"), "import_song_tab", { songId: "s1", sourcePath: "/t.gp" }],
+    ["alignSongTab", () => api.alignSongTab("s1", "{}"), "align_song_tab", { songId: "s1", scoreJson: "{}" }],
+    ["saveTabBars", () => api.saveTabBars("s1", [{ index: 0, occurrence: 0, time: 1 }]), "save_tab_bars",
+      { songId: "s1", bars: [{ index: 0, occurrence: 0, time: 1 }] }],
+    ["deleteSongTab", () => api.deleteSongTab("s1"), "delete_song_tab", { songId: "s1" }],
     ["exportFile", () => api.exportFile([1, 2], "a.txt"), "export_file", { data: [1, 2], suggestedName: "a.txt" }],
     ["readSongChords", () => api.readSongChords("s1"), "read_song_chords", { songId: "s1" }],
     ["saveChordEdits", () => api.saveChordEdits("s1", [{ start: 0, end: 2, chord: "C:maj" }]), "save_chord_edits",
@@ -73,7 +79,7 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
 
   it("covers every exported command wrapper", () => {
     const wrappers = Object.entries(api).filter(([, v]) => typeof v === "function").map(([k]) => k);
-    const covered = new Set(cases.map(([name]) => name).concat("onProcessingProgress"));
+    const covered = new Set(cases.map(([name]) => name).concat("onProcessingProgress", "onTabProgress"));
     expect(wrappers.filter((w) => !covered.has(w))).toEqual([]);
   });
 
@@ -106,5 +112,21 @@ describe("onProcessingProgress", () => {
     const status: ProcessingStatus = { songId: "s", progress: 0.5, stage: "separating", isComplete: false };
     listen.mock.calls[0][1]({ payload: status });
     expect(callback).toHaveBeenCalledWith(status);
+  });
+});
+
+describe("onTabProgress", () => {
+  it("subscribes to the tab-progress event and unwraps the payload", async () => {
+    const unlisten = vi.fn();
+    listen.mockResolvedValueOnce(unlisten);
+    const callback = vi.fn();
+
+    const result = await api.onTabProgress(callback);
+
+    expect(result).toBe(unlisten);
+    expect(listen).toHaveBeenCalledWith("tab-progress", expect.any(Function));
+    const handler = listen.mock.calls[listen.mock.calls.length - 1]?.[1] as (e: { payload: unknown }) => void;
+    handler({ payload: { songId: "s1", progress: 0.5, stage: "alignment" } });
+    expect(callback).toHaveBeenCalledWith({ songId: "s1", progress: 0.5, stage: "alignment" });
   });
 });

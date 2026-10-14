@@ -3,6 +3,7 @@ mod library;
 mod lyrics;
 mod sidecar;
 mod storage;
+mod tab;
 mod takes;
 mod windows;
 mod youtube_signin;
@@ -52,6 +53,11 @@ pub fn run() {
         commands::cancel_lyrics_sync,
         commands::find_lyrics,
         commands::delete_lyrics,
+        commands::read_song_tab,
+        commands::import_song_tab,
+        commands::align_song_tab,
+        commands::save_tab_bars,
+        commands::delete_song_tab,
         windows::detach_panel,
         windows::dock_panel,
         windows::close_detached_panel,

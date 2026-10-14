@@ -31,6 +31,7 @@ if getattr(sys, "frozen", False):
 
 from processor import process
 from recording import convert_take_to_wav, mix_export, normalize_take
+from tab_sync import align_tab_file
 from mps_core import lyrics
 from mps_core.app import AppIdentity
 from mps_core.version_check import check_yt_dlp_freshness
@@ -133,6 +134,15 @@ def main():
                 from processor import detect_chords_from_stems
                 result = detect_chords_from_stems(cmd["stemPaths"], cmd["outputPath"])
                 send({"type": "result", "cmd": "detect_chords", "data": result})
+
+            elif cmd.get("cmd") == "align_tab":
+                result = align_tab_file(
+                    cmd["scorePath"],
+                    cmd["stemPaths"],
+                    cmd["outputPath"],
+                    on_progress=make_progress_callback("align_tab"),
+                )
+                send({"type": "result", "cmd": "align_tab", "data": result})
 
             elif cmd.get("cmd") == "align_lyrics":
                 result = lyrics.align_lyrics(

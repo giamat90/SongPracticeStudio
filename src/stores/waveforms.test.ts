@@ -9,7 +9,7 @@ async function fresh() {
   return import("./waveforms");
 }
 
-const ON = { waveforms: true, bassTab: true, vocals: true, drums: true, bass: true, guitar: true, piano: true, other: true };
+const ON = { waveforms: true, bassTab: true, songTab: true, vocals: true, drums: true, bass: true, guitar: true, piano: true, other: true };
 
 describe("waveform visibility store", () => {
   it("shows the area, the bass tab and every stem until the user chooses otherwise", async () => {
@@ -53,13 +53,14 @@ describe("waveformMenuItems", () => {
     const { waveformMenuItems } = await fresh();
     expect(waveformMenuItems(["piano", "vocals"])).toEqual([
       { id: "waveforms", label: "Waveforms", parts: [{ id: "piano", label: "Piano" }, { id: "vocals", label: "Vocals" }] },
+      { id: "songTab", label: "Tab" },
     ]);
   });
 
   it("offers the bass tab only for a song that has a bass", async () => {
     const { waveformMenuItems } = await fresh();
-    expect(waveformMenuItems(["vocals"]).map((i) => i.id)).toEqual(["waveforms"]);
-    expect(waveformMenuItems(["vocals", "bass"]).map((i) => i.id)).toEqual(["waveforms", "bassTab"]);
+    expect(waveformMenuItems(["vocals"]).map((i) => i.id)).toEqual(["waveforms", "songTab"]);
+    expect(waveformMenuItems(["vocals", "bass"]).map((i) => i.id)).toEqual(["waveforms", "bassTab", "songTab"]);
   });
 });
 

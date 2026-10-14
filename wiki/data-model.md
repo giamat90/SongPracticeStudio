@@ -152,6 +152,11 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `set_song_loops` | `songId: string, loops: NamedLoop[]` | `Song` (replaces the saved loops; names trimmed, at most 100, 1-80 characters, regions at least 0.25 s, unique ids, stored in time order) |
 | `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected) |
 | `set_metronome_offset` | `songId: string, offset?: f64` | `Song` (persists the metronome's downbeat anchor; `null` clears it back to song start) |
+| `read_song_tab` | `songId: string` | `TabRecord` or `null` (`{fileName, originalName, path, sync}`; `sync` is `tab_sync.json` once aligned) |
+| `import_song_tab` | `songId: string, sourcePath: string` | `TabRecord` (copies a `.gp`/`.gp3`-`.gp5`/`.gpx`/`.musicxml`/`.xml` of at most 20 MB next to the song as `tab.<ext>`, replacing an earlier tab and its alignment) |
+| `align_song_tab` | `songId: string, scoreJson: string` | `TabSync` (runs the sidecar, stores `tab_sync.json`; emits `tab-progress`) |
+| `save_tab_bars` | `songId: string, bars: TabBar[]` | `TabSync` (hand-corrected bar lines: same bars, times finite, non-negative, not running backwards; sets `edited`) |
+| `delete_song_tab` | `songId: string` | `void` |
 | `redetect_song_chords` | `songId: string` | `Song` (detects the chords again from the stems with the current model, replaces `chords.json`, deletes the user's corrections, sets `hasChords`) |
 | `cancel_lyrics_sync` | — | `void` (abandons the running `sync_lyrics`, which then fails with "Cancelled.") |
 | `read_song_chords` | `songId: string` | `ChordSegment[]` (the user's corrections from `chords_edited.json` when there are any, otherwise `chords.json`; an error when the song has neither) |
