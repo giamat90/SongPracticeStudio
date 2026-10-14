@@ -3,7 +3,7 @@ import json
 import pytest
 
 import chord_eval
-from chord_eval import evaluate, parse_label, read_lab, score, simplify
+from chord_eval import best_offset, evaluate, parse_label, read_lab, score, shift, simplify
 
 
 def seg(start, end, chord):
@@ -141,3 +141,30 @@ class TestFiles:
     def test_set_rejects_a_constant_that_does_not_exist(self):
         with pytest.raises(KeyError):
             chord_eval.detect("nowhere", {"_NOT_A_CONSTANT": 1.0})
+
+
+class TestAlignment:
+    CHART = [seg(0, 4, "C:maj"), seg(4, 8, "F:maj"), seg(8, 12, "G:maj"), seg(12, 16, "A:min")]
+
+    def test_shift_moves_and_clips(self):
+        moved = shift([seg(0, 2, "C:maj"), seg(2, 4, "G:maj")], -3)
+        assert moved == [seg(0.0, 1, "G:maj")]
+
+    def test_a_late_start_is_found_and_undone(self):
+        late = shift(self.CHART, 2.5)
+        found = best_offset(self.CHART, late)
+        assert found["offset"] == pytest.approx(-2.5)
+        assert found["root_score"] > 0.99
+
+    def test_an_aligned_song_keeps_offset_zero(self):
+        assert best_offset(self.CHART, self.CHART)["offset"] == 0.0
+
+    def test_cli_reports_the_offset(self, tmp_path, capsys):
+        song = tmp_path / "song"
+        song.mkdir()
+        late = shift(self.CHART, 2.0)
+        (song / "chords.json").write_text(json.dumps({"version": 4, "duration": 18, "segments": late}), encoding="utf-8")
+        lab = "\n".join(f"{s['start']} {s['end']} {s['chord']}" for s in self.CHART)
+        (tmp_path / "song.lab").write_text(lab, encoding="utf-8")
+        assert chord_eval.main(["--song-dir", str(song), "--ref", str(tmp_path / "song.lab"), "--align"]) == 0
+        assert "-2.0" in capsys.readouterr().out

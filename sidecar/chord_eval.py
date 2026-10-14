@@ -161,6 +161,33 @@ def score(reference: list, estimate: list, level: str, duration: float | None = 
     }
 
 
+def shift(segments: list, offset: float) -> list:
+    """The segments `offset` seconds later (earlier when negative), clipped at 0."""
+    out = []
+    for seg in segments:
+        start, end = seg["start"] + offset, seg["end"] + offset
+        if end > 0:
+            out.append({**seg, "start": max(0.0, start), "end": end})
+    return out
+
+
+def best_offset(reference: list, estimate: list, max_seconds: float = 10.0, step: float = 0.1) -> dict:
+    """
+    The constant shift of `estimate` (seconds, positive = later) that scores best
+    at the root level, searched over +-`max_seconds`. A chart written for another
+    master of the same recording is usually offset by its different lead-in;
+    a score that stays low even there means the chart does not fit this audio.
+    """
+    count = int(round(max_seconds / step))
+    best = (-1.0, 0.0)
+    for i in range(-count, count + 1):
+        offset = round(i * step, 6)
+        value = score(reference, shift(estimate, offset), "root")["score"]
+        if value > best[0] + 1e-9 or (abs(value - best[0]) <= 1e-9 and abs(offset) < abs(best[1])):
+            best = (value, offset)
+    return {"offset": best[1], "root_score": best[0]}
+
+
 def evaluate(reference: list, estimate: list, duration: float | None = None) -> dict:
     per_level = {level: score(reference, estimate, level, duration) for level in LEVELS}
     return {
@@ -224,6 +251,8 @@ def main(argv=None) -> int:
     ap.add_argument("--detect", action="store_true", help="run the detector on the stems instead of reading chords.json")
     ap.add_argument("--set", action="append", default=[], metavar="NAME=VALUE",
                     help="override a processor constant for this run (implies --detect)")
+    ap.add_argument("--align", action="store_true",
+                    help="also search a constant time offset between chart and detection and score at it")
     ap.add_argument("--json", help="also write the results to this file")
     args = ap.parse_args(argv)
 
@@ -238,22 +267,35 @@ def main(argv=None) -> int:
             est = read_chords_json(Path(entry["song_dir"]) / "chords.json")
             duration = None
         result = evaluate(ref, est, duration)
+        if args.align:
+            found = best_offset(ref, est)
+            result["offset"] = found["offset"]
+            result["aligned"] = evaluate(ref, shift(est, found["offset"]), duration)
         result["name"] = entry["name"]
         results.append(result)
 
-    print(f"{'song':<40}" + "".join(f"{level:>10}" for level in LEVELS) + f"{'segs ref/est':>16}")
+    aligned = args.align
+    head = f"{'song':<40}" + "".join(f"{level:>10}" for level in LEVELS) + f"{'segs ref/est':>16}"
+    print(head + (f"{'offset s':>10}" + "".join(f"{'@' + level:>11}" for level in LEVELS) if aligned else ""))
     for r in results:
         cells = "".join(f"{r['levels'][level]['score'] * 100:>9.1f}%" for level in LEVELS)
-        print(f"{r['name'][:39]:<40}{cells}{r['reference_segments']:>9}/{r['estimated_segments']:<6}")
+        line = f"{r['name'][:39]:<40}{cells}{r['reference_segments']:>9}/{r['estimated_segments']:<6}"
+        if aligned:
+            line += f"{r['offset']:>+10.1f}" + "".join(f"{r['aligned']['levels'][level]['score'] * 100:>10.1f}%" for level in LEVELS)
+        print(line)
     if len(results) > 1:
-        weights = [r["levels"]["sevenths"]["scored_seconds"] for r in results]
-        cells = ""
-        for level in LEVELS:
-            total = sum(r["levels"][level]["scored_seconds"] for r in results)
-            hit = sum(r["levels"][level]["score"] * r["levels"][level]["scored_seconds"] for r in results)
-            cells += f"{hit / total * 100 if total else 0:>9.1f}%"
-        print(f"{'ALL (time-weighted)':<40}{cells}")
-        del weights
+        def overall(pick) -> str:
+            cells = ""
+            for level in LEVELS:
+                total = sum(pick(r)["levels"][level]["scored_seconds"] for r in results)
+                hit = sum(pick(r)["levels"][level]["score"] * pick(r)["levels"][level]["scored_seconds"] for r in results)
+                cells += f"{hit / total * 100 if total else 0:>9.1f}%"
+            return cells
+
+        line = f"{'ALL (time-weighted)':<40}{overall(lambda r: r)}"
+        if aligned:
+            line += f"{'':>31}{overall(lambda r: r['aligned'])}"
+        print(line)
     for r in results:
         print(f"\n{r['name']}: most common mistakes at the sevenths level (reference -> detected, seconds)")
         for (want, got), seconds in r["levels"]["sevenths"]["confusions"]:

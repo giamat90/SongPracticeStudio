@@ -64,6 +64,7 @@ python chord_eval.py --manifest songs.json --set _SWITCH_COST=0.2          # try
 - **Manifest**: a JSON list of `{"name", "song_dir", "ref"}`, paths relative to the manifest.
 - **Score**: weighted chord symbol recall (MIREX): share of the reference's time in which the detected chord equals the reference chord, at three vocabularies. `root` ignores quality; `majmin` reduces to major/minor; `sevenths` knows maj, min, 7, maj7, min7. Reference time a vocabulary cannot express (sus/dim/aug at `majmin`) leaves the denominator.
 - **Output**: per song and time-weighted overall, segment counts reference/detected (a high detected count means over-segmentation), and the ten most common mistakes in seconds.
+- **`--align`**: also searches a constant time offset (±10 s, 0.1 s steps, scored at root level) between chart and detection and reports the scores at that offset. Charts are written for one master of a recording; another master or edit usually differs by its lead-in. A song that scores low even aligned does not fit its chart.
 - `--detect` and `--set` run `processor._detect_chords` on the song folder's stems; nothing is written to the library. `--set` only takes numeric module constants.
 
 ## Known behaviours the suite documents
