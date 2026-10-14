@@ -14,6 +14,7 @@ use crate::commands::{
 };
 use crate::library;
 use crate::lyrics;
+use crate::tab;
 use crate::sidecar::SidecarManager;
 use crate::storage::{self, test_support::TestHome};
 use crate::takes;
@@ -311,3 +312,51 @@ sing it out loud";
 
     std::env::remove_var("SPS_LYRICS_ENGINE");
 }
+
+#[test]
+fn a_tab_is_aligned_by_the_real_sidecar_and_stored_beside_the_song() {
+    let Some((home, state)) = start() else { return };
+    let song_dir = storage::song_dir("song-tab");
+    write_wav(&song_dir.join("guitar.wav"), &tones(&[(261.63, 0.3), (329.63, 0.2), (392.0, 0.2)], 22050, 14.0), 22050);
+    library::add(library::Song {
+        id: "song-tab".into(),
+        title: "Tab".into(),
+        duration: 14.0,
+        detected_key: None,
+        detected_bpm: None,
+        processed_at: "2026-01-01T00:00:00Z".into(),
+        directory: song_dir.to_string_lossy().to_string(),
+        stems: vec!["guitar".into()],
+        metronome_offset: None,
+        has_chords: false,
+        folder_id: None,
+        sort_index: 0,
+        loops: vec![],
+    })
+    .unwrap();
+    let source = home.path().join("tune.gp");
+    std::fs::write(&source, b"not parsed by the sidecar").unwrap();
+    tab::import("song-tab", &source).expect("import");
+
+    // 6 bars of 4/4 at 120 bpm (2 s each), a C major chord held throughout.
+    let bars: Vec<_> = (0..6).map(|i| serde_json::json!({"tick": i * 1920, "end": (i + 1) * 1920, "index": i, "occurrence": 0})).collect();
+    let notes: Vec<_> = (0..6)
+        .flat_map(|i| [60, 64, 67].into_iter().map(move |p| serde_json::json!([i * 1920, 1920, p, "g"])))
+        .collect();
+    let score = serde_json::json!({"version": 1, "division": 480, "tempos": [[0, 120]], "bars": bars, "notes": notes});
+
+    let stages = RefCell::new(Vec::<String>::new());
+    let sync = tab::align_impl(&state, "song-tab", &score.to_string(), &mut |_, stage| stages.borrow_mut().push(stage.to_string()))
+        .expect("align");
+    assert_eq!(sync.bars.len(), 6);
+    assert_eq!(sync.algorithm, "chroma-dtw-v1");
+    assert!(sync.bars.windows(2).all(|w| w[0].time <= w[1].time));
+    assert!(stages.borrow().iter().any(|s| s == "alignment"));
+    assert_eq!(tab::read("song-tab").unwrap().unwrap().sync.unwrap().bars.len(), 6);
+    assert!(!song_dir.join("tab_score.json").exists(), "the score is only a hand-over file");
+
+    let failure = tab::align_impl(&state, "song-tab", r#"{"version":1,"division":480,"tempos":[[0,120]],"bars":[{"tick":0,"end":1920,"index":0,"occurrence":0}],"notes":[]}"#, &mut |_, _| {})
+        .unwrap_err();
+    assert!(failure.contains("no guitar, bass or keyboard notes"), "{failure}");
+}
+
