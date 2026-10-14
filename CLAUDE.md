@@ -161,7 +161,7 @@ SongPracticeStudio/
 │   │   ├── updater/
 │   │   │   └── UpdateDialog.tsx   ← Auto-update modal
 │   │   ├── settings/
-│   │   │   └── YouTubeCookiesControl.tsx ← optional cookies.txt picker for import_youtube, avoids the flaky live-browser cookie fallback
+│   │   │   └── YouTubeCookiesControl.tsx ← Sign in to YouTube (private window → cookies file, see wiki/youtube-signin.md) or pick a cookies.txt for import_youtube; avoids the flaky live-browser cookie fallback
 │   │   └── upload/
 │   │       ├── DropZone.tsx       ← File drag-and-drop → processSong
 │   │       ├── YouTubeImport.tsx  ← URL paste → importYoutube
@@ -176,6 +176,7 @@ SongPracticeStudio/
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
     ├── sidecar.rs     ← SidecarManager, JSON-lines IPC
+    ├── youtube_signin.rs ← in-app Google sign-in window → ~/.songpracticestudio/youtube_cookies.txt; also bars that window from the app's commands
     ├── storage.rs     ← ~/.songpracticestudio/ path helpers
     ├── windows.rs    ← detached panel windows: allowlist, creation, remembered geometry, `cursor_over_main`
     └── lib.rs        ← Tauri builder, invoke_handler registration

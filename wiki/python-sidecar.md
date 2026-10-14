@@ -95,6 +95,8 @@ Returns the same dict as `process`, with `"title"` added (from yt-dlp metadata).
 
 **Bot-detection fallback:** if `cookiesPath` is set (Settings → YouTube cookies file, a user-exported Netscape-format `cookies.txt`), it's tried first via `cookiefile` — no dependency on a running browser. Otherwise (or if that file is missing/fails), first attempt uses no cookies; if YouTube returns a bot-check error, retries with `cookiesfrombrowser` cycling through Chrome → Firefox → Edge → Brave → Opera. Any other error (private video, bad URL, network failure) raises immediately. Partial output files are cleaned up between attempts.
 
+**Where `cookiesPath` comes from:** Settings → YouTube account either signs in inside the app (`sign_in_youtube` writes `~/.songpracticestudio/youtube_cookies.txt`) or points at a cookies.txt the user exported; the sidecar just receives a path. A signed-in extraction also needs Deno and `yt-dlp-ejs` (bundled by `build.py`, located by `yt_importer._js_runtime_opts()`): see [youtube-signin.md](youtube-signin.md).
+
 **Why `cookiesPath` exists:** live `cookiesfrombrowser` extraction is fragile on Windows — Chromium browsers (Chrome/Edge/Brave/Opera) encrypt their cookie store with a key only reliably reachable while that browser is running (Chrome 127+ "app-bound encryption"), and it only tries five hardcoded browser names, so anyone on a different browser (e.g. Ecosia — Chromium-based but not in the list) always falls through to the no-cookies attempt and gets bot-blocked. A one-time exported `cookies.txt` (e.g. via the "Get cookies.txt LOCALLY" extension) sidesteps this entirely. Ported from VPS 2026-08-14 — see MPS `wiki/known-issues.md`/`wiki/feature-parity.md`.
 
 ### `convert_take`
