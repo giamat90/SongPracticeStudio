@@ -204,6 +204,15 @@ _SEVENTH_MARGIN = 0.02
 _BASS_DOMINANCE = 0.5
 _BASS_FMIN_NOTE = "C1"
 
+# Drums are broadband noise to a chroma and a sung melody adds non-chord tones,
+# so chords are read from the song without them.
+_CHORD_EXCLUDED_STEMS = {"drums", "vocals"}
+# A bass line alone names roots, not chord qualities: without one of these the
+# whole mix is the better input.
+_CHORD_HARMONY_STEMS = {"guitar", "piano", "other"}
+# 2: sevenths and slash chords. 3: read from the stems without drums and vocals.
+CHORDS_FORMAT_VERSION = 3
+
 
 def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
     """
@@ -316,6 +325,48 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
     return segments
 
 
+def _sum_audio_files(paths: dict) -> np.ndarray:
+    """Mono sum of the given audio files at SAMPLE_RATE, padded to the longest."""
+    mix = None
+    for path in paths.values():
+        y, _ = librosa.load(path, sr=SAMPLE_RATE, mono=True)
+        if mix is None:
+            mix = y.copy()
+        else:
+            n = max(len(mix), len(y))
+            mix = np.pad(mix, (0, n - len(mix)))
+            mix[: len(y)] += y
+    return mix
+
+
+def _harmonic_stem_paths(stem_paths: dict) -> dict | None:
+    """
+    The stems chords should be read from: everything but drums and vocals.
+    None when what is left has no stem that carries the harmony, in which case
+    the caller reads the whole mix instead.
+    """
+    harmonic = {name: path for name, path in stem_paths.items() if name not in _CHORD_EXCLUDED_STEMS}
+    return harmonic if harmonic.keys() & _CHORD_HARMONY_STEMS else None
+
+
+def _detect_chords(stem_paths: dict, input_path: str | None = None) -> tuple:
+    """
+    Chord segments and the length (seconds) of the audio they were read from.
+    Reads the song without its drums and vocals; a song that has no stem to do
+    that from is read from `input_path`, or from the sum of every stem when
+    there is no original file.
+    """
+    sources = _harmonic_stem_paths(stem_paths)
+    if sources is None:
+        sources = {"mix": input_path} if input_path else stem_paths
+    _log(f"Chords read from: {', '.join(sources)}")
+    mix = _sum_audio_files(sources)
+    bass_y = None
+    if "bass" in stem_paths:
+        bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
+    return _chords_from_signal(mix, SAMPLE_RATE, bass_y), len(mix) / SAMPLE_RATE
+
+
 def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: str | None = None) -> list:
     y, sr = librosa.load(input_path, sr=SAMPLE_RATE, mono=True)
     bass_y = None
@@ -326,27 +377,15 @@ def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: 
 
 def detect_chords_from_stems(stem_paths: dict, output_path: str) -> dict:
     """
-    Detect the chords again from a song's separated stems (their sum stands in
-    for the mix) and write them to `output_path` as chords.json.
+    Detect the chords again from a song's separated stems (without the drums
+    and vocals when it has stems to do that from) and write them to
+    `output_path` as chords.json.
     """
     if not stem_paths:
         raise ValueError("No stems to detect chords from")
-    mix = None
-    for path in stem_paths.values():
-        y, _ = librosa.load(path, sr=SAMPLE_RATE, mono=True)
-        if mix is None:
-            mix = y.copy()
-        else:
-            n = max(len(mix), len(y))
-            mix = np.pad(mix, (0, n - len(mix)))
-            mix[: len(y)] += y
-    bass_y = None
-    if "bass" in stem_paths:
-        bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
-    segments = _chords_from_signal(mix, SAMPLE_RATE, bass_y)
-    duration = len(mix) / SAMPLE_RATE
+    segments, duration = _detect_chords(stem_paths)
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump({"version": 2, "duration": duration, "segments": segments}, f)
+        json.dump({"version": CHORDS_FORMAT_VERSION, "duration": duration, "segments": segments}, f)
     return {"segments": len(segments)}
 
 
@@ -563,10 +602,10 @@ def process(
     _log("Detecting chords...")
     chords_written = False
     try:
-        chord_segments = _detect_chords_chroma(input_path, bass_path=stem_paths.get("bass"))
+        chord_segments, _ = _detect_chords(stem_paths, input_path)
         chords_path = os.path.join(output_dir, "chords.json")
         with open(chords_path, "w", encoding="utf-8") as f:
-            json.dump({"version": 2, "duration": duration, "segments": chord_segments}, f)
+            json.dump({"version": CHORDS_FORMAT_VERSION, "duration": duration, "segments": chord_segments}, f)
         _log(f"Chords written: {len(chord_segments)} segments → {chords_path}")
         chords_written = True
     except Exception as e:

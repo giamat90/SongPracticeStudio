@@ -57,7 +57,7 @@ Five stages:
 1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.75)
 2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
-4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem; 1s hops) over the whole song → `chords.json`, non-fatal on failure (0.92→0.96)
+4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem; 1s hops) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read) → `chords.json` v3, non-fatal on failure (0.92→0.96)
 5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). Read back by `read_bass_tab` (`None` for songs without one) and shown by `BassTabPanel`; "Export MIDI" writes it as a `.mid`.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — `chords`/`bassTab` are booleans (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
