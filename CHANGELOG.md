@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.57] - 2026-10-14
+
+### Added
+- **Sign in again with one click when your YouTube sign-in has expired.** If a YouTube import is turned down in a way a fresh sign-in can fix, the error now has a **Sign in again and retry** button: it opens the sign-in window, saves the new session and repeats the same import. If YouTube refuses even a fresh sign-in, the message says the network or VPN is probably the cause.
+
+### Changed
+- The in-app YouTube sign-in is now shared code with the sibling app; behaviour is unchanged.
+
 ## [0.0.56] - 2026-10-14
 
 ### Added
