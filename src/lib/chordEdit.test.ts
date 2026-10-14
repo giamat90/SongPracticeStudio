@@ -19,6 +19,13 @@ describe("setChordAt", () => {
     expect(out[1]).toMatchObject({ start: 4, end: 8 });
   });
 
+  it("drops the detector's confidence: a chord the user names is not a guess", () => {
+    const guessed = LIST().map((s) => ({ ...s, confidence: 0.5 }));
+    const out = setChordAt(guessed, 1, "D:7");
+    expect("confidence" in out[1]).toBe(false);
+    expect(out[0].confidence).toBe(0.5);
+  });
+
   it("sets and clears a slash bass", () => {
     const withBass = setChordAt(LIST(), 0, "C:maj", "E");
     expect(withBass[0].bass).toBe("E");

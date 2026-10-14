@@ -217,7 +217,7 @@ _CHORD_EXCLUDED_STEMS = {"drums", "vocals"}
 _CHORD_HARMONY_STEMS = {"guitar", "piano", "other"}
 # 2: sevenths and slash chords. 3: read from the stems without drums and vocals.
 # 4: windows follow the beats and the labels are decoded with Viterbi.
-CHORDS_FORMAT_VERSION = 4
+CHORDS_FORMAT_VERSION = 5
 
 _CHORD_HOP_LENGTH = 512
 
@@ -411,6 +411,7 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
         windows = _grid_windows(n_frames, frames_per_window)
 
     emissions = np.full((len(windows), n_chords + 1), _SILENT_SCORE)
+    fits = np.zeros((len(windows), n_chords))
     for w, (i, j) in enumerate(windows):
         chroma_win = chroma[:, i:j].mean(axis=1)
         rms_win    = float(rms[i:j].mean()) if j > i else 0.0
@@ -418,7 +419,8 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
         if max_rms <= 0 or rms_win < _NO_CHORD_RMS_RATIO * max_rms or norm < 1e-6:
             emissions[w, n_chords] = 0.0
         else:
-            emissions[w, :n_chords] = template_matrix @ (chroma_win / norm) + prior
+            fits[w] = template_matrix @ (chroma_win / norm)
+            emissions[w, :n_chords] = fits[w] + prior
 
     path = _viterbi(emissions, _transition_costs(state_names))
 
@@ -443,22 +445,29 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
     duration = n_frames * frame_dur
     segments = []
 
-    def _emit(start, end, label):
+    def _emit(first, last, label):
+        """Segment over windows first..last (inclusive)."""
         if label[0] == _NO_CHORD_LABEL:
             return
+        start = windows[first][0] * frame_dur
+        end = duration if last == len(windows) - 1 else windows[last + 1][0] * frame_dur
         seg = {"start": round(start, 3), "end": round(end, 3), "chord": label[0]}
         if label[1] is not None:
             seg["bass"] = label[1]
+        # How well the chosen chord's notes match what was played, averaged over
+        # the segment (0-1). Measured against reference charts, the margin over
+        # the runner-up predicted nothing; this fit did (see wiki/testing.md).
+        weights = np.array([windows[k][1] - windows[k][0] for k in range(first, last + 1)], dtype=float)
+        fit = np.array([fits[k][path[k]] for k in range(first, last + 1)])
+        seg["confidence"] = round(float(np.average(fit, weights=weights)), 2)
         segments.append(seg)
 
-    seg_start = windows[0][0] * frame_dur
-    seg_label = labels[0]
-    for (i, _), label in zip(windows[1:], labels[1:]):
-        if label != seg_label:
-            _emit(seg_start, i * frame_dur, seg_label)
-            seg_start = i * frame_dur
-            seg_label = label
-    _emit(seg_start, duration, seg_label)
+    first = 0
+    for k in range(1, len(labels)):
+        if labels[k] != labels[first]:
+            _emit(first, k - 1, labels[first])
+            first = k
+    _emit(first, len(labels) - 1, labels[first])
 
     return segments
 

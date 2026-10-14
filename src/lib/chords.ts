@@ -6,6 +6,17 @@ import { simplifyChord, transposeChord, transposeNote } from "./chordNames";
 
 export { formatChordName, simplifyChord, transposeChord, transposeKey, transposeNote } from "./chordNames";
 
+/**
+ * Below this a detected chord is a guess worth a second look. Measured on 12
+ * Beatles/Queen songs against their reference charts: chords under 0.70 were
+ * right about half the time, chords over 0.80 about 85% (wiki/testing.md).
+ */
+export const LOW_CONFIDENCE = 0.72;
+
+export function isUnsure(segment: ChordSegment): boolean {
+  return segment.confidence !== undefined && segment.confidence < LOW_CONFIDENCE;
+}
+
 export function findActiveChordIndex(segments: ChordSegment[], time: number): number {
   let lo = 0;
   let hi = segments.length - 1;

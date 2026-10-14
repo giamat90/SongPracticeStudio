@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
-import { useChordSegments, findActiveChordIndex, formatChordName } from "../../lib/chords";
+import { useChordSegments, findActiveChordIndex, formatChordName, isUnsure } from "../../lib/chords";
 import { transposeChord, transposeNote } from "../../lib/chordNames";
 import {
   MIN_CHORD_SECONDS, addChordAt, deleteChordAt, joinWithNext, setChordAt, setChordEnd, setChordStart, splitChordAt,
@@ -89,6 +89,7 @@ export default function ChordRow({ song }: ChordRowProps) {
             "chord-row__chip",
             isActive ? "chord-row__chip--active" : "",
             i === picked ? "chord-row__chip--selected" : "",
+            isUnsure(seg) ? "chord-row__chip--unsure" : "",
           ].filter(Boolean).join(" ");
           return (
             <button
@@ -100,7 +101,7 @@ export default function ChordRow({ song }: ChordRowProps) {
                 width: `${width}px`,
               }}
               onClick={() => { setSelected(i === picked ? null : i); setError(null); }}
-              title={`${name}: click to correct`}
+              title={isUnsure(seg) ? `${name}: not sure about this one, click to correct` : `${name}: click to correct`}
               aria-label={`Chord ${name} at ${seg.start.toFixed(1)} seconds`}
               aria-pressed={i === picked}
             >

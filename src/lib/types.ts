@@ -34,6 +34,8 @@ export interface ChordSegment {
   chord: string;
   /** The bass note when it is a chord tone other than the root (a slash chord). */
   bass?: string;
+  /** 0-1, how well the chord's notes matched the audio; absent on older detections and on chords set by hand. */
+  confidence?: number;
 }
 
 export interface ProcessingStatus {

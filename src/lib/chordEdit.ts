@@ -17,7 +17,8 @@ function replaceAt(segments: ChordSegment[], index: number, ...parts: ChordSegme
 export function setChordAt(segments: ChordSegment[], index: number, chord: string, bass?: string | null): ChordSegment[] {
   const seg = segments[index];
   if (!seg) return segments;
-  const { bass: _old, ...rest } = seg;
+  // A chord the user names is a decision, not a guess: it carries no confidence.
+  const { bass: _old, confidence: _guess, ...rest } = seg;
   return replaceAt(segments, index, bass ? { ...rest, chord, bass } : { ...rest, chord });
 }
 

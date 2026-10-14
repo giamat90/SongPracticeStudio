@@ -1034,6 +1034,18 @@ body,
   background: rgba(255, 255, 255, 0.07);
 }
 
+/* A detected chord the detector was not sure of: worth a second look. */
+.chord-row__chip--unsure {
+  color: var(--text-muted, var(--text-secondary));
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.chord-row__chip--unsure.chord-row__chip--active,
+.chord-row__chip--unsure.chord-row__chip--selected {
+  opacity: 1;
+}
+
 /* The chord being corrected in the editor below the row. */
 .chord-row__chip--selected {
   overflow: visible;
