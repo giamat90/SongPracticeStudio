@@ -411,6 +411,14 @@ class TestChordDetection:
         assert [s["chord"] for s in segs] == ["C:maj", "G:maj", "C:maj"]
         assert segs[1]["start"] == pytest.approx(4.0, abs=0.1)
 
+    @pytest.mark.parametrize("cents", [-35, 29, 45])
+    def test_a_recording_off_concert_pitch_reads_the_same_chords(self, tmp_path, cents):
+        ratio = 2 ** (cents / 1200)
+        detune = lambda chord: tuple(f * ratio for f in chord)
+        audio = np.concatenate([chord_audio(detune(C_MAJOR), 4), chord_audio(detune(G_MAJOR), 4), chord_audio(detune(A_MINOR), 4)])
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", audio, SR))
+        assert [s["chord"] for s in segs] == ["C:maj", "G:maj", "A:min"]
+
     def test_a_clip_shorter_than_the_smoothing_window_still_works(self, tmp_path):
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", chord_audio(C_MAJOR, 1.5), SR))
         assert segs and segs[0]["chord"] == "C:maj"

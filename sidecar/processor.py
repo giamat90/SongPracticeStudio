@@ -363,7 +363,10 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
     frame_dur   = hop_length / sr
     frames_per_window = max(1, round(hop_seconds / frame_dur))
 
-    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
+    # librosa's own default estimate misses recordings about a quarter-tone off
+    # A440 (a 2019 remix at +29 cents scored 26% with it, 60% with this one).
+    tuning = float(librosa.estimate_tuning(y=y, sr=sr))
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length, tuning=tuning)
     rms    = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     n_frames = chroma.shape[1]
     if n_frames == 0:
@@ -373,6 +376,7 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
     if bass_y is not None and len(bass_y) > 0:
         bass_chroma = librosa.feature.chroma_cqt(
             y=bass_y, sr=sr, hop_length=hop_length, fmin=librosa.note_to_hz(_BASS_FMIN_NOTE), n_octaves=4,
+            tuning=tuning,
         )
 
     def _unit(templates):

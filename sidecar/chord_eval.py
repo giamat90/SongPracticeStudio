@@ -205,6 +205,7 @@ def _stem_paths(song_dir: Path) -> tuple:
 
 def detect(song_dir, overrides: dict | None = None) -> tuple:
     """Run the chord detector on a song folder's stems, in memory (nothing is written)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     import processor
 
     for name, value in (overrides or {}).items():
