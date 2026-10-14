@@ -49,6 +49,23 @@ Details in [Lyrics Sync](lyrics.md#tests). In short: the alignment algorithm is 
 
 Details in [Tab sync](tab-sync.md#tests). The alignment is tested on synthetic tabs and stems with a known drifting timeline (no fixtures); `tests/tabs/realTabs.test.ts` reads the maintainer's local folder of copyrighted `.gp` files and skips without it. The score builder is tested with alphaTex strings, so repeats and tracks need no files. `integration_tests.rs` drives `align_impl` through the real sidecar.
 
+## Chord accuracy
+
+`sidecar/chord_eval.py` is a developer tool (not part of the app or of `pytest`'s accuracy claims): it scores detected chords against a reference chart so a change to the detector is measured, not judged by ear. The unit tests only cover the scoring maths (`tests/test_chord_eval.py`); how accurate the detector is on real songs needs reference charts, which are not in the repository.
+
+```
+cd sidecar
+python chord_eval.py --song-dir <library/song> --ref chart.lab             # score the stored chords.json
+python chord_eval.py --manifest songs.json --detect                        # re-run the detector on the stems, in memory
+python chord_eval.py --manifest songs.json --set _SWITCH_COST=0.2          # try a constant without editing the file
+```
+
+- **Reference**: a `.lab` file, one `start end label` line per segment. Labels are Harte (`C:maj7`, `Bb:min`, `N`) or plain (`Am7`, `F#`, `C/E`). The Isophonics Beatles/Queen charts are in this format.
+- **Manifest**: a JSON list of `{"name", "song_dir", "ref"}`, paths relative to the manifest.
+- **Score**: weighted chord symbol recall (MIREX): share of the reference's time in which the detected chord equals the reference chord, at three vocabularies. `root` ignores quality; `majmin` reduces to major/minor; `sevenths` knows maj, min, 7, maj7, min7. Reference time a vocabulary cannot express (sus/dim/aug at `majmin`) leaves the denominator.
+- **Output**: per song and time-weighted overall, segment counts reference/detected (a high detected count means over-segmentation), and the ten most common mistakes in seconds.
+- `--detect` and `--set` run `processor._detect_chords` on the song folder's stems; nothing is written to the library. `--set` only takes numeric module constants.
+
 ## Known behaviours the suite documents
 
 - In the stem cascade (guitar/piano requested) the returned "other" is the residual of pass 1 plus any unrequested guitar/piano; an unrequested vocals/drums/bass is *not* folded back in, unlike a single pass. `test_cascade_other_does_not_get_unrequested_vocals_drums_or_bass_back` pins this.

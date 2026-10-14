@@ -114,6 +114,7 @@ SongPracticeStudio/
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
+│   ├── chord_eval.py     ← dev tool: scores detected chords against a reference .lab chart (WCSR at root / majmin / sevenths); `--detect`, `--set NAME=VALUE`; see wiki/testing.md#chord-accuracy
 │   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
 ├── tests/contract/    ← cross-language tests that read the TS and Rust sources (IPC command/argument contract)
