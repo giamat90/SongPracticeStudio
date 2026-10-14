@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.55] - 2026-10-14
+
+### Changed
+- **Chords are read without the drums and vocals.** Detection used to listen to the whole mix, so drum hits and the sung melody leaked into the chords. It now listens to the bass, guitar, piano and other stems only. A song with none of guitar, piano or other extracted is still read from the original file. Songs imported earlier keep their chords until you press **Re-detect chords** in the header; no new separation is needed.
+
 ## [0.0.54] - 2026-10-12
 
 ### Changed
