@@ -231,18 +231,107 @@ pub fn mark_chords_detected(song_id: &str) -> Result<Song, String> {
     Ok(updated)
 }
 
-/// Read the detected chord segments for a song from its `chords.json`.
-pub fn read_chords(song_id: &str) -> Result<Vec<ChordSegment>, String> {
+/// The user's corrections, kept apart from `chords.json` so detecting again never mixes with them.
+const CHORD_EDITS_FILE: &str = "chords_edited.json";
+const CHORD_NOTES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+/// The detector writes the first five; the editor offers all of them.
+const CHORD_QUALITIES: [&str; 10] = ["maj", "min", "7", "maj7", "min7", "sus2", "sus4", "dim", "aug", "6"];
+const MIN_CHORD_SECONDS: f64 = 0.05;
+const MAX_CHORD_SEGMENTS: usize = 5000;
+
+fn song_directory(song_id: &str) -> Result<std::path::PathBuf, String> {
     let lib = load()?;
     let song = lib
         .songs
         .iter()
         .find(|s| s.id == song_id)
         .ok_or_else(|| format!("Song not found: {song_id}"))?;
-    let path = std::path::Path::new(&song.directory).join("chords.json");
-    let data = fs::read_to_string(&path).map_err(|e| format!("Read chords: {e}"))?;
+    Ok(std::path::PathBuf::from(&song.directory))
+}
+
+/// Read a song's chord segments: the user's corrections when there are any,
+/// otherwise what was detected (`chords.json`).
+pub fn read_chords(song_id: &str) -> Result<Vec<ChordSegment>, String> {
+    let dir = song_directory(song_id)?;
+    let edited = dir.join(CHORD_EDITS_FILE);
+    if edited.exists() {
+        let data = fs::read_to_string(&edited).map_err(|e| format!("Read chord edits: {e}"))?;
+        let parsed: ChordsFile = serde_json::from_str(&data).map_err(|e| format!("Parse chord edits: {e}"))?;
+        return Ok(parsed.segments);
+    }
+    let data = fs::read_to_string(dir.join("chords.json")).map_err(|e| format!("Read chords: {e}"))?;
     let parsed: ChordsFile = serde_json::from_str(&data).map_err(|e| format!("Parse chords: {e}"))?;
     Ok(parsed.segments)
+}
+
+/// Whether a song's chords carry the user's corrections.
+pub fn has_chord_edits(song_id: &str) -> Result<bool, String> {
+    Ok(song_directory(song_id)?.join(CHORD_EDITS_FILE).exists())
+}
+
+/// Throw the user's corrections away; the detected chords show again. Not an error when there are none.
+pub fn clear_chord_edits(song_id: &str) -> Result<(), String> {
+    let path = song_directory(song_id)?.join(CHORD_EDITS_FILE);
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("Clear chord edits: {e}")),
+    }
+}
+
+/// Check a list of segments from the editor and return it sorted, rounded to the millisecond.
+/// A chord is `Root:quality` with a sharp-spelled root; a segment must have a length and may not overlap the next.
+pub fn clean_chord_segments(segments: Vec<ChordSegment>) -> Result<Vec<ChordSegment>, String> {
+    if segments.len() > MAX_CHORD_SEGMENTS {
+        return Err(format!("Too many chord segments ({})", segments.len()));
+    }
+    let mut cleaned = Vec::with_capacity(segments.len());
+    for seg in segments {
+        if !seg.start.is_finite() || !seg.end.is_finite() || seg.start < 0.0 {
+            return Err("A chord segment has an invalid time".to_string());
+        }
+        let (start, end) = ((seg.start * 1000.0).round() / 1000.0, (seg.end * 1000.0).round() / 1000.0);
+        if end - start < MIN_CHORD_SECONDS {
+            return Err(format!("The chord at {start:.2} s is shorter than {MIN_CHORD_SECONDS} s"));
+        }
+        let valid = seg.chord.split_once(':').is_some_and(|(root, quality)| {
+            CHORD_NOTES.contains(&root) && CHORD_QUALITIES.contains(&quality)
+        });
+        if !valid {
+            return Err(format!("Unknown chord: {}", seg.chord));
+        }
+        let bass = match seg.bass {
+            Some(b) if b.is_empty() => None,
+            Some(b) if CHORD_NOTES.contains(&b.as_str()) => Some(b),
+            Some(b) => return Err(format!("Unknown bass note: {b}")),
+            None => None,
+        };
+        cleaned.push(ChordSegment { start, end, chord: seg.chord, bass });
+    }
+    cleaned.sort_by(|a, b| a.start.total_cmp(&b.start));
+    for i in 1..cleaned.len() {
+        let prev_end = cleaned[i - 1].end;
+        // Times are whole milliseconds, so one millisecond of overlap is rounding, not an overlap.
+        if cleaned[i].start < prev_end - 0.0015 {
+            return Err(format!("The chords at {:.2} s overlap", cleaned[i].start));
+        }
+        if cleaned[i].start < prev_end {
+            cleaned[i].start = prev_end;
+        }
+    }
+    Ok(cleaned)
+}
+
+/// Save the user's corrected chord list for a song and return it as stored.
+pub fn save_chord_edits(song_id: &str, segments: Vec<ChordSegment>) -> Result<Vec<ChordSegment>, String> {
+    let dir = song_directory(song_id)?;
+    let cleaned = clean_chord_segments(segments)?;
+    let path = dir.join(CHORD_EDITS_FILE);
+    let body = serde_json::json!({ "version": 1, "segments": cleaned });
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, body.to_string()).map_err(|e| format!("Write chord edits: {e}"))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("Write chord edits: {e}"))?;
+    Ok(cleaned)
 }
 
 /// One transcribed bass note, as written by the sidecar's `_transcribe_bass`.
@@ -783,6 +872,119 @@ mod tests {
         assert!(read_chords("a").unwrap_err().contains("Read chords"), "no chords.json yet");
         fs::write(dir.join("chords.json"), "{{").unwrap();
         assert!(read_chords("a").unwrap_err().contains("Parse chords"));
+    }
+
+    // ── chord edits ───────────────────────────────────────────────────────
+
+    fn seg(start: f64, end: f64, chord: &str) -> ChordSegment {
+        ChordSegment { start, end, chord: chord.to_string(), bass: None }
+    }
+
+    fn song_with_detected_chords(home: &TestHome) {
+        let dir = home.path().join("library").join("a");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("chords.json"),
+            r#"{"version":4,"duration":8.0,"segments":[{"start":0.0,"end":4.0,"chord":"C:maj"},{"start":4.0,"end":8.0,"chord":"A:min"}]}"#,
+        )
+        .unwrap();
+        let mut a = song("a", "A");
+        a.directory = dir.to_string_lossy().to_string();
+        add(a).unwrap();
+    }
+
+    #[test]
+    fn edits_replace_the_detected_chords_until_they_are_cleared() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        assert!(!has_chord_edits("a").unwrap());
+
+        let saved = save_chord_edits("a", vec![seg(0.0, 2.0, "G:maj"), seg(2.0, 8.0, "D:7")]).unwrap();
+        assert_eq!(saved.len(), 2);
+        assert!(has_chord_edits("a").unwrap());
+        let read = read_chords("a").unwrap();
+        assert_eq!(read.iter().map(|s| s.chord.as_str()).collect::<Vec<_>>(), ["G:maj", "D:7"]);
+
+        clear_chord_edits("a").unwrap();
+        assert!(!has_chord_edits("a").unwrap());
+        assert_eq!(read_chords("a").unwrap()[0].chord, "C:maj", "the detected chords were never touched");
+        clear_chord_edits("a").unwrap();
+    }
+
+    #[test]
+    fn saving_edits_keeps_a_slash_bass_and_drops_an_empty_one() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        let mut with_bass = seg(0.0, 2.0, "C:maj");
+        with_bass.bass = Some("E".to_string());
+        let mut empty_bass = seg(2.0, 4.0, "A:min");
+        empty_bass.bass = Some(String::new());
+        let saved = save_chord_edits("a", vec![with_bass, empty_bass]).unwrap();
+        assert_eq!(saved[0].bass.as_deref(), Some("E"));
+        assert_eq!(saved[1].bass, None);
+    }
+
+    #[test]
+    fn cleaning_sorts_rounds_and_joins_hairline_gaps() {
+        let cleaned = clean_chord_segments(vec![seg(4.0004, 8.0, "A:min"), seg(0.0, 4.0, "C:maj")]).unwrap();
+        assert_eq!((cleaned[0].start, cleaned[0].end), (0.0, 4.0));
+        assert_eq!((cleaned[1].start, cleaned[1].end), (4.0, 8.0));
+        let overlapping_by_a_hair = clean_chord_segments(vec![seg(0.0, 4.0007, "C:maj"), seg(4.0, 8.0, "A:min")]).unwrap();
+        assert_eq!(overlapping_by_a_hair[1].start, 4.001, "the start moves to the previous end, never earlier");
+    }
+
+    #[test]
+    fn cleaning_rejects_what_the_player_could_not_show() {
+        let err = |segs: Vec<ChordSegment>| clean_chord_segments(segs).unwrap_err();
+        assert!(err(vec![seg(0.0, 4.0, "C:maj"), seg(3.0, 6.0, "G:maj")]).contains("overlap"));
+        assert!(err(vec![seg(2.0, 2.0, "C:maj")]).contains("shorter"));
+        assert!(err(vec![seg(3.0, 2.0, "C:maj")]).contains("shorter"));
+        assert!(err(vec![seg(-1.0, 2.0, "C:maj")]).contains("invalid time"));
+        assert!(err(vec![seg(f64::NAN, 2.0, "C:maj")]).contains("invalid time"));
+        assert!(err(vec![seg(0.0, f64::INFINITY, "C:maj")]).contains("invalid time"));
+        assert!(err(vec![seg(0.0, 2.0, "H:maj")]).contains("Unknown chord"));
+        assert!(err(vec![seg(0.0, 2.0, "C:wild")]).contains("Unknown chord"));
+        assert!(err(vec![seg(0.0, 2.0, "Cmaj")]).contains("Unknown chord"));
+        let mut bad_bass = seg(0.0, 2.0, "C:maj");
+        bad_bass.bass = Some("Bb".to_string());
+        assert!(err(vec![bad_bass]).contains("Unknown bass note"));
+        assert!(err((0..5001).map(|i| seg(i as f64, i as f64 + 0.5, "C:maj")).collect()).contains("Too many"));
+    }
+
+    #[test]
+    fn an_empty_list_is_a_valid_edit() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        assert!(save_chord_edits("a", vec![]).unwrap().is_empty());
+        assert!(read_chords("a").unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_rejected_edit_leaves_the_stored_one_alone() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        save_chord_edits("a", vec![seg(0.0, 8.0, "E:min")]).unwrap();
+        assert!(save_chord_edits("a", vec![seg(0.0, 4.0, "Q:maj")]).is_err());
+        assert_eq!(read_chords("a").unwrap()[0].chord, "E:min");
+    }
+
+    #[test]
+    fn edit_commands_name_the_song_that_is_missing() {
+        let _home = TestHome::new();
+        assert!(save_chord_edits("ghost", vec![]).unwrap_err().contains("ghost"));
+        assert!(has_chord_edits("ghost").unwrap_err().contains("ghost"));
+        assert!(clear_chord_edits("ghost").unwrap_err().contains("ghost"));
+    }
+
+    #[test]
+    fn a_corrupt_edits_file_is_an_error_not_a_silent_fallback() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        let dir = home.path().join("library").join("a");
+        fs::write(dir.join("chords_edited.json"), "{{").unwrap();
+        assert!(read_chords("a").unwrap_err().contains("Parse chord edits"));
+        clear_chord_edits("a").unwrap();
+        assert_eq!(read_chords("a").unwrap()[0].chord, "C:maj");
     }
 
     // ── folders ───────────────────────────────────────────────────────────

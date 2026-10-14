@@ -36,7 +36,7 @@ Song Practice Studio is a three-tier desktop application:
 | Stem separation | Demucs | `htdemucs_6s` (6 stems), or a cascade through `htdemucs`/`htdemucs_ft` when guitar/piano are requested; `_ft` opt-in via the high-quality toggle |
 | BPM detection | librosa | beat.tempo on full mix |
 | Key detection | librosa | chroma_cqt + Krumhansl-Kessler |
-| Chord detection | librosa | chroma-template matching, major/minor triads + 7/maj7/min7 + slash chords from the bass stem, 1s hops |
+| Chord detection | librosa | chroma-template matching, major/minor triads + 7/maj7/min7 + slash chords from the bass stem, one window per beat, Viterbi-decoded (1s grid when there is no beat) |
 
 ## IPC Layers
 

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
 import { useLibraryStore } from "../../stores/library";
-import { readSongChords, redetectSongChords } from "../../lib/tauri";
+import { clearChordEdits, hasChordEdits, readSongChords, redetectSongChords } from "../../lib/tauri";
 import { exportChordChart } from "../../lib/exports";
 import type { Song } from "../../lib/types";
 
@@ -9,10 +9,44 @@ interface ExportChartButtonProps {
   song: Song;
 }
 
-/** Saves the detected chords as a text chord sheet, and detects them again with the current model. */
+/**
+ * Saves the chords as a text chord sheet, detects them again with the current
+ * model, and drops the user's corrections (re-detecting replaces them too, so
+ * it asks first when there are any).
+ */
 export default function ExportChartButton({ song }: ExportChartButtonProps) {
-  const [busy, setBusy] = useState<"export" | "detect" | null>(null);
+  const [busy, setBusy] = useState<"export" | "detect" | "reset" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [edited, setEdited] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const revision = usePlayerStore((s) => s.chordsRevision);
+
+  useEffect(() => {
+    setConfirming(false);
+    if (!song.hasChords) {
+      setEdited(false);
+      return;
+    }
+    let cancelled = false;
+    hasChordEdits(song.id)
+      .then((result) => { if (!cancelled) setEdited(result); })
+      .catch((e: unknown) => console.error("[ExportChartButton] hasChordEdits failed:", e));
+    return () => { cancelled = true; };
+  }, [song.id, song.hasChords, revision]);
+
+  const handleReset = async () => {
+    setBusy("reset");
+    setMessage(null);
+    try {
+      await clearChordEdits(song.id);
+      usePlayerStore.getState().bumpChordsRevision();
+    } catch (e) {
+      console.error("[ExportChartButton] clearing the chord edits failed:", e);
+      setMessage(String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const handleExport = async () => {
     setBusy("export");
@@ -37,6 +71,7 @@ export default function ExportChartButton({ song }: ExportChartButtonProps) {
   };
 
   const handleDetect = async () => {
+    setConfirming(false);
     setBusy("detect");
     setMessage(null);
     try {
@@ -65,15 +100,34 @@ export default function ExportChartButton({ song }: ExportChartButtonProps) {
           {busy === "export" ? "Exporting…" : "Export Chords"}
         </button>
       )}
-      <button
-        className="analyzer-page__export-mix"
-        onClick={() => void handleDetect()}
-        disabled={busy !== null}
-        title="Detect the chords again from the stems: sevenths and slash chords"
-        aria-label="Detect the chords again"
-      >
-        {busy === "detect" ? "Detecting…" : song.hasChords ? "Re-detect chords" : "Detect chords"}
-      </button>
+      {edited && (
+        <button
+          className="analyzer-page__export-mix"
+          onClick={() => void handleReset()}
+          disabled={busy !== null}
+          title="Throw away your corrections and show the detected chords again"
+          aria-label="Reset the chord corrections"
+        >
+          {busy === "reset" ? "Resetting…" : "Reset edits"}
+        </button>
+      )}
+      {confirming ? (
+        <span className="takes-bar__confirm" role="alertdialog" aria-label="Detect the chords again">
+          Your corrections are replaced.
+          <button className="takes-bar__confirm-yes" onClick={() => void handleDetect()}>Re-detect</button>
+          <button className="takes-bar__confirm-no" onClick={() => setConfirming(false)}>Cancel</button>
+        </span>
+      ) : (
+        <button
+          className="analyzer-page__export-mix"
+          onClick={() => (edited ? setConfirming(true) : void handleDetect())}
+          disabled={busy !== null}
+          title="Detect the chords again from the stems, following the beats"
+          aria-label="Detect the chords again"
+        >
+          {busy === "detect" ? "Detecting…" : song.hasChords ? "Re-detect chords" : "Detect chords"}
+        </button>
+      )}
       {message && <span className="export-chart__error" role="alert">{message}</span>}
     </span>
   );

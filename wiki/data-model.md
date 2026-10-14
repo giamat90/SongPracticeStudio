@@ -47,7 +47,7 @@ interface ChordSegment {
 }
 ```
 
-One detected chord over a time range, from `_chords_from_signal()`'s chroma-template matching in `processor.py` (`chords.json` version 3: triads, sevenths, slash chords, read from the stems without drums and vocals; version 2 files have the same shape but were read from the full mix, version 1 files hold triads only; all are still read. Re-detect chords upgrades an old song). Not embedded in `Song` — fetched on demand via `read_song_chords(songId)`, which reads `chords.json` from the song's directory. See [Components: ChordCarousel](components.md#chordcarousel).
+One detected chord over a time range, from `_chords_from_signal()`'s chroma-template matching in `processor.py` (`chords.json` version 4: windows follow the beats and are decoded with Viterbi; version 3 was read from the stems without drums and vocals on a fixed 1 s grid with a median filter; version 2 files have the same shape but were read from the full mix, version 1 files hold triads only; all are still read. Re-detect chords upgrades an old song). Not embedded in `Song` — fetched on demand via `read_song_chords(songId)`, which reads `chords_edited.json` (the user's corrections, same shape, `version` 1) when it exists, otherwise `chords.json` from the song's directory. `save_chord_edits` sorts and rounds to the millisecond and rejects a chord that is not `Root:quality` (sharp roots; maj, min, 7, maj7, min7, sus2, sus4, dim, aug, 6), a bass note that is not one of the twelve, a segment under 0.05 s or with a bad time, and overlaps. See [Components: ChordCarousel](components.md#chordcarousel).
 
 **`metronomeOffset`** — set via `set_metronome_offset(songId, offset)`, which mirrors `rename_take`'s "find by id, mutate one field, re-save library.json" shape rather than going through `library::add`. `null`/absent means the metronome phase-locks to song position 0 (unchanged legacy behavior). See [Components: TempoControl](components.md#tempocontrol).
 
@@ -132,6 +132,7 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
         ├── piano.wav      separated piano stem
         ├── other.wav      separated other/residual stem
         ├── chords.json    detected chord segments
+        ├── chords_edited.json  the user's corrected chords (only when edited; wins over chords.json)
         ├── lyrics.json    synced lyrics (see lyrics.md)
         ├── takes.json     Take[] metadata
         └── takes/
@@ -151,9 +152,12 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `set_song_loops` | `songId: string, loops: NamedLoop[]` | `Song` (replaces the saved loops; names trimmed, at most 100, 1-80 characters, regions at least 0.25 s, unique ids, stored in time order) |
 | `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected) |
 | `set_metronome_offset` | `songId: string, offset?: f64` | `Song` (persists the metronome's downbeat anchor; `null` clears it back to song start) |
-| `redetect_song_chords` | `songId: string` | `Song` (detects the chords again from the stems with the current model, replaces `chords.json`, sets `hasChords`) |
+| `redetect_song_chords` | `songId: string` | `Song` (detects the chords again from the stems with the current model, replaces `chords.json`, deletes the user's corrections, sets `hasChords`) |
 | `cancel_lyrics_sync` | — | `void` (abandons the running `sync_lyrics`, which then fails with "Cancelled.") |
-| `read_song_chords` | `songId: string` | `ChordSegment[]` (reads `chords.json` on demand; empty if the song predates chord detection or detection failed) |
+| `read_song_chords` | `songId: string` | `ChordSegment[]` (the user's corrections from `chords_edited.json` when there are any, otherwise `chords.json`; an error when the song has neither) |
+| `save_chord_edits` | `songId: string, segments: ChordSegment[]` | `ChordSegment[]` (validated, sorted, rounded; written atomically to `chords_edited.json`) |
+| `clear_chord_edits` | `songId: string` | `void` (deletes `chords_edited.json`; not an error when there is none) |
+| `has_chord_edits` | `songId: string` | `bool` |
 | `list_folders` | — | `Folder[]` |
 | `create_folder` | `name: string` | `Folder` (empty/whitespace name rejected) |
 | `rename_folder` | `folderId, name: string` | `Folder` (empty/whitespace name rejected) |

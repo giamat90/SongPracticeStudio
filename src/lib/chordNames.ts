@@ -26,13 +26,26 @@ export function transposeKey(key: string, semitones: number): string {
   return shifted === null ? key : [shifted, ...rest].join(" ");
 }
 
-const QUALITY_SUFFIX: Record<string, string> = {
-  maj: "",
-  min: "m",
-  "7": "7",
-  maj7: "maj7",
-  min7: "m7",
-};
+/** The chord qualities the editor offers, in the order it lists them. The detector writes the first five. */
+export const CHORD_QUALITIES: { value: string; label: string; suffix: string }[] = [
+  { value: "maj", label: "major", suffix: "" },
+  { value: "min", label: "minor", suffix: "m" },
+  { value: "7", label: "dominant 7", suffix: "7" },
+  { value: "maj7", label: "major 7", suffix: "maj7" },
+  { value: "min7", label: "minor 7", suffix: "m7" },
+  { value: "sus2", label: "sus2", suffix: "sus2" },
+  { value: "sus4", label: "sus4", suffix: "sus4" },
+  { value: "dim", label: "diminished", suffix: "dim" },
+  { value: "aug", label: "augmented", suffix: "aug" },
+  { value: "6", label: "sixth", suffix: "6" },
+];
+
+/** The twelve root / bass note names, sharp-spelled like the detector writes them. */
+export const CHORD_NOTES: readonly string[] = NOTE_NAMES;
+
+const QUALITY_SUFFIX: Record<string, string> = Object.fromEntries(
+  CHORD_QUALITIES.map((q) => [q.value, q.suffix]),
+);
 
 /** "C:maj" -> "C", "A:min7" -> "Am7", with a slash bass note when given: "C:maj", "E" -> "C/E" */
 export function formatChordName(chord: string, bass?: string | null): string {

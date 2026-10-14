@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStore } from "../stores/player";
 import { readSongChords } from "./tauri";
 import type { ChordSegment, Song } from "./types";
@@ -54,8 +54,15 @@ export function useChordSegments(song: Song) {
     [detected, shift],
   );
 
+  // A reload for the same song (a correction, a new detection) keeps what is
+  // shown until the new list arrives, so the row does not blink out and back.
+  const loadedSongId = useRef<string | null>(null);
+
   useEffect(() => {
-    setSegments([]);
+    if (loadedSongId.current !== song.id || !song.hasChords) {
+      loadedSongId.current = song.id;
+      setSegments([]);
+    }
     if (!song.hasChords) return;
     let cancelled = false;
     readSongChords(song.id)
@@ -68,6 +75,10 @@ export function useChordSegments(song: Song) {
   const centerIndex = findNearestChordIndex(segments, currentTime);
   return {
     segments,
+    /** The segments as stored, in the key the song was detected in (before transpose and capo). */
+    stored: detected,
+    /** Semitones the shown chords are moved from the stored ones. */
+    shift,
     activeIndex,
     centerIndex,
     activeChord: activeIndex >= 0 ? segments[activeIndex] : null,
