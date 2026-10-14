@@ -11,7 +11,7 @@ import { join } from "node:path";
 const root = join(__dirname, "..", "..");
 const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
-const tauriTs = read("src/lib/tauri.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/lyrics/ipc.ts");
+const tauriTs = read("src/lib/tauri.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/lyrics/ipc.ts") + "\n" + read("node_modules/@giamat90/mps-core/src/youtube/ipc.ts");
 // Commands live in more than one module; the handler list in lib.rs names each by module.
 const commandsRs = read("src-tauri/src/commands.rs") + "\n" + read("src-tauri/src/windows.rs") + "\n" + read("src-tauri/src/youtube_signin.rs");
 const libRs = read("src-tauri/src/lib.rs");
@@ -108,14 +108,11 @@ describe("IPC contract between src/lib/tauri.ts and src-tauri", () => {
 });
 
 describe("YouTube sign-in", () => {
-  it("the cookies file name the UI recognises is the one Rust writes", () => {
-    const rustName = read("src-tauri/src/youtube_signin.rs").match(/pub const COOKIES_FILE: &str = "([^"]+)"/)?.[1];
-    const tsName = read("src/lib/youtubeCookies.ts").match(/MANAGED_COOKIES_FILE = "([^"]+)"/)?.[1];
-    expect(rustName).toBeDefined();
-    expect(tsName).toBe(rustName);
+  it("the invoke handler keeps the sign-in window away from the app's commands", () => {
+    expect(libRs).toMatch(/mps_youtube_signin::may_invoke\(/);
   });
 
-  it("the invoke handler keeps the sign-in window away from the app's commands", () => {
-    expect(libRs).toMatch(/youtube_signin::may_invoke\(/);
+  it("the main window's teardown closes the sign-in window too", () => {
+    expect(read("src-tauri/src/windows.rs")).toMatch(/mps_youtube_signin::close\(/);
   });
 });

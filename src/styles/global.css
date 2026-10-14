@@ -167,6 +167,24 @@ body,
   line-height: 1.4;
 }
 
+.library-page__error-action {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.75rem;
+  background: var(--bg-surface);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.library-page__error-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .library-page__error-close {
   background: none;
   border: none;

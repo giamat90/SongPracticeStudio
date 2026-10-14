@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { isSessionExpiredError, signInYoutube } from "@giamat90/mps-core/youtube";
 import type { Folder, ProcessingStatus, Song, StemName } from "../lib/types";
 import {
   createFolder as createFolderApi,
@@ -14,6 +15,7 @@ import {
   renameSongApi,
   reorderFolders as reorderFoldersApi,
 } from "../lib/tauri";
+import { useSettingsStore } from "./settings";
 
 interface LibraryState {
   songs: Song[];
@@ -21,10 +23,20 @@ interface LibraryState {
   processing: ProcessingStatus | null;
   isLoading: boolean;
   error: string | null;
+  /** The last YouTube import was turned down in a way a fresh sign-in can fix. */
+  sessionExpired: boolean;
+  retryableYoutubeImport: { url: string; stems?: StemName[]; highQuality?: boolean } | null;
 
   fetchSongs: () => Promise<void>;
   uploadSong: (filePath: string, stems?: StemName[], highQuality?: boolean) => Promise<void>;
-  importYoutube: (url: string, stems?: StemName[], highQuality?: boolean, cookiesPath?: string | null) => Promise<void>;
+  importYoutube: (
+    url: string,
+    stems?: StemName[],
+    highQuality?: boolean,
+    cookiesPath?: string | null,
+    options?: { freshSession?: boolean },
+  ) => Promise<void>;
+  signInAndRetryYoutube: () => Promise<void>;
   deleteSong: (songId: string) => Promise<void>;
   renameSong: (songId: string, title: string) => Promise<void>;
   fetchFolders: () => Promise<void>;
@@ -37,7 +49,12 @@ interface LibraryState {
   initProgressListener: () => Promise<() => void>;
 }
 
-function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFile = false): string {
+function friendlyError(
+  raw: unknown,
+  context: "youtube" | "upload",
+  hasCookiesFile = false,
+  freshSession = false,
+): string {
   const msg = String(raw ?? "").toLowerCase();
 
   if (msg.includes("known-good floor")) {
@@ -45,6 +62,9 @@ function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFi
   }
   if (msg.includes("page needs to be reloaded") || msg.includes("signature solving failed")) {
     return "YouTube could not be read: its challenge needs the JavaScript runtime (Deno) bundled with the app, which did not run. Retry once; if it keeps failing, reinstall the app (a build without the bundled Deno is broken).";
+  }
+  if (freshSession && isSessionExpiredError(raw)) {
+    return "YouTube turned the download down right after signing in, so your session is not the problem: this network or VPN is probably flagged. Try again without the VPN or proxy, or from another connection.";
   }
   if (msg.includes("sign in to confirm") || msg.includes("not a bot") || /\bbot\b/.test(msg)) {
     return hasCookiesFile
@@ -83,12 +103,14 @@ function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFi
   return "Failed to process the audio file. Make sure it is a valid audio format.";
 }
 
-export const useLibraryStore = create<LibraryState>((set) => ({
+export const useLibraryStore = create<LibraryState>((set, get) => ({
   songs: [],
   folders: [],
   processing: null,
   isLoading: false,
   error: null,
+  sessionExpired: false,
+  retryableYoutubeImport: null,
 
   fetchSongs: async () => {
     set({ isLoading: true });
@@ -115,8 +137,20 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     }
   },
 
-  importYoutube: async (url: string, stems?: StemName[], highQuality?: boolean, cookiesPath?: string | null) => {
-    set({ error: null, processing: { songId: "", stage: "Connecting…", progress: 0, isComplete: false } });
+  importYoutube: async (
+    url: string,
+    stems?: StemName[],
+    highQuality?: boolean,
+    cookiesPath?: string | null,
+    options?: { freshSession?: boolean },
+  ) => {
+    const fresh = !!options?.freshSession;
+    set({
+      error: null,
+      sessionExpired: false,
+      retryableYoutubeImport: null,
+      processing: { songId: "", stage: "Connecting…", progress: 0, isComplete: false },
+    });
     try {
       const song = await importYoutubeApi(url, stems, highQuality, cookiesPath);
       set((state) => ({
@@ -125,8 +159,30 @@ export const useLibraryStore = create<LibraryState>((set) => ({
       }));
     } catch (e) {
       console.error("YouTube import failed:", e);
-      set({ processing: null, error: friendlyError(e, "youtube", !!cookiesPath) });
+      const expired = !!cookiesPath && !fresh && isSessionExpiredError(e);
+      set({
+        processing: null,
+        error: friendlyError(e, "youtube", !!cookiesPath, fresh),
+        sessionExpired: expired,
+        retryableYoutubeImport: expired ? { url, stems, highQuality } : null,
+      });
     }
+  },
+
+  signInAndRetryYoutube: async () => {
+    const request = get().retryableYoutubeImport;
+    if (!request) return;
+    set({ error: null, sessionExpired: false });
+    let cookiesPath: string;
+    try {
+      cookiesPath = await signInYoutube();
+    } catch (e) {
+      console.warn("[youtube] sign-in before retry failed:", e);
+      set({ error: String(e), sessionExpired: true });
+      return;
+    }
+    useSettingsStore.getState().setYoutubeCookiesPath(cookiesPath);
+    await get().importYoutube(request.url, request.stems, request.highQuality, cookiesPath, { freshSession: true });
   },
 
   deleteSong: async (songId: string) => {
@@ -216,7 +272,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     }
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null, sessionExpired: false, retryableYoutubeImport: null }),
 
   initProgressListener: async () => {
     const unlisten = await onProcessingProgress((status) => {

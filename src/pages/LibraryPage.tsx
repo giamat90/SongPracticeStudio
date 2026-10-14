@@ -333,6 +333,8 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const reorderFolders      = useLibraryStore((s) => s.reorderFolders);
   const moveSongs           = useLibraryStore((s) => s.moveSongs);
   const clearError          = useLibraryStore((s) => s.clearError);
+  const sessionExpired      = useLibraryStore((s) => s.sessionExpired);
+  const signInAndRetryYoutube = useLibraryStore((s) => s.signInAndRetryYoutube);
   const initProgressListener = useLibraryStore((s) => s.initProgressListener);
   const isProcessing = useLibraryStore((s) => s.processing !== null);
   const [showSettings, setShowSettings] = useState(false);
@@ -504,6 +506,15 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
       {error && (
         <div className="library-page__error" role="alert">
           <span className="library-page__error-msg">{error}</span>
+          {sessionExpired && (
+            <button
+              className="library-page__error-action"
+              onClick={signInAndRetryYoutube}
+              disabled={isProcessing}
+            >
+              Sign in again and retry
+            </button>
+          )}
           <button
             className="library-page__error-close"
             onClick={clearError}

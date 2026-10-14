@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettingsStore } from "../../stores/settings";
-import { signInYoutube, signOutYoutube } from "../../lib/tauri";
-import { cookiesSource } from "../../lib/youtubeCookies";
+import { cookiesSource, signInYoutube, signOutYoutube } from "@giamat90/mps-core/youtube";
 
 function YouTubeCookiesControl() {
   const youtubeCookiesPath = useSettingsStore((s) => s.youtubeCookiesPath);

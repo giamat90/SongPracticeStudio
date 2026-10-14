@@ -2177,6 +2177,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mps-youtube-signin"
+version = "0.7.0"
+source = "git+https://github.com/giamat90/mps-core?rev=4ac63dfbd91e998c12696b543b00f9f39585d2c8#4ac63dfbd91e998c12696b543b00f9f39585d2c8"
+dependencies = [
+ "log",
+ "tauri",
+]
+
+[[package]]
 name = "muda"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3722,6 +3731,7 @@ dependencies = [
  "chrono",
  "dirs",
  "log",
+ "mps-youtube-signin",
  "serde",
  "serde_json",
  "tauri",
