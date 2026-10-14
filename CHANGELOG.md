@@ -6,6 +6,16 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.59] - 2026-10-14
+
+### Added
+- **Tab sync.** Import a Guitar Pro tab of the song (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the new **Tab** panel under the stems. SPS places the tab's bars on the recording using the separated stems, then the tab follows the music: a cursor moves through the notation with the playhead, and clicking a bar seeks there. A tab written a semitone off the recording is retuned automatically.
+- A chip shows how far the alignment can be trusted (Aligned / Check the bar lines / Poor match). A bar that is wrong can be selected and set to the playhead, optionally moving the following bars too. *Re-align* runs it again, *Remove* deletes the tab. A tab that is a different arrangement or a shortened video will come out as a poor match.
+- Everything stays on your machine: the tab is copied next to the song and nothing is uploaded.
+
+### Notes
+- Checked by ear on three songs; the rest were checked with measurements only. Expect to correct a bar here and there.
+
 ## [0.0.58] - 2026-10-14
 
 ### Changed
