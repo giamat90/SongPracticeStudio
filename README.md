@@ -10,7 +10,7 @@ Forked from [**VPS**](../VPS) (Vocal Practice Studio), a vocal practice app with
 - **Desktop shell**: Tauri v2 (Rust)
 - **Backend**: Python sidecar, JSON-lines over stdin/stdout, spawned lazily on first use
 - **Stem separation**: Demucs `htdemucs_6s` (6 stems: vocals, drums, bass, guitar, piano, other), with a cascaded high-quality mode
-- **Chord detection**: chroma-template matching (major/minor triads) over the whole song, windowed at 1 s hops
+- **Chord detection**: chroma-template matching (triads, sevenths, slash chords) over the song without drums and vocals, one window per beat and Viterbi-smoothed; click a chord on the timeline to correct it
 - **Lyrics sync**: wav2vec2 CTC forced alignment of the lyric text to `vocals.wav` (`mps_core.lyrics`, shared with VPS)
 - **BPM / key detection**: `librosa.beat.tempo` / chromagram + Krumhansl-Kessler profiles
 - **Bass tab transcription**: the sidecar transcribes the bass stem to `bass_tab.json` during processing, but nothing in the Rust layer or UI reads it back yet on `master` — a scrolling-canvas viewer exists only on the unmerged `feat/bass-tab` branch

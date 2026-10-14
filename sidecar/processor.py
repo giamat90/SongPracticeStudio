@@ -165,26 +165,31 @@ def _save_stem(tensor, ref, samplerate: int, output_dir: str, name: str) -> str:
 # Audio analysis helpers
 # ---------------------------------------------------------------------------
 
+def _best_key(chroma_mean) -> tuple:
+    """(tonic pitch class, "major" | "minor") whose profile correlates best with the chroma; None for a flat one."""
+    chroma_mean = np.asarray(chroma_mean, dtype=float)
+    chroma_mean = chroma_mean / (chroma_mean.sum() + 1e-9)
+    best_score = -np.inf
+    best = None
+    for shift in range(12):
+        rotated = np.roll(chroma_mean, -shift)
+        maj = np.corrcoef(rotated, MAJOR_PROFILE)[0, 1]
+        mn  = np.corrcoef(rotated, MINOR_PROFILE)[0, 1]
+        if maj > best_score:
+            best_score = maj
+            best = (shift, "major")
+        if mn > best_score:
+            best_score = mn
+            best = (shift, "minor")
+    return best
+
+
 def _detect_key_chroma(input_path: str) -> str:
     try:
         y, sr = librosa.load(input_path, sr=SAMPLE_RATE, mono=True, duration=60)
         chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
-        chroma_mean = chroma.mean(axis=1)
-        chroma_mean /= chroma_mean.sum() + 1e-9
-
-        best_score = -np.inf
-        best_key   = "Unknown"
-        for shift in range(12):
-            rotated = np.roll(chroma_mean, -shift)
-            maj = np.corrcoef(rotated, MAJOR_PROFILE)[0, 1]
-            mn  = np.corrcoef(rotated, MINOR_PROFILE)[0, 1]
-            if maj > best_score:
-                best_score = maj
-                best_key   = f"{NOTE_NAMES[shift]} major"
-            if mn > best_score:
-                best_score = mn
-                best_key   = f"{NOTE_NAMES[shift]} minor"
-        return best_key
+        key = _best_key(chroma.mean(axis=1))
+        return "Unknown" if key is None else f"{NOTE_NAMES[key[0]]} {key[1]}"
     except Exception as e:
         _log(f"Key detection error: {e}\n{traceback.format_exc()}")
         return "Unknown"
@@ -211,23 +216,158 @@ _CHORD_EXCLUDED_STEMS = {"drums", "vocals"}
 # whole mix is the better input.
 _CHORD_HARMONY_STEMS = {"guitar", "piano", "other"}
 # 2: sevenths and slash chords. 3: read from the stems without drums and vocals.
-CHORDS_FORMAT_VERSION = 3
+# 4: windows follow the beats and the labels are decoded with Viterbi.
+CHORDS_FORMAT_VERSION = 4
+
+_CHORD_HOP_LENGTH = 512
+
+# Beat tracking: fewer beats than this, or a pulse outside the plausible range
+# (median interval, seconds), means the track has no usable beat grid and the
+# fixed grid is used instead.
+_MIN_BEATS = 8
+_BEAT_INTERVAL_RANGE = (0.2, 1.5)
+# A window never spans more than this: a slow beat is cut in equal parts so a
+# change on the "and" is still resolved.
+_MAX_WINDOW_SECONDS = 0.8
+# A window shorter than this (a beat right next to the start or the end) is
+# folded into its neighbour.
+_MIN_WINDOW_SECONDS = 0.15
+
+# Viterbi decoding. The emission score of a state is its cosine similarity with
+# the window's chroma; changing chord costs these amounts of score, so a change
+# has to be backed by that much evidence to be worth it. Related chords (same
+# root, a fifth apart) are the usual confusions and cost less.
+_SWITCH_COST = 0.12
+_SWITCH_COST_RELATED = 0.07
+_SWITCH_COST_SAME_ROOT = 0.04
+_SWITCH_COST_NO_CHORD = 0.02
+# Chords that belong to the song's key get this much extra score: a nudge for
+# ambiguous windows, never enough to override clear evidence.
+_KEY_BONUS = 0.02
+_SILENT_SCORE = -2.0
+
+_MAJOR_KEY_CHORDS = {"maj": (0, 5, 7), "min": (2, 4, 9), "maj7": (0, 5), "7": (7,), "min7": (2, 4, 9)}
+_MINOR_KEY_CHORDS = {"min": (0, 5, 7), "maj": (3, 8, 10, 7), "min7": (0, 5, 7), "maj7": (3, 8), "7": (10, 7)}
 
 
-def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
+def _diatonic_chords(tonic: int, mode: str) -> set:
+    table = _MAJOR_KEY_CHORDS if mode == "major" else _MINOR_KEY_CHORDS
+    return {
+        f"{NOTE_NAMES[(tonic + degree) % 12]}:{quality}"
+        for quality, degrees in table.items()
+        for degree in degrees
+    }
+
+
+def _transition_costs(state_names: list) -> np.ndarray:
+    """Cost of moving from state i to state j (0 on the diagonal)."""
+    n = len(state_names)
+    roots = [
+        NOTE_NAMES.index(s.split(":")[0]) if s != _NO_CHORD_LABEL else None for s in state_names
+    ]
+    costs = np.full((n, n), _SWITCH_COST)
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                costs[i, j] = 0.0
+            elif roots[i] is None or roots[j] is None:
+                costs[i, j] = _SWITCH_COST_NO_CHORD
+            elif roots[i] == roots[j]:
+                costs[i, j] = _SWITCH_COST_SAME_ROOT
+            elif (roots[j] - roots[i]) % 12 in (5, 7):
+                costs[i, j] = _SWITCH_COST_RELATED
+    return costs
+
+
+def _viterbi(emissions: np.ndarray, costs: np.ndarray) -> list:
+    """Highest-scoring state path: sum of emissions minus the cost of every change."""
+    n_windows, n_states = emissions.shape
+    score = emissions[0].copy()
+    back = np.zeros((n_windows, n_states), dtype=int)
+    for t in range(1, n_windows):
+        # candidates[p, s]: best score ending in p at t-1, then moving to s
+        candidates = score[:, None] - costs
+        back[t] = np.argmax(candidates, axis=0)
+        score = candidates[back[t], np.arange(n_states)] + emissions[t]
+    path = [int(np.argmax(score))]
+    for t in range(n_windows - 1, 0, -1):
+        path.append(int(back[t][path[-1]]))
+    path.reverse()
+    return path
+
+
+def _grid_windows(n_frames: int, frames_per_window: int) -> list:
+    """(start, end) frame pairs on a fixed grid; a last piece under half a window joins the one before."""
+    windows = []
+    i = 0
+    while i < n_frames:
+        j = min(i + frames_per_window, n_frames)
+        if windows and j - i < frames_per_window / 2:
+            windows[-1] = (windows[-1][0], j)
+            break
+        windows.append((i, j))
+        i = j
+    return windows
+
+
+def _beat_windows(beat_frames, n_frames: int, frame_dur: float) -> list:
     """
-    Windowed chroma -> chord-template matching over the whole signal.
+    (start, end) frame pairs that follow the beats: one window per beat, the
+    stretch before the first beat and after the last one included. Long beats
+    are cut into equal parts, slivers are folded into the window next to them.
+    """
+    min_frames = max(1, round(_MIN_WINDOW_SECONDS / frame_dur))
+    max_frames = max(1, round(_MAX_WINDOW_SECONDS / frame_dur))
+    edges = sorted({0, n_frames, *(int(b) for b in beat_frames if 0 < int(b) < n_frames)})
+    kept = [edges[0]]
+    for edge in edges[1:-1]:
+        if edge - kept[-1] >= min_frames:
+            kept.append(edge)
+    if edges[-1] - kept[-1] < min_frames and len(kept) > 1:
+        kept.pop()
+    kept.append(edges[-1])
+
+    windows = []
+    for start, end in zip(kept, kept[1:]):
+        parts = max(1, -(-(end - start) // max_frames))
+        cuts = [start + round((end - start) * k / parts) for k in range(parts + 1)]
+        windows.extend((a, b) for a, b in zip(cuts, cuts[1:]) if b > a)
+    return windows
+
+
+def _slash_bass(chord: str, bass_win):
+    """The bass note when one pitch class dominates the bass and is a chord tone other than the root."""
+    if bass_win is None or bass_win.sum() <= 1e-6:
+        return None
+    pc = int(np.argmax(bass_win))
+    if bass_win[pc] / bass_win.sum() < _BASS_DOMINANCE:
+        return None
+    root_name, quality = chord.split(":")
+    offset = (pc - NOTE_NAMES.index(root_name)) % 12
+    if offset != 0 and offset in _CHORD_TONE_OFFSETS[quality]:
+        return NOTE_NAMES[pc]
+    return None
+
+
+def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frames=None) -> list:
+    """
+    Windowed chroma -> chord-template matching over the whole signal, decoded
+    with Viterbi so one noisy window cannot flip a chord and a change has to be
+    backed by evidence. Windows follow `beat_frames` (chroma frame indices at
+    hop 512) when given, otherwise a fixed grid of `hop_seconds`.
     Returns {"start", "end", "chord"} segments (chord like "C:maj", "G:7",
     "A:min7"), with "bass" (a note name) when the bass stem plays a chord tone
     other than the root.
     """
-    hop_length  = 512
+    hop_length  = _CHORD_HOP_LENGTH
     frame_dur   = hop_length / sr
     frames_per_window = max(1, round(hop_seconds / frame_dur))
 
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
     rms    = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     n_frames = chroma.shape[1]
+    if n_frames == 0:
+        return []
 
     bass_chroma = None
     if bass_y is not None and len(bass_y) > 0:
@@ -242,65 +382,60 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
 
     triad_names, triad_matrix = _unit(CHORD_TEMPLATES)
     seventh_names, seventh_matrix = _unit(SEVENTH_TEMPLATES)
+    chord_names = triad_names + seventh_names
+    template_matrix = np.vstack([triad_matrix, seventh_matrix])
+    state_names = chord_names + [_NO_CHORD_LABEL]
+    n_chords = len(chord_names)
+
+    # What each state is worth before the window is looked at: a seventh pays
+    # the margin, a chord of the song's key gets the bonus.
+    prior = np.zeros(n_chords)
+    prior[len(triad_names):] -= _SEVENTH_MARGIN
 
     max_rms = float(rms.max()) if len(rms) else 0.0
+    n_common = min(n_frames, len(rms))
+    loud = rms[:n_common] >= _NO_CHORD_RMS_RATIO * max_rms if max_rms > 0 else np.zeros(n_common, dtype=bool)
+    if loud.any():
+        key = _best_key(chroma[:, :n_common][:, loud].mean(axis=1))
+        if key is not None:
+            diatonic = _diatonic_chords(*key)
+            prior += np.array([_KEY_BONUS if name in diatonic else 0.0 for name in chord_names])
 
-    def _label_window(chroma_win, bass_win):
-        norm = np.linalg.norm(chroma_win) + 1e-9
-        unit = chroma_win / norm
-        triad_scores = triad_matrix @ unit
-        best = int(np.argmax(triad_scores))
-        name, score = triad_names[best], float(triad_scores[best])
-        seventh_scores = seventh_matrix @ unit
-        s_best = int(np.argmax(seventh_scores))
-        if float(seventh_scores[s_best]) > score + _SEVENTH_MARGIN:
-            name = seventh_names[s_best]
+    if beat_frames is not None and len(beat_frames) > 0:
+        windows = _beat_windows(beat_frames, n_frames, frame_dur)
+    else:
+        windows = _grid_windows(n_frames, frames_per_window)
 
-        bass_note = None
-        if bass_win is not None and bass_win.sum() > 1e-6:
-            pc = int(np.argmax(bass_win))
-            if bass_win[pc] / bass_win.sum() >= _BASS_DOMINANCE:
-                root = NOTE_NAMES.index(name.split(":")[0])
-                offset = (pc - root) % 12
-                if offset != 0 and offset in _CHORD_TONE_OFFSETS[name.split(":")[1]]:
-                    bass_note = NOTE_NAMES[pc]
-        return (name, bass_note)
-
-    window_labels = []
-    window_times  = []
-    no_chord = (_NO_CHORD_LABEL, None)
-    i = 0
-    while i < n_frames:
-        j = min(i + frames_per_window, n_frames)
-        if window_labels and j - i < frames_per_window / 2:
-            break
+    emissions = np.full((len(windows), n_chords + 1), _SILENT_SCORE)
+    for w, (i, j) in enumerate(windows):
         chroma_win = chroma[:, i:j].mean(axis=1)
         rms_win    = float(rms[i:j].mean()) if j > i else 0.0
-
-        if max_rms <= 0 or rms_win < _NO_CHORD_RMS_RATIO * max_rms:
-            label = no_chord
+        norm = np.linalg.norm(chroma_win)
+        if max_rms <= 0 or rms_win < _NO_CHORD_RMS_RATIO * max_rms or norm < 1e-6:
+            emissions[w, n_chords] = 0.0
         else:
-            bass_win = None
-            if bass_chroma is not None and bass_chroma.shape[1] >= j:
-                bass_win = bass_chroma[:, i:j].mean(axis=1)
-            label = _label_window(chroma_win, bass_win)
+            emissions[w, :n_chords] = template_matrix @ (chroma_win / norm) + prior
 
-        window_labels.append(label)
-        window_times.append(i * frame_dur)
-        i = j
+    path = _viterbi(emissions, _transition_costs(state_names))
 
-    # Median-filter to suppress single-window flicker.
-    filt_window = 3
-    if len(window_labels) >= filt_window:
-        from collections import Counter
-        smoothed = list(window_labels)
-        half = filt_window // 2
-        for idx in range(half, len(window_labels) - half):
-            neighborhood = window_labels[idx - half: idx + half + 1]
-            smoothed[idx] = Counter(neighborhood).most_common(1)[0][0]
-        window_labels = smoothed
+    labels = []
+    for (i, j), state in zip(windows, path):
+        name = state_names[state]
+        if name == _NO_CHORD_LABEL:
+            labels.append((_NO_CHORD_LABEL, None))
+            continue
+        bass_win = None
+        if bass_chroma is not None and bass_chroma.shape[1] >= j:
+            bass_win = bass_chroma[:, i:j].mean(axis=1)
+        labels.append((name, _slash_bass(name, bass_win)))
 
-    # Merge consecutive identical labels into segments, dropping "N".
+    # A bass note heard in one window only, inside a chord that otherwise
+    # holds the same bass, is noise rather than a new segment.
+    for k in range(1, len(labels) - 1):
+        prev, cur, nxt = labels[k - 1], labels[k], labels[k + 1]
+        if prev == nxt and cur != prev and cur[0] == prev[0]:
+            labels[k] = prev
+
     duration = n_frames * frame_dur
     segments = []
 
@@ -312,17 +447,38 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0) -> list:
             seg["bass"] = label[1]
         segments.append(seg)
 
-    seg_start = window_times[0] if window_times else 0.0
-    seg_label = window_labels[0] if window_labels else no_chord
-    for t, label in zip(window_times[1:], window_labels[1:]):
+    seg_start = windows[0][0] * frame_dur
+    seg_label = labels[0]
+    for (i, _), label in zip(windows[1:], labels[1:]):
         if label != seg_label:
-            _emit(seg_start, t, seg_label)
-            seg_start = t
+            _emit(seg_start, i * frame_dur, seg_label)
+            seg_start = i * frame_dur
             seg_label = label
-    if window_labels:
-        _emit(seg_start, duration, seg_label)
+    _emit(seg_start, duration, seg_label)
 
     return segments
+
+
+def _beat_frames(paths: dict) -> np.ndarray | None:
+    """
+    Beat positions as chroma frame indices (hop 512), tracked on the rhythm
+    section when there is one (drums, plus bass) and on everything otherwise.
+    None when the track has no usable pulse.
+    """
+    try:
+        rhythm = {k: v for k, v in paths.items() if k in ("drums", "bass")} if "drums" in paths else paths
+        y = _sum_audio_files(rhythm)
+        _, frames = librosa.beat.beat_track(y=y, sr=SAMPLE_RATE, hop_length=_CHORD_HOP_LENGTH)
+    except Exception as e:
+        _log(f"Beat tracking error (the chords use a fixed grid): {e}\n{traceback.format_exc()}")
+        return None
+    frames = np.asarray(frames, dtype=int)
+    if len(frames) < _MIN_BEATS:
+        return None
+    interval = float(np.median(np.diff(frames))) * _CHORD_HOP_LENGTH / SAMPLE_RATE
+    if not _BEAT_INTERVAL_RANGE[0] <= interval <= _BEAT_INTERVAL_RANGE[1]:
+        return None
+    return frames
 
 
 def _sum_audio_files(paths: dict) -> np.ndarray:
@@ -364,7 +520,9 @@ def _detect_chords(stem_paths: dict, input_path: str | None = None) -> tuple:
     bass_y = None
     if "bass" in stem_paths:
         bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
-    return _chords_from_signal(mix, SAMPLE_RATE, bass_y), len(mix) / SAMPLE_RATE
+    beats = _beat_frames(stem_paths if stem_paths else sources)
+    _log(f"Chord windows follow {'the beats' if beats is not None else 'a fixed grid'}")
+    return _chords_from_signal(mix, SAMPLE_RATE, bass_y, beat_frames=beats), len(mix) / SAMPLE_RATE
 
 
 def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: str | None = None) -> list:

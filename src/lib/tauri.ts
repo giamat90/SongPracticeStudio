@@ -35,6 +35,21 @@ export async function readSongChords(songId: string): Promise<ChordSegment[]> {
   return invoke<ChordSegment[]>("read_song_chords", { songId });
 }
 
+/** Store the user's corrected chord list for a song; resolves to what was stored (rounded, sorted) */
+export async function saveChordEdits(songId: string, segments: ChordSegment[]): Promise<ChordSegment[]> {
+  return invoke<ChordSegment[]>("save_chord_edits", { songId, segments });
+}
+
+/** Drop the user's chord corrections so the detected chords show again */
+export async function clearChordEdits(songId: string): Promise<void> {
+  return invoke("clear_chord_edits", { songId });
+}
+
+/** Whether a song's chords carry the user's corrections */
+export async function hasChordEdits(songId: string): Promise<boolean> {
+  return invoke<boolean>("has_chord_edits", { songId });
+}
+
 /** List all folders in the library */
 export async function listFolders(): Promise<Folder[]> {
   return invoke<Folder[]>("list_folders");

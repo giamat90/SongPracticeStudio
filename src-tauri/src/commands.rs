@@ -421,6 +421,23 @@ pub async fn read_song_chords(song_id: String) -> Result<Vec<ChordSegment>, Stri
     library::read_chords(&song_id)
 }
 
+/// Store the user's corrected chord list; `read_song_chords` returns it from then on.
+#[tauri::command]
+pub async fn save_chord_edits(song_id: String, segments: Vec<ChordSegment>) -> Result<Vec<ChordSegment>, String> {
+    library::save_chord_edits(&song_id, segments)
+}
+
+/// Drop the user's chord corrections, so the detected chords show again.
+#[tauri::command]
+pub async fn clear_chord_edits(song_id: String) -> Result<(), String> {
+    library::clear_chord_edits(&song_id)
+}
+
+#[tauri::command]
+pub async fn has_chord_edits(song_id: String) -> Result<bool, String> {
+    library::has_chord_edits(&song_id)
+}
+
 #[tauri::command]
 pub async fn read_bass_tab(song_id: String) -> Result<Option<library::BassTab>, String> {
     library::read_bass_tab(&song_id)
@@ -778,6 +795,8 @@ pub(crate) fn redetect_chords_impl(state: &SidecarState, song_id: &str) -> Resul
         "outputPath": dir.join("chords.json").to_string_lossy(),
     });
     run_sidecar_command(state, &cmd, Duration::from_secs(300), |_, _| {})?;
+    // A fresh detection replaces the corrections made to the old one.
+    library::clear_chord_edits(song_id)?;
     library::mark_chords_detected(song_id)
 }
 

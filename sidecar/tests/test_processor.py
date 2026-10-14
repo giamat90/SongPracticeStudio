@@ -228,7 +228,7 @@ class TestProcessResult:
     def test_chords_json_has_the_documented_shape(self, mix, demucs, tmp_path):
         run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         doc = json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
-        assert doc["version"] == 3 and doc["duration"] == pytest.approx(2.0, abs=0.01)
+        assert doc["version"] == 4 and doc["duration"] == pytest.approx(2.0, abs=0.01)
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
         assert set(doc["segments"][0]) == {"start", "end", "chord"}
 
@@ -399,10 +399,17 @@ class TestChordDetection:
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", audio, SR))
         assert segs[0]["chord"] == "C:maj" and segs[0]["start"] == pytest.approx(3.0, abs=1.1)
 
-    def test_a_single_odd_window_is_smoothed_away(self, tmp_path):
-        audio = np.concatenate([chord_audio(C_MAJOR, 4), chord_audio(G_MAJOR, 1.0), chord_audio(C_MAJOR, 4)])
+    def test_a_window_the_audio_does_not_back_is_smoothed_away(self, tmp_path):
+        both = chord_audio(C_MAJOR, 1.0) + chord_audio(G_MAJOR, 1.0)
+        audio = np.concatenate([chord_audio(C_MAJOR, 4), both, chord_audio(C_MAJOR, 4)])
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", audio, SR))
         assert [s["chord"] for s in segs] == ["C:maj"]
+
+    def test_a_short_change_that_is_clearly_there_is_kept(self, tmp_path):
+        audio = np.concatenate([chord_audio(C_MAJOR, 4), chord_audio(G_MAJOR, 1.0), chord_audio(C_MAJOR, 4)])
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", audio, SR))
+        assert [s["chord"] for s in segs] == ["C:maj", "G:maj", "C:maj"]
+        assert segs[1]["start"] == pytest.approx(4.0, abs=0.1)
 
     def test_a_clip_shorter_than_the_smoothing_window_still_works(self, tmp_path):
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", chord_audio(C_MAJOR, 1.5), SR))
@@ -485,7 +492,7 @@ class TestRedetectChords:
         result = processor.detect_chords_from_stems({"other": a, "bass": b}, str(out))
         assert result == {"segments": 1}
         doc = json.loads(out.read_text(encoding="utf-8"))
-        assert doc["version"] == 3
+        assert doc["version"] == 4
         assert doc["segments"][0]["chord"] == "C:maj" and doc["segments"][0]["bass"] == "E"
         assert doc["duration"] == pytest.approx(5.0, abs=0.1)
 
@@ -509,6 +516,157 @@ class TestRedetectChords:
         out = tmp_path / "chords.json"
         assert processor.detect_chords_from_stems(stems, str(out)) == {"segments": 1}
         assert json.loads(out.read_text(encoding="utf-8"))["segments"][0]["chord"] == "G:maj"
+
+
+# ─── beat windows and Viterbi decoding ─────────────────────────────────────
+
+FRAME_DUR = processor._CHORD_HOP_LENGTH / SR
+
+
+def click_track(beat_seconds, total_seconds, sr=SR):
+    """A decaying noise burst at every beat (a drum hit): something a beat tracker can lock to."""
+    out = np.zeros(int(total_seconds * sr), dtype=np.float32)
+    burst_len = int(0.03 * sr)
+    t = np.arange(burst_len) / sr
+    burst = (0.8 * np.random.default_rng(0).standard_normal(burst_len) * np.exp(-t / 0.008)).astype(np.float32)
+    for beat in beat_seconds:
+        i = int(beat * sr)
+        out[i:i + burst_len] += burst[: len(out) - i]
+    return out
+
+
+class TestWindows:
+    def test_the_grid_cuts_whole_windows_and_folds_a_short_remainder_into_the_last(self):
+        # 10 frames per window, 25 frames: 0-10, 10-25 (remainder of 5 is exactly half, so it stays)
+        assert processor._grid_windows(25, 10) == [(0, 10), (10, 20), (20, 25)]
+        assert processor._grid_windows(24, 10) == [(0, 10), (10, 24)]
+        assert processor._grid_windows(4, 10) == [(0, 4)]
+
+    def test_beat_windows_cover_the_whole_signal_without_gaps(self):
+        n = round(10 / FRAME_DUR)
+        beats = [round(t / FRAME_DUR) for t in (0.4, 0.9, 1.4, 1.9, 2.4)]
+        windows = processor._beat_windows(beats, n, FRAME_DUR)
+        assert windows[0][0] == 0 and windows[-1][1] == n
+        assert all(a[1] == b[0] for a, b in zip(windows, windows[1:]))
+
+    def test_a_beat_next_to_the_start_does_not_make_a_sliver(self):
+        n = round(4 / FRAME_DUR)
+        first_real = round(0.7 / FRAME_DUR)
+        windows = processor._beat_windows([2, first_real], n, FRAME_DUR)
+        assert windows[0] == (0, first_real)
+
+    def test_a_slow_beat_is_cut_so_no_window_is_longer_than_the_limit(self):
+        n = round(6 / FRAME_DUR)
+        windows = processor._beat_windows([round(3 / FRAME_DUR)], n, FRAME_DUR)
+        longest = max(b - a for a, b in windows) * FRAME_DUR
+        assert longest <= processor._MAX_WINDOW_SECONDS + FRAME_DUR
+        assert len(windows) > 2
+
+
+class TestViterbi:
+    def costs(self, n=3, cost=0.1):
+        c = np.full((n, n), cost)
+        np.fill_diagonal(c, 0.0)
+        return c
+
+    def test_a_clear_run_is_followed(self):
+        em = np.array([[1, 0, 0]] * 3 + [[0, 1, 0]] * 3, dtype=float)
+        assert processor._viterbi(em, self.costs()) == [0, 0, 0, 1, 1, 1]
+
+    def test_one_window_that_wins_by_less_than_two_changes_is_ignored(self):
+        em = np.array([[1, 0, 0], [1, 0, 0], [0.4, 0.55, 0], [1, 0, 0], [1, 0, 0]], dtype=float)
+        assert processor._viterbi(em, self.costs(cost=0.1)) == [0, 0, 0, 0, 0]
+
+    def test_one_window_that_wins_by_more_is_kept(self):
+        em = np.array([[1, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 0], [1, 0, 0]], dtype=float)
+        assert processor._viterbi(em, self.costs(cost=0.1)) == [0, 0, 1, 0, 0]
+
+    def test_a_single_window_is_its_own_best_state(self):
+        assert processor._viterbi(np.array([[0.1, 0.9, 0.2]]), self.costs()) == [1]
+
+
+class TestTransitionCosts:
+    names = ["C:maj", "C:7", "G:maj", "D:min", "N"]
+
+    def test_staying_is_free_and_related_chords_are_cheaper_than_strangers(self):
+        c = processor._transition_costs(self.names)
+        assert all(c[i, i] == 0 for i in range(len(self.names)))
+        same_root, fifth, other, silence = c[0, 1], c[0, 2], c[0, 3], c[0, 4]
+        assert same_root < fifth < other
+        assert silence < same_root + 0.1
+
+    def test_costs_are_symmetric(self):
+        c = processor._transition_costs(self.names)
+        assert np.allclose(c, c.T)
+
+
+class TestKeyPrior:
+    def test_the_chords_of_c_major(self):
+        chords = processor._diatonic_chords(0, "major")
+        assert {"C:maj", "F:maj", "G:maj", "D:min", "E:min", "A:min", "G:7", "C:maj7"} <= chords
+        assert "C#:maj" not in chords and "B:maj" not in chords and "C:7" not in chords
+
+    def test_the_chords_of_a_minor_include_the_major_dominant(self):
+        chords = processor._diatonic_chords(9, "minor")
+        assert {"A:min", "D:min", "E:min", "E:maj", "C:maj", "G:maj", "F:maj"} <= chords
+
+
+class TestBeatFrames:
+    def test_a_click_track_gives_its_beats(self, tmp_path):
+        beats = np.arange(0, 12, 0.5)
+        p = write_wav(tmp_path / "drums.wav", click_track(beats, 12), SR)
+        frames = processor._beat_frames({"drums": p})
+        assert frames is not None
+        interval = float(np.median(np.diff(frames))) * FRAME_DUR
+        assert interval == pytest.approx(0.5, abs=0.05)
+
+    def test_too_few_beats_is_not_a_pulse(self, tmp_path):
+        p = write_wav(tmp_path / "drums.wav", click_track(np.arange(0, 3, 0.5), 3), SR)
+        assert processor._beat_frames({"drums": p}) is None
+
+    def test_an_unreadable_file_has_no_beats_instead_of_raising(self, tmp_path):
+        bad = tmp_path / "bad.wav"
+        bad.write_bytes(b"not audio")
+        assert processor._beat_frames({"drums": str(bad)}) is None
+
+    def test_only_the_drums_and_bass_are_tracked_when_there_are_drums(self, tmp_path, monkeypatch):
+        seen = {}
+
+        def fake_sum(paths):
+            seen["paths"] = sorted(paths)
+            return np.zeros(SR, dtype=np.float32)
+
+        monkeypatch.setattr(processor, "_sum_audio_files", fake_sum)
+        processor._beat_frames({"drums": "d", "bass": "b", "other": "o", "vocals": "v"})
+        assert seen["paths"] == ["bass", "drums"]
+        processor._beat_frames({"other": "o", "vocals": "v"})
+        assert seen["paths"] == ["other", "vocals"]
+
+
+class TestChordsFollowTheBeats:
+    def song(self, tmp_path, change_at):
+        """120 bpm clicks; C then G, changing at `change_at` seconds (not on a whole second)."""
+        total = 12.0
+        t = np.arange(int(total * SR)) / SR
+        harmony = np.where(
+            t < change_at,
+            chord_audio(C_MAJOR, total),
+            chord_audio(G_MAJOR, total),
+        ).astype(np.float32)
+        return {
+            "other": write_wav(tmp_path / "other.wav", harmony, SR),
+            "drums": write_wav(tmp_path / "drums.wav", click_track(np.arange(0, total, 0.5), total), SR),
+        }
+
+    def test_a_change_between_whole_seconds_lands_on_its_beat(self, tmp_path):
+        segs, _ = processor._detect_chords(self.song(tmp_path, change_at=6.5))
+        assert [s["chord"] for s in segs] == ["C:maj", "G:maj"]
+        assert segs[1]["start"] == pytest.approx(6.5, abs=0.12)
+
+    def test_the_fixed_grid_would_have_been_a_second_off(self, tmp_path):
+        stems = self.song(tmp_path, change_at=6.5)
+        segs = processor._detect_chords_chroma(stems["other"])
+        assert segs[1]["start"] in (pytest.approx(6.0, abs=0.05), pytest.approx(7.0, abs=0.05))
 
 
 # ─── which audio the chords are read from ──────────────────────────────────
@@ -602,7 +760,7 @@ class TestProcessReadsChordsFromTheHarmonicStems:
             guitar=(G_MAJOR, 0.04), vocals=(C_MAJOR, 0.04), drums=(C_MAJOR, 0.04),
         )
         assert [s["chord"] for s in doc["segments"]] == ["G:maj"]
-        assert doc["version"] == 3
+        assert doc["version"] == 4
 
     def test_the_source_file_is_read_when_no_harmony_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         doc = self.run_with(mix, tmp_path, monkeypatch, ["vocals", "drums"], vocals=(G_MAJOR, 0.04), drums=(G_MAJOR, 0.04))

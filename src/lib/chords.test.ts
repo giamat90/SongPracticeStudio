@@ -20,6 +20,11 @@ describe("formatChordName", () => {
     ["C:maj7", "Cmaj7"],
     ["A:min7", "Am7"],
     ["F#:min7", "F#m7"],
+    ["D:sus2", "Dsus2"],
+    ["D:sus4", "Dsus4"],
+    ["B:dim", "Bdim"],
+    ["C:aug", "Caug"],
+    ["G:6", "G6"],
   ])("%s -> %s", (input, expected) => expect(formatChordName(input)).toBe(expected));
 
   it("adds the bass note of a slash chord", () => {

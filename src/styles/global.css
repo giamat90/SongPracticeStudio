@@ -1019,11 +1019,113 @@ body,
   box-sizing: border-box;
   font-size: 0.75rem;
   color: var(--text-secondary);
+  background: transparent;
+  border: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: inherit;
   padding: 0 0.3rem;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.chord-row__chip:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* The chord being corrected in the editor below the row. */
+.chord-row__chip--selected {
+  overflow: visible;
+  z-index: 2;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.12);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  border-radius: 0.2rem;
+}
+
+/* Where a chord can be added: the playhead sits in a gap. */
+.chord-row__add {
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  z-index: 3;
+  width: 1.4rem;
+  padding: 0;
+  border: 1px dashed var(--accent);
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chord-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-radius: 0.25rem;
+}
+
+.chord-editor__name {
+  min-width: 2.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.chord-editor__select {
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+.chord-editor__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.chord-editor__button {
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-primary);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.chord-editor__button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.chord-editor__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chord-editor__button--danger:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.chord-editor__error {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  color: var(--accent);
 }
 
 /* The currently-playing chord always gets a legible label, even when its
