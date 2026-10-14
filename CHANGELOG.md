@@ -6,6 +6,15 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.56] - 2026-10-14
+
+### Added
+- **Sign in to YouTube inside the app.** Settings → YouTube account → **Sign in to YouTube** opens Google's sign-in in a private window; once you are signed in the app keeps only the YouTube/Google session cookies it needs and uses them for imports, so you no longer have to export a `cookies.txt` by hand. Choosing a cookies file is still available, and **Sign out** forgets the session.
+
+### Fixed
+- **YouTube imports with a signed-in session no longer fail with "The page needs to be reloaded".** The app now bundles the JavaScript runtime (Deno) that YouTube's challenges need, which makes the installer larger.
+- YouTube import error messages point at Settings → YouTube.
+
 ## [0.0.55] - 2026-10-14
 
 ### Changed
