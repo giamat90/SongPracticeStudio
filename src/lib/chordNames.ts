@@ -47,6 +47,37 @@ const QUALITY_SUFFIX: Record<string, string> = Object.fromEntries(
   CHORD_QUALITIES.map((q) => [q.value, q.suffix]),
 );
 
+/**
+ * How much of a chord is shown: easy is the triad (C, Am), medium keeps the
+ * sevenths, advanced adds the slash-chord bass note.
+ */
+export type ChordDetail = "easy" | "medium" | "advanced";
+
+export const CHORD_DETAILS: { value: ChordDetail; label: string; hint: string }[] = [
+  { value: "easy", label: "Easy", hint: "Major and minor chords only: C, Am, G" },
+  { value: "medium", label: "Medium", hint: "Adds seventh chords: C, Am7, G7, Fmaj7" },
+  { value: "advanced", label: "Advanced", hint: "Everything detected, with slash-chord bass notes: C/E" },
+];
+
+export function isChordDetail(value: unknown): value is ChordDetail {
+  return CHORD_DETAILS.some((d) => d.value === value);
+}
+
+const TRIAD_OF: Record<string, string> = { "7": "maj", maj7: "maj", "6": "maj", min7: "min" };
+
+/** The chord and bass note as shown at `detail`; the chord's root and its triad are never changed. */
+export function simplifyChord(
+  chord: string,
+  bass: string | null | undefined,
+  detail: ChordDetail,
+): { chord: string; bass: string | null } {
+  if (detail === "advanced") return { chord, bass: bass ?? null };
+  if (detail === "medium") return { chord, bass: null };
+  const [root, quality] = chord.split(":");
+  const triad = quality === undefined ? undefined : TRIAD_OF[quality];
+  return { chord: triad === undefined ? chord : `${root}:${triad}`, bass: null };
+}
+
 /** "C:maj" -> "C", "A:min7" -> "Am7", with a slash bass note when given: "C:maj", "E" -> "C/E" */
 export function formatChordName(chord: string, bass?: string | null): string {
   const [root, quality] = chord.split(":");

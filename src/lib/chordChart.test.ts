@@ -51,6 +51,22 @@ describe("buildChordChart", () => {
     expect(text).toContain("0:08  A7");
   });
 
+  it("prints triads only at the easy level, which also merges what then reads the same", () => {
+    const segments = [seg(0, 4, "A:min7"), seg(4, 8, "A:min"), seg(8, 12, "C:maj7"), seg(12, 16, "G:7")];
+    segments[2].bass = "E";
+    const text = buildChordChart({ ...base, segments, detail: "easy" });
+    expect(text).toContain("0:00  Am     0:08  C      0:12  G");
+    expect(text).not.toContain("m7");
+    expect(text).not.toContain("/E");
+  });
+
+  it("keeps sevenths but drops the bass note at the medium level", () => {
+    const segments = [seg(0, 4, "C:maj7"), seg(4, 8, "G:7")];
+    segments[0].bass = "E";
+    const text = buildChordChart({ ...base, segments, detail: "medium" });
+    expect(text).toContain("0:00  Cmaj7  0:04  G7");
+  });
+
   it("merges neighbouring segments with the same chord", () => {
     const text = buildChordChart({ ...base, segments: [seg(0, 2, "C:maj"), seg(2, 4, "C:maj"), seg(4, 6, "G:maj")] });
     expect(text).toContain("0:00  C      0:04  G");

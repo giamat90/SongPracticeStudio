@@ -14,6 +14,7 @@ export interface PlayerPort {
   duration: number;
   transpose: number;
   capo: number;
+  chordDetail: SharedState["chordDetail"];
   chordsRevision: number;
   playbackRate: number;
   activeTakeId: string | null;
@@ -85,6 +86,7 @@ export function startMainBridge(deps: MainBridgeDeps): Promise<{ dispose(): void
         duration: p.duration,
         transpose: p.transpose,
         capo: p.capo,
+        chordDetail: p.chordDetail,
         chordsRevision: p.chordsRevision,
         activeTakeId: p.activeTakeId,
         shownTakeIds: p.shownTakeIds,

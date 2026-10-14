@@ -4,6 +4,7 @@ import DownloadAllButton from "../components/player/DownloadAllButton";
 import ExportMixButton from "../components/player/ExportMixButton";
 import LoopsMenu from "../components/player/LoopsMenu";
 import CapoSelect from "../components/player/CapoSelect";
+import ChordDetailSelect from "../components/player/ChordDetailSelect";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
 import TabPanel from "../components/tab/TabPanel";
@@ -129,6 +130,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
         </div>
         <RecordButton />
         <CapoSelect song={song} />
+        <ChordDetailSelect song={song} />
         {docked("chords") && (
           <Detachable panel="chords" inline>
             <ChordCarousel song={song} />

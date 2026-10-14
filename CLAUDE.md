@@ -138,6 +138,7 @@ SongPracticeStudio/
 │   │   │   ├── ExportMixButton.tsx ← export current mix as WAV (rendered in AnalyzerPage header)
 │   │   │   ├── LoopsMenu.tsx      ← saved named loops, sections from the chords, bar sections (analyzer topbar)
 │   │   │   ├── CapoSelect.tsx     ← capo fret (per song); chord displays and the sheet show the shapes (analyzer topbar)
+│   │   │   ├── ChordDetailSelect.tsx ← Easy / Medium / Advanced: triads only, with sevenths, or everything incl. slash bass (one preference for every song; analyzer topbar)
 │   │   │   ├── ExportChartButton.tsx ← chord sheet as .txt, with a capo choice (AnalyzerPage header)
 │   │   │   ├── BassTabPanel.tsx   ← scrolling four-string bass tab + Export MIDI (below the stems)
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)

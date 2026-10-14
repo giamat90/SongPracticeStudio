@@ -14,6 +14,7 @@ export interface DetachedPlayer {
   duration: number;
   transpose: number;
   capo: number;
+  chordDetail: SharedState["chordDetail"];
   chordsRevision: number;
   currentTime: number;
   isPlaying: boolean;
@@ -69,6 +70,7 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
         duration: shared.duration,
         transpose: shared.transpose,
         capo: shared.capo,
+        chordDetail: shared.chordDetail,
         chordsRevision: shared.chordsRevision,
         takes: shared.takes,
         activeTakeId: shared.activeTakeId,

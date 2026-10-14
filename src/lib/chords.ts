@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlayerStore } from "../stores/player";
 import { readSongChords } from "./tauri";
 import type { ChordSegment, Song } from "./types";
-import { transposeChord, transposeNote } from "./chordNames";
+import { simplifyChord, transposeChord, transposeNote } from "./chordNames";
 
-export { formatChordName, transposeChord, transposeKey, transposeNote } from "./chordNames";
+export { formatChordName, simplifyChord, transposeChord, transposeKey, transposeNote } from "./chordNames";
 
 export function findActiveChordIndex(segments: ChordSegment[], time: number): number {
   let lo = 0;
@@ -38,6 +38,7 @@ export function useChordSegments(song: Song) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const transpose = usePlayerStore((s) => s.transpose);
   const capo = usePlayerStore((s) => s.capo);
+  const chordDetail = usePlayerStore((s) => s.chordDetail);
   const revision = usePlayerStore((s) => s.chordsRevision);
   const [detected, setSegments] = useState<ChordSegment[]>([]);
   // What is shown is the shapes to play: the key the song sounds in, with the capo taken off.
@@ -71,10 +72,19 @@ export function useChordSegments(song: Song) {
     return () => { cancelled = true; };
   }, [song.id, song.hasChords, revision]);
 
+  // The names to show. Segments are not merged: a chip keeps pointing at the
+  // stored chord it corrects, even when two neighbours read the same here.
+  const display = useMemo(
+    () => segments.map((seg) => simplifyChord(seg.chord, seg.bass, chordDetail)),
+    [segments, chordDetail],
+  );
+
   const activeIndex = findActiveChordIndex(segments, currentTime);
   const centerIndex = findNearestChordIndex(segments, currentTime);
   return {
     segments,
+    /** What to print for each segment (same order) at the chosen detail level. */
+    display,
     /** The segments as stored, in the key the song was detected in (before transpose and capo). */
     stored: detected,
     /** Semitones the shown chords are moved from the stored ones. */

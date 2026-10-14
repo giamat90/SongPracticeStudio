@@ -11,6 +11,7 @@ function setup() {
     duration: 0,
     transpose: 0,
     capo: 0,
+    chordDetail: "advanced",
     chordsRevision: 0,
     currentTime: 0,
     isPlaying: false,
@@ -55,7 +56,7 @@ function setup() {
     takeTrackKey: "__take__",
   });
   const message = (
-    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[]; transpose: number; capo: number; chordsRevision: number }> = {},
+    over: Partial<{ time: number; playing: boolean; takes: unknown[]; activeTakeId: string | null; shownTakeIds: string[]; transpose: number; capo: number; chordDetail: "easy" | "medium" | "advanced"; chordsRevision: number }> = {},
   ) => ({
     transport: { time: over.time ?? 10, playing: over.playing ?? false, rate: 1, sentAt: clock },
     shared: {
@@ -63,6 +64,7 @@ function setup() {
       duration: 200,
       transpose: over.transpose ?? 0,
       capo: over.capo ?? 0,
+      chordDetail: over.chordDetail ?? "advanced",
       chordsRevision: over.chordsRevision ?? 0,
       activeTakeId: over.activeTakeId ?? null,
       shownTakeIds: over.shownTakeIds ?? [],
@@ -117,6 +119,13 @@ describe("analyzer detached bridge", () => {
     await t.started;
     t.send(t.message({ transpose: -2 }));
     expect(t.get().transpose).toBe(-2);
+  });
+
+  it("mirrors how much of each chord is shown", async () => {
+    const t = setup();
+    await t.started;
+    t.send(t.message({ chordDetail: "easy" }));
+    expect(t.get()).toMatchObject({ chordDetail: "easy" });
   });
 
   it("mirrors the capo and the chords revision", async () => {

@@ -23,7 +23,7 @@ export default function ChordRow({ song }: ChordRowProps) {
   const scrollTime  = usePlayerStore((s) => s.scrollTime);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const isPlaying   = usePlayerStore((s) => s.isPlaying);
-  const { segments, stored, shift, activeIndex } = useChordSegments(song);
+  const { segments, display, stored, shift, activeIndex } = useChordSegments(song);
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +82,7 @@ export default function ChordRow({ song }: ChordRowProps) {
       <div className="chord-row">
         {segments.map((seg, i) => {
           const isActive = i === activeIndex;
+          const name = formatChordName(display[i].chord, display[i].bass);
           const width = (seg.end - seg.start) * minPxPerSec;
           const showLabel = isActive || width >= MIN_LABEL_PX || i === picked;
           const classes = [
@@ -99,11 +100,11 @@ export default function ChordRow({ song }: ChordRowProps) {
                 width: `${width}px`,
               }}
               onClick={() => { setSelected(i === picked ? null : i); setError(null); }}
-              title={`${formatChordName(seg.chord, seg.bass)}: click to correct`}
-              aria-label={`Chord ${formatChordName(seg.chord, seg.bass)} at ${seg.start.toFixed(1)} seconds`}
+              title={`${name}: click to correct`}
+              aria-label={`Chord ${name} at ${seg.start.toFixed(1)} seconds`}
               aria-pressed={i === picked}
             >
-              {showLabel ? formatChordName(seg.chord, seg.bass) : null}
+              {showLabel ? name : null}
             </button>
           );
         })}
