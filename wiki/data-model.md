@@ -47,7 +47,7 @@ interface ChordSegment {
 }
 ```
 
-One detected chord over a time range, from `_chords_from_signal()`'s chroma-template matching in `processor.py` (`chords.json` version 2: triads, sevenths, slash chords; version 1 files hold triads only and are still read). Not embedded in `Song` — fetched on demand via `read_song_chords(songId)`, which reads `chords.json` from the song's directory. See [Components: ChordCarousel](components.md#chordcarousel).
+One detected chord over a time range, from `_chords_from_signal()`'s chroma-template matching in `processor.py` (`chords.json` version 3: triads, sevenths, slash chords, read from the stems without drums and vocals; version 2 files have the same shape but were read from the full mix, version 1 files hold triads only; all are still read. Re-detect chords upgrades an old song). Not embedded in `Song` — fetched on demand via `read_song_chords(songId)`, which reads `chords.json` from the song's directory. See [Components: ChordCarousel](components.md#chordcarousel).
 
 **`metronomeOffset`** — set via `set_metronome_offset(songId, offset)`, which mirrors `rename_take`'s "find by id, mutate one field, re-save library.json" shape rather than going through `library::add`. `null`/absent means the metronome phase-locks to song position 0 (unchanged legacy behavior). See [Components: TempoControl](components.md#tempocontrol).
 

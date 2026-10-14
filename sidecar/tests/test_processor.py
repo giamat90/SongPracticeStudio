@@ -228,7 +228,7 @@ class TestProcessResult:
     def test_chords_json_has_the_documented_shape(self, mix, demucs, tmp_path):
         run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         doc = json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
-        assert doc["version"] == 2 and doc["duration"] == pytest.approx(2.0, abs=0.01)
+        assert doc["version"] == 3 and doc["duration"] == pytest.approx(2.0, abs=0.01)
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
         assert set(doc["segments"][0]) == {"start", "end", "chord"}
 
@@ -281,7 +281,7 @@ class TestProcessDegradesGracefully:
         assert events[-1] == (1.0, "complete")
 
     def test_a_chord_failure_is_non_fatal(self, mix, demucs, tmp_path, monkeypatch):
-        monkeypatch.setattr(processor, "_detect_chords_chroma", lambda p: (_ for _ in ()).throw(RuntimeError("cqt")))
+        monkeypatch.setattr(processor, "_detect_chords", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cqt")))
         result, _ = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         assert result["chords"] is False
         assert not (tmp_path / "o" / "chords.json").exists()
@@ -485,13 +485,128 @@ class TestRedetectChords:
         result = processor.detect_chords_from_stems({"other": a, "bass": b}, str(out))
         assert result == {"segments": 1}
         doc = json.loads(out.read_text(encoding="utf-8"))
-        assert doc["version"] == 2
+        assert doc["version"] == 3
         assert doc["segments"][0]["chord"] == "C:maj" and doc["segments"][0]["bass"] == "E"
         assert doc["duration"] == pytest.approx(5.0, abs=0.1)
 
     def test_no_stems_is_an_error(self, tmp_path):
         with pytest.raises(ValueError):
             processor.detect_chords_from_stems({}, str(tmp_path / "c.json"))
+
+    def test_leaves_the_drums_and_vocals_out(self, tmp_path):
+        stems = {
+            "other": write_wav(tmp_path / "other.wav", chord_audio(C_MAJOR, 5, amp=0.05), SR),
+            "vocals": write_wav(tmp_path / "vocals.wav", chord_audio(G_MAJOR, 5, amp=0.2), SR),
+            "drums": write_wav(tmp_path / "drums.wav", chord_audio(E_MINOR, 5, amp=0.2), SR),
+        }
+        out = tmp_path / "chords.json"
+        processor.detect_chords_from_stems(stems, str(out))
+        segs = json.loads(out.read_text(encoding="utf-8"))["segments"]
+        assert [s["chord"] for s in segs] == ["C:maj"]
+
+    def test_a_song_with_only_drums_and_vocals_is_read_from_all_of_them(self, tmp_path):
+        stems = {"vocals": write_wav(tmp_path / "vocals.wav", chord_audio(G_MAJOR, 5), SR)}
+        out = tmp_path / "chords.json"
+        assert processor.detect_chords_from_stems(stems, str(out)) == {"segments": 1}
+        assert json.loads(out.read_text(encoding="utf-8"))["segments"][0]["chord"] == "G:maj"
+
+
+# ─── which audio the chords are read from ──────────────────────────────────
+
+class TestHarmonicStems:
+    def paths(self, *names):
+        return {n: f"/song/{n}.wav" for n in names}
+
+    def test_drums_and_vocals_are_left_out(self):
+        got = processor._harmonic_stem_paths(self.paths("vocals", "drums", "bass", "guitar", "piano", "other"))
+        assert sorted(got) == ["bass", "guitar", "other", "piano"]
+
+    @pytest.mark.parametrize("name", ["guitar", "piano", "other"])
+    def test_any_one_harmony_stem_is_enough(self, name):
+        assert sorted(processor._harmonic_stem_paths(self.paths("vocals", name))) == [name]
+
+    def test_the_bass_stays_with_the_harmony_stems(self):
+        assert sorted(processor._harmonic_stem_paths(self.paths("bass", "other", "drums"))) == ["bass", "other"]
+
+    @pytest.mark.parametrize("names", [[], ["vocals"], ["drums"], ["vocals", "drums"], ["bass"], ["bass", "vocals", "drums"]])
+    def test_nothing_that_carries_the_harmony_means_no_harmonic_mix(self, names):
+        assert processor._harmonic_stem_paths(self.paths(*names)) is None
+
+
+class TestChordSource:
+    def audio(self, tmp_path, name, freqs, amp=0.15, seconds=5):
+        return write_wav(tmp_path / f"{name}.wav", chord_audio(freqs, seconds, amp=amp), SR)
+
+    def test_a_loud_vocal_does_not_change_the_chord(self, tmp_path):
+        stems = {
+            "other": self.audio(tmp_path, "other", C_MAJOR, amp=0.05),
+            "vocals": self.audio(tmp_path, "vocals", G_MAJOR, amp=0.2),
+        }
+        mix = self.audio(tmp_path, "mix", G_MAJOR)
+        segs, duration = processor._detect_chords(stems, mix)
+        assert [s["chord"] for s in segs] == ["C:maj"]
+        assert duration == pytest.approx(5.0, abs=0.1)
+
+    def test_the_original_mix_is_the_fallback_when_there_is_no_harmony_stem(self, tmp_path):
+        stems = {
+            "vocals": self.audio(tmp_path, "vocals", C_MAJOR),
+            "drums": self.audio(tmp_path, "drums", C_MAJOR),
+        }
+        mix = self.audio(tmp_path, "mix", G_MAJOR)
+        segs, _ = processor._detect_chords(stems, mix)
+        assert [s["chord"] for s in segs] == ["G:maj"]
+
+    def test_a_bass_line_alone_does_not_replace_the_mix(self, tmp_path):
+        stems = {
+            "bass": write_wav(tmp_path / "bass.wav", sine(82.41, SR, 5, amp=0.4), SR),
+            "vocals": self.audio(tmp_path, "vocals", C_MAJOR),
+        }
+        mix = self.audio(tmp_path, "mix", G_MAJOR)
+        segs, _ = processor._detect_chords(stems, mix)
+        assert [s["chord"] for s in segs] == ["G:maj"]
+
+    def test_the_bass_still_gives_slash_chords_when_the_mix_is_the_fallback(self, tmp_path):
+        stems = {"bass": write_wav(tmp_path / "bass.wav", sine(82.41, SR, 5, amp=0.4), SR)}
+        mix = self.audio(tmp_path, "mix", C_MAJOR)
+        segs, _ = processor._detect_chords(stems, mix)
+        assert [(s["chord"], s.get("bass")) for s in segs] == [("C:maj", "E")]
+
+    def test_the_bass_is_part_of_the_harmonic_mix(self, tmp_path):
+        stems = {
+            "other": self.audio(tmp_path, "other", C_MAJOR),
+            "bass": write_wav(tmp_path / "bass.wav", sine(82.41, SR, 5, amp=0.4), SR),
+            "drums": self.audio(tmp_path, "drums", G_MAJOR, amp=0.3),
+        }
+        segs, _ = processor._detect_chords(stems)
+        assert [(s["chord"], s.get("bass")) for s in segs] == [("C:maj", "E")]
+
+
+class TestProcessReadsChordsFromTheHarmonicStems:
+    """The source file is C major; the stems are the only place G major comes from."""
+
+    def stems(self, **named):
+        n = 4 * 44100
+        return {
+            name: np.tile(chord_audio(freqs, 4, sr=44100, amp=amp), (2, 1))[:, :n]
+            for name, (freqs, amp) in named.items()
+        }
+
+    def run_with(self, mix, tmp_path, monkeypatch, wanted, **named):
+        monkeypatch.setattr(processor, "_run_demucs", FakeDemucs(seconds=4, overrides=self.stems(**named)))
+        run(mix, tmp_path / "o", stems_to_extract=wanted)
+        return json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
+
+    def test_the_chords_come_from_the_stems_that_carry_the_harmony(self, mix, tmp_path, monkeypatch):
+        doc = self.run_with(
+            mix, tmp_path, monkeypatch, ["vocals", "drums", "guitar"],
+            guitar=(G_MAJOR, 0.04), vocals=(C_MAJOR, 0.04), drums=(C_MAJOR, 0.04),
+        )
+        assert [s["chord"] for s in doc["segments"]] == ["G:maj"]
+        assert doc["version"] == 3
+
+    def test_the_source_file_is_read_when_no_harmony_stem_was_extracted(self, mix, tmp_path, monkeypatch):
+        doc = self.run_with(mix, tmp_path, monkeypatch, ["vocals", "drums"], vocals=(G_MAJOR, 0.04), drums=(G_MAJOR, 0.04))
+        assert [s["chord"] for s in doc["segments"]] == ["C:maj"]
 
 
 # ─── bass transcription ────────────────────────────────────────────────────
