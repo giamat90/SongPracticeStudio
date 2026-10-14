@@ -15,6 +15,15 @@ dynamically linked into any compiled binary in this application).
 - Windows build source: https://github.com/BtbN/FFmpeg-Builds
 - macOS build source: https://github.com/eugeneware/ffmpeg-static (release b6.1.1, FFmpeg 6.1.1 static build, arm64)
 
+## Deno and yt-dlp-ejs
+
+The sidecar bundles the `deno` executable, run as a separate subprocess by
+yt-dlp to solve YouTube's signature challenges, together with the
+`yt-dlp-ejs` solver scripts.
+
+- Deno: https://deno.com, MIT License, Copyright the Deno authors
+- yt-dlp-ejs: https://github.com/yt-dlp/ejs, Unlicense (public domain)
+
 ## Demucs pretrained model weights
 
 Song Practice Studio bundles pretrained weights for the `htdemucs` and

@@ -6,6 +6,7 @@ Requires ffmpeg on PATH for the WAV post-processing step.
 
 import os
 import re
+import sys
 import yt_dlp
 from processor import process
 from mps_core.version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
@@ -26,6 +27,27 @@ def _yt_dlp_is_outdated() -> bool:
         return _version_tuple(yt_dlp.version.__version__) < _version_tuple(_MIN_YT_DLP_VERSION)
     except Exception:
         return False
+
+
+def _js_runtime_opts() -> dict:
+    """yt-dlp needs a JavaScript runtime (Deno) to solve YouTube's signature and
+    n challenges; without one a signed-in extraction fails with "The page needs
+    to be reloaded". In a dev venv yt-dlp finds the `deno` wheel's executable by
+    itself. The frozen sidecar unpacks to a temp dir yt-dlp does not search, so
+    it is pointed at the copy build.py bundled there.
+    """
+    if not getattr(sys, "frozen", False):
+        return {}
+    name = "deno.exe" if os.name == "nt" else "deno"
+    path = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)), name)
+    if os.path.isfile(path):
+        return {"js_runtimes": {"deno": {"path": path}}}
+    print(
+        f"[yt_importer] the bundled Deno was not found at {path}: YouTube imports "
+        "that need a signed-in session will fail",
+        file=sys.stderr,
+    )
+    return {}
 
 
 def _raise_import_error(exc: Exception):
@@ -75,6 +97,7 @@ def import_yt(
         "no_warnings": True,
         "noprogress": True,
         "progress_hooks": [ydl_hook],
+        **_js_runtime_opts(),
     }
 
     # A user-supplied cookies.txt (Netscape format, exported once via a
@@ -90,12 +113,12 @@ def import_yt(
     attempts = []
     if cookies_path:
         if os.path.isfile(cookies_path):
-            print(f"[yt_importer] trying cookies file: {cookies_path}")
+            print(f"[yt_importer] trying cookies file: {cookies_path}", file=sys.stderr)
             attempts.append({"cookiefile": cookies_path})
         else:
-            print(f"[yt_importer] cookies file not found, skipping: {cookies_path}")
+            print(f"[yt_importer] cookies file not found, skipping: {cookies_path}", file=sys.stderr)
     else:
-        print("[yt_importer] no cookiesPath configured")
+        print("[yt_importer] no cookiesPath configured", file=sys.stderr)
     attempts += [{}] + [{"cookiesfrombrowser": (b,)} for b in _BROWSERS]
     last_error: Exception | None = None
 

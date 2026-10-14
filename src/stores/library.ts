@@ -43,10 +43,13 @@ function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFi
   if (msg.includes("known-good floor")) {
     return "The YouTube downloader (yt-dlp) is out of date and YouTube has changed something it can't handle. Update it: `pip install -U -r requirements.txt` in the sidecar venv (dev), or reinstall the app (installed build).";
   }
+  if (msg.includes("page needs to be reloaded") || msg.includes("signature solving failed")) {
+    return "YouTube could not be read: its challenge needs the JavaScript runtime (Deno) bundled with the app, which did not run. Retry once; if it keeps failing, reinstall the app (a build without the bundled Deno is broken).";
+  }
   if (msg.includes("sign in to confirm") || msg.includes("not a bot") || /\bbot\b/.test(msg)) {
     return hasCookiesFile
-      ? "YouTube blocked the download even with your cookies file — it has likely expired. Re-export cookies.txt and update it in Settings → YouTube cookies file, then retry."
-      : "YouTube blocked the download (bot detection). Fix: open Settings → YouTube cookies file and add one — it's the most reliable fix for this. A VPN can also trigger this; try disabling it too.";
+      ? "YouTube blocked the download even with your saved YouTube session (sign-in or cookies file) — it has likely expired. Sign in again in Settings → YouTube, then retry."
+      : "YouTube blocked the download (bot detection). Fix: open Settings → YouTube and sign in — it's the most reliable fix for this. A VPN can also trigger this; try disabling it too.";
   }
   if (msg.includes("vpn") || msg.includes("proxy")) {
     return "A VPN or proxy may be blocking the connection. Disable it and retry.";
@@ -74,8 +77,8 @@ function friendlyError(raw: unknown, context: "youtube" | "upload", hasCookiesFi
   }
   if (context === "youtube") {
     return hasCookiesFile
-      ? "YouTube import failed even with your cookies file. It may have expired (re-export it in Settings), or the URL/video itself may be the problem."
-      : "YouTube import failed. This is most often fixed by adding a YouTube cookies file in Settings → YouTube cookies file — see the instructions there. Otherwise, check that the URL is public and your internet connection is working.";
+      ? "YouTube import failed even with your saved YouTube session. It may have expired (sign in again in Settings → YouTube), or the URL/video itself may be the problem."
+      : "YouTube import failed. This is most often fixed by signing in to YouTube in Settings → YouTube. Otherwise, check that the URL is public and your internet connection is working.";
   }
   return "Failed to process the audio file. Make sure it is a valid audio format.";
 }

@@ -117,11 +117,11 @@ describe("importYoutube error mapping", () => {
     "ERROR: Sign in to confirm you're not a bot",
     "HTTP Error 403: bot check",
   ])("blames bot detection and points at the cookies setting: %s", async (msg) => {
-    expect(await fail(msg)).toMatch(/Settings → YouTube cookies file and add one/);
+    expect(await fail(msg)).toMatch(/Settings → YouTube and sign in/);
   });
 
   it("tells the user their cookies file expired when one was already configured", async () => {
-    expect(await fail("Sign in to confirm you're not a bot", "/c.txt")).toMatch(/even with your cookies file/);
+    expect(await fail("Sign in to confirm you're not a bot", "/c.txt")).toMatch(/even with your saved YouTube session/);
   });
 
   it.each([
@@ -134,13 +134,15 @@ describe("importYoutube error mapping", () => {
     ["Unsupported URL: foo", /Invalid URL/],
     ["Connection reset (Errno 104)", /Network error/],
     ["socket timeout", /Network error/],
+    ["ERROR: [youtube] abc: The page needs to be reloaded.", /JavaScript runtime/],
+    ["Signature solving failed: Some formats may be missing", /JavaScript runtime/],
   ])("maps %j to a readable message", async (msg, expected) => {
     expect(await fail(msg)).toMatch(expected);
   });
 
   it("falls back to a generic YouTube message (cookies hint without a file, expiry hint with one)", async () => {
-    expect(await fail("something odd")).toMatch(/adding a YouTube cookies file/);
-    expect(await fail("something odd", "/c.txt")).toMatch(/even with your cookies file/);
+    expect(await fail("something odd")).toMatch(/signing in to YouTube/);
+    expect(await fail("something odd", "/c.txt")).toMatch(/even with your saved YouTube session/);
   });
 
   it("does not mistake an ordinary word containing 'bot' (e.g. 'both') for bot detection", async () => {
