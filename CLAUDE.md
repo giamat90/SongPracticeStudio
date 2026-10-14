@@ -11,7 +11,7 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ## Shared code (`@giamat90/mps-core`)
 
-Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
+Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), `youtube` (sign-in IPC wrappers, `cookiesSource`, `isSessionExpiredError`) plus the Rust crate `mps-youtube-signin` (the in-app YouTube sign-in, a Cargo git dependency pinned in `src-tauri/Cargo.toml`), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
 
 ---
 
@@ -176,7 +176,7 @@ SongPracticeStudio/
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()
     ├── takes.rs      ← Take struct + takes.json CRUD (per song)
     ├── sidecar.rs     ← SidecarManager, JSON-lines IPC
-    ├── youtube_signin.rs ← in-app Google sign-in window → ~/.songpracticestudio/youtube_cookies.txt; also bars that window from the app's commands
+    ├── youtube_signin.rs ← the two sign_in_youtube / sign_out_youtube commands, binding mps-core's `mps-youtube-signin` crate to ~/.songpracticestudio (the window, cookies file and the guard that bars it from the app's commands live in the crate)
     ├── storage.rs     ← ~/.songpracticestudio/ path helpers
     ├── windows.rs    ← detached panel windows: allowlist, creation, remembered geometry, `cursor_over_main`
     └── lib.rs        ← Tauri builder, invoke_handler registration

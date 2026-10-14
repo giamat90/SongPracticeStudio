@@ -64,7 +64,7 @@ pub fn run() {
         .manage(windows::WindowMemory::load())
         .invoke_handler(move |invoke| {
             // The sign-in window shows Google's pages; none of this app's commands are open to it.
-            if !youtube_signin::may_invoke(invoke.message.webview().label()) {
+            if !mps_youtube_signin::may_invoke(invoke.message.webview().label()) {
                 invoke.resolver.reject("This window may not call the app's commands");
                 return true;
             }

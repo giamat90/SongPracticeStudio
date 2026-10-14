@@ -18,7 +18,14 @@ const api = vi.hoisted(() => ({
 
 vi.mock("../lib/tauri", () => api);
 
+const youtube = vi.hoisted(() => ({ signInYoutube: vi.fn() }));
+vi.mock("@giamat90/mps-core/youtube", async (original) => ({
+  ...(await original<typeof import("@giamat90/mps-core/youtube")>()),
+  signInYoutube: youtube.signInYoutube,
+}));
+
 import { useLibraryStore } from "./library";
+import { useSettingsStore } from "./settings";
 
 const song = (id: string, extra: Partial<Song> = {}): Song => ({
   id, title: id, duration: 100, processedAt: "2026-01-01T00:00:00Z", directory: `/lib/${id}`, stems: ["vocals"], sortIndex: 0, ...extra,
@@ -30,7 +37,9 @@ let errorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockReset());
-  useLibraryStore.setState({ ...initial, songs: [], folders: [], processing: null, isLoading: false, error: null });
+  youtube.signInYoutube.mockReset();
+  useSettingsStore.setState({ youtubeCookiesPath: null });
+  useLibraryStore.setState({ ...initial, songs: [], folders: [], processing: null, isLoading: false, error: null, sessionExpired: false });
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -290,5 +299,101 @@ describe("clearError", () => {
     useLibraryStore.setState({ error: "boom" });
     useLibraryStore.getState().clearError();
     expect(useLibraryStore.getState().error).toBeNull();
+  });
+});
+
+
+describe("an expired YouTube session", () => {
+  const botCheck = "ERROR: [youtube] x: Sign in to confirm you're not a bot";
+  const state = () => useLibraryStore.getState();
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => warnSpy.mockRestore());
+
+  it("is offered a sign-in when YouTube turns a request that carried a cookies file down", async () => {
+    api.importYoutube.mockRejectedValue(botCheck);
+    await state().importYoutube("https://youtu.be/x", undefined, false, "/c.txt");
+    expect(state().sessionExpired).toBe(true);
+  });
+
+  it("is not offered when no cookies file was used (the settings already say what to do)", async () => {
+    api.importYoutube.mockRejectedValue(botCheck);
+    await state().importYoutube("https://youtu.be/x", undefined, false, null);
+    expect(state().sessionExpired).toBe(false);
+  });
+
+  it("is not offered for errors a sign-in cannot fix", async () => {
+    api.importYoutube.mockRejectedValue("Private video. Sign in if you've been granted access");
+    await state().importYoutube("https://youtu.be/x", undefined, false, "/c.txt");
+    expect(state().sessionExpired).toBe(false);
+  });
+
+  it("is cleared by a successful import and by dismissing the error", async () => {
+    useLibraryStore.setState({ sessionExpired: true, error: "x" });
+    api.importYoutube.mockResolvedValue(song("ok"));
+    await state().importYoutube("u", undefined, false, "/c.txt");
+    expect(state().sessionExpired).toBe(false);
+
+    useLibraryStore.setState({ sessionExpired: true, error: "x" });
+    state().clearError();
+    expect(state().sessionExpired).toBe(false);
+  });
+
+  describe("signInAndRetryYoutube", () => {
+    const fail = async () => {
+      api.importYoutube.mockRejectedValueOnce(botCheck);
+      await state().importYoutube("https://youtu.be/x", ["vocals", "bass"], true, "/old.txt");
+    };
+
+    it("signs in, remembers the new cookies file and repeats the import with it", async () => {
+      await fail();
+      youtube.signInYoutube.mockResolvedValue("/data/youtube_cookies.txt");
+      api.importYoutube.mockResolvedValueOnce(song("again"));
+      await state().signInAndRetryYoutube();
+      expect(useSettingsStore.getState().youtubeCookiesPath).toBe("/data/youtube_cookies.txt");
+      expect(api.importYoutube).toHaveBeenLastCalledWith(
+        "https://youtu.be/x", ["vocals", "bass"], true, "/data/youtube_cookies.txt",
+      );
+      expect(state().songs.map((s) => s.id)).toEqual(["again"]);
+      expect(state().error).toBeNull();
+      expect(state().sessionExpired).toBe(false);
+    });
+
+    it("does nothing when there is no import to repeat", async () => {
+      await state().signInAndRetryYoutube();
+      expect(youtube.signInYoutube).not.toHaveBeenCalled();
+      expect(api.importYoutube).not.toHaveBeenCalled();
+    });
+
+    it("keeps the offer and says why when the sign-in is cancelled, without repeating the import", async () => {
+      await fail();
+      youtube.signInYoutube.mockRejectedValue("Sign-in cancelled.");
+      await state().signInAndRetryYoutube();
+      expect(state().error).toMatch(/Sign-in cancelled/);
+      expect(state().sessionExpired).toBe(true);
+      expect(api.importYoutube).toHaveBeenCalledTimes(1);
+      expect(useSettingsStore.getState().youtubeCookiesPath).toBeNull();
+    });
+
+    it("blames the network, not the session, when a fresh sign-in is turned down too", async () => {
+      await fail();
+      youtube.signInYoutube.mockResolvedValue("/data/youtube_cookies.txt");
+      api.importYoutube.mockRejectedValueOnce(botCheck);
+      await state().signInAndRetryYoutube();
+      expect(state().error).toMatch(/right after signing in/);
+      expect(state().error).toMatch(/VPN|network/i);
+      expect(state().sessionExpired).toBe(false);
+    });
+
+    it("does not offer a second sign-in after a fresh one was turned down", async () => {
+      await fail();
+      youtube.signInYoutube.mockResolvedValue("/data/youtube_cookies.txt");
+      api.importYoutube.mockRejectedValue(botCheck);
+      await state().signInAndRetryYoutube();
+      await state().signInAndRetryYoutube();
+      expect(youtube.signInYoutube).toHaveBeenCalledTimes(1);
+    });
   });
 });
