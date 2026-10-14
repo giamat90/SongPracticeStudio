@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.58] - 2026-10-14
+
+### Changed
+- **Chords follow the beat.** Detection used to cut the song into fixed one-second windows, so a change that fell between two seconds landed up to a second early or late. It now reads one window per beat and decides the whole progression at once, so a single noisy window no longer flips a chord. A song with no steady pulse is still read on the one-second grid. Songs imported earlier keep their chords until you press **Re-detect chords** in the header; no new separation is needed.
+
+### Added
+- **Correct a chord by hand.** Click a chord on the timeline to change its root, quality (now including sus2, sus4, dim, aug and 6) or slash bass, move its start or end to the playhead, split it, join it with the next one or delete it. With the playhead paused in a gap a **+** adds a chord there. Your corrections are kept apart from the detection, show in the chord sheet and sections, and **Reset edits** in the header brings the detected chords back. **Re-detect chords** replaces them and asks first.
+
 ## [0.0.57] - 2026-10-14
 
 ### Added
