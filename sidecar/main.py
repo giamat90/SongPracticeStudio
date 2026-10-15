@@ -163,6 +163,15 @@ def main():
                 )
                 send({"type": "result", "cmd": "find_lyrics", "data": result})
 
+            elif cmd.get("cmd") == "search_lyrics":
+                result = lyrics.search_lyrics(
+                    cmd["title"],
+                    artist=cmd.get("artist"),
+                    duration=cmd.get("duration"),
+                    app=APP,
+                )
+                send({"type": "result", "cmd": "search_lyrics", "data": result})
+
             elif cmd.get("cmd") == "ping":
                 send({"type": "pong"})
 

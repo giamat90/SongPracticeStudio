@@ -335,6 +335,8 @@ mod tests {
             folder_id: None,
             sort_index: 0,
             loops: vec![],
+            official_title: None,
+            official_artist: None,
         };
         library::add(song.clone()).unwrap();
         song

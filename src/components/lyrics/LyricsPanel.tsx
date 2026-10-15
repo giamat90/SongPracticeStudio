@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlayerStore } from "../../stores/player";
+import { useLibraryStore } from "../../stores/library";
 import { cancelLyricsSync } from "../../lib/tauri";
 import { activeLineIndex, activeWordIndex, lineSeekTime, useLyricsStore } from "@giamat90/mps-core/lyrics";
 
@@ -7,6 +8,11 @@ interface LyricsPanelProps {
   songId: string;
   /** False when the song was imported without the vocals stem */
   hasVocals: boolean;
+}
+
+function formatDuration(seconds: number): string {
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
@@ -20,16 +26,41 @@ function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
   const load = useLyricsStore((s) => s.load);
   const clear = useLyricsStore((s) => s.clear);
   const setDraft = useLyricsStore((s) => s.setDraft);
-  const findOnline = useLyricsStore((s) => s.findOnline);
+  const candidates = useLyricsStore((s) => s.candidates);
+  const chosen = useLyricsStore((s) => s.chosen);
+  const searchOnline = useLyricsStore((s) => s.searchOnline);
+  const chooseCandidate = useLyricsStore((s) => s.chooseCandidate);
   const sync = useLyricsStore((s) => s.sync);
   const remove = useLyricsStore((s) => s.remove);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  const song = usePlayerStore((s) => (s.song?.id === songId ? s.song : null));
+  const setSongIdentity = useLibraryStore((s) => s.setSongIdentity);
+  const lookupTitle = song?.officialTitle?.trim() || song?.title || "";
+  const lookupArtist = song?.officialArtist?.trim() || "";
+  const [identityOpen, setIdentityOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [artistDraft, setArtistDraft] = useState("");
+
+  const openIdentity = () => {
+    setTitleDraft(lookupTitle);
+    setArtistDraft(lookupArtist);
+    setIdentityOpen(true);
+  };
+
+  const saveIdentity = async () => {
+    const saved = await setSongIdentity(songId, titleDraft, artistDraft);
+    if (!saved) return;
+    usePlayerStore.setState((s) => (s.song?.id === songId ? { song: saved } : {}));
+    setIdentityOpen(false);
+  };
+
   useEffect(() => {
     setOpen(false);
     setEditing(false);
+    setIdentityOpen(false);
     if (hasVocals) load(songId);
     return () => clear();
   }, [songId, hasVocals]);
@@ -136,12 +167,57 @@ function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
                 aria-label="Lyrics text"
                 disabled={busy}
               />
+              <div className="lyrics-panel__lookup">
+                {identityOpen ? (
+                  <form
+                    className="lyrics-panel__identity"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void saveIdentity();
+                    }}
+                  >
+                    <input
+                      className="lyrics-panel__input"
+                      value={artistDraft}
+                      onChange={(e) => setArtistDraft(e.target.value)}
+                      placeholder="Artist"
+                      aria-label="Official artist"
+                    />
+                    <input
+                      className="lyrics-panel__input"
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      placeholder="Title"
+                      aria-label="Official title"
+                    />
+                    <button type="submit" className="lyrics-panel__btn lyrics-panel__btn--primary">
+                      Save
+                    </button>
+                    <button type="button" className="lyrics-panel__btn" onClick={() => setIdentityOpen(false)}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <p className="lyrics-panel__hint">
+                    Searches as: <strong>{lookupArtist ? `${lookupArtist} – ${lookupTitle}` : lookupTitle}</strong>{" "}
+                    <button
+                      type="button"
+                      className="lyrics-panel__link"
+                      onClick={openIdentity}
+                      disabled={busy || !song}
+                      title="The title and artist the online search uses. Renaming the song in the library does not change them."
+                    >
+                      Change
+                    </button>
+                  </p>
+                )}
+              </div>
               <div className="lyrics-panel__actions">
                 <button
                   className="lyrics-panel__btn"
-                  onClick={() => findOnline(songId)}
+                  onClick={() => searchOnline(songId)}
                   disabled={busy}
-                  title="Searches lrclib.net with this song's title"
+                  title="Searches lrclib.net with this song's official title and artist"
                 >
                   {status === "finding" ? "Searching..." : "Find online"}
                 </button>
@@ -158,6 +234,31 @@ function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
                   </button>
                 )}
               </div>
+              {candidates.length > 1 && (
+                <ul className="lyrics-panel__results" aria-label="Other results">
+                  {candidates.map((c, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        className={`lyrics-panel__result${i === chosen ? " lyrics-panel__result--chosen" : ""}`}
+                        onClick={() => chooseCandidate(i)}
+                        disabled={busy}
+                        aria-pressed={i === chosen}
+                      >
+                        <span className="lyrics-panel__result-name">
+                          {c.title || "Untitled"}
+                          {c.artist ? ` – ${c.artist}` : ""}
+                        </span>
+                        <span className="lyrics-panel__result-meta">
+                          {c.duration != null ? formatDuration(c.duration) : "length unknown"}
+                          {c.lengthMismatch ? " · different length" : ""}
+                          {c.synced ? " · timed" : " · plain"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <p className="lyrics-panel__hint">
                 Syncing places each line on the separated vocals. The first run downloads a one-time speech model.
               </p>

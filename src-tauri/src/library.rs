@@ -35,6 +35,26 @@ pub struct Song {
     // Regions the user saved under a name, in time order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loops: Vec<NamedLoop>,
+    // What the song is called in the world, kept apart from `title` (which the
+    // user renames freely to tell versions apart: live, acoustic...). Online
+    // lookups use these; None falls back to `title`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub official_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub official_artist: Option<String>,
+}
+
+impl Song {
+    /// The title and artist to look the song up under.
+    pub fn lookup_identity(&self) -> (String, Option<String>) {
+        fn filled(s: &Option<String>) -> Option<String> {
+            s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string)
+        }
+        (
+            filled(&self.official_title).unwrap_or_else(|| self.title.clone()),
+            filled(&self.official_artist),
+        )
+    }
 }
 
 /// A region of a song saved under a name, to loop with one click.
@@ -221,10 +241,45 @@ pub fn rename(song_id: &str, title: &str) -> Result<Song, String> {
         .iter_mut()
         .find(|s| s.id == song_id)
         .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    // A song nobody has given an identity yet keeps looking itself up under the
+    // name it had, so renaming it to "... (acoustic)" does not change what the
+    // lyrics search looks for.
+    if song.official_title.is_none() {
+        song.official_title = Some(song.title.clone());
+    }
     song.title = trimmed.to_string();
     let updated = song.clone();
     save(&lib)?;
     Ok(updated)
+}
+
+/// Set the title and artist a song is looked up under. Blank clears the field,
+/// which makes the lookup fall back to the song's own title.
+pub fn set_identity(
+    song_id: &str,
+    official_title: Option<&str>,
+    official_artist: Option<&str>,
+) -> Result<Song, String> {
+    let mut lib = load()?;
+    let updated = set_identity_in(&mut lib.songs, song_id, official_title, official_artist)?;
+    save(&lib)?;
+    Ok(updated)
+}
+
+fn set_identity_in(
+    songs: &mut [Song],
+    song_id: &str,
+    official_title: Option<&str>,
+    official_artist: Option<&str>,
+) -> Result<Song, String> {
+    let clean = |s: Option<&str>| s.map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+    let song = songs
+        .iter_mut()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    song.official_title = clean(official_title);
+    song.official_artist = clean(official_artist);
+    Ok(song.clone())
 }
 
 #[derive(Deserialize)]
@@ -551,6 +606,8 @@ mod tests {
             folder_id: None,
             sort_index: 0,
             loops: vec![],
+            official_title: None,
+            official_artist: None,
         }
     }
 
@@ -571,6 +628,64 @@ mod tests {
     }
 
     // ── pure helpers ──────────────────────────────────────────────────────
+
+    #[test]
+    fn lookup_identity_prefers_the_official_fields_and_falls_back() {
+        let mut s = song("a", "Hallelujah (acoustic)");
+        assert_eq!(s.lookup_identity(), ("Hallelujah (acoustic)".to_string(), None));
+        s.official_title = Some("Hallelujah".into());
+        s.official_artist = Some("Leonard Cohen".into());
+        assert_eq!(s.lookup_identity(), ("Hallelujah".to_string(), Some("Leonard Cohen".to_string())));
+        s.official_title = Some("   ".into());
+        assert_eq!(s.lookup_identity().0, "Hallelujah (acoustic)");
+    }
+
+    #[test]
+    fn renaming_an_unidentified_song_keeps_the_name_it_was_looked_up_under() {
+        let _home = TestHome::new();
+        add(song("a", "Hallelujah")).unwrap();
+        let renamed = rename("a", "Hallelujah (live 2019)").unwrap();
+        assert_eq!(renamed.title, "Hallelujah (live 2019)");
+        assert_eq!(renamed.official_title.as_deref(), Some("Hallelujah"));
+        assert_eq!(renamed.lookup_identity().0, "Hallelujah");
+    }
+
+    #[test]
+    fn renaming_never_overwrites_an_identity_that_was_set() {
+        let _home = TestHome::new();
+        add(song("a", "Whatever")).unwrap();
+        set_identity("a", Some("Hallelujah"), None).unwrap();
+        let renamed = rename("a", "Another name").unwrap();
+        assert_eq!(renamed.official_title.as_deref(), Some("Hallelujah"));
+    }
+
+    #[test]
+    fn set_identity_trims_and_blank_clears() {
+        let mut songs = vec![song("a", "Mine")];
+        let s = set_identity_in(&mut songs, "a", Some("  Hallelujah "), Some("Leonard Cohen")).unwrap();
+        assert_eq!(s.official_title.as_deref(), Some("Hallelujah"));
+        assert_eq!(s.official_artist.as_deref(), Some("Leonard Cohen"));
+        assert_eq!(s.title, "Mine");
+        let s = set_identity_in(&mut songs, "a", Some("  "), None).unwrap();
+        assert_eq!(s.official_title, None);
+        assert_eq!(s.official_artist, None);
+    }
+
+    #[test]
+    fn set_identity_reports_an_unknown_song() {
+        let mut songs = vec![song("a", "Mine")];
+        assert!(set_identity_in(&mut songs, "nope", Some("x"), None).unwrap_err().contains("Song not found"));
+    }
+
+    #[test]
+    fn a_library_written_before_identities_still_loads() {
+        let json = r#"{"id":"a","title":"Old","duration":1.0,"detectedKey":null,"detectedBpm":null,
+            "processedAt":"x","directory":"d"}"#;
+        let s: Song = serde_json::from_str(json).unwrap();
+        assert_eq!(s.official_title, None);
+        let out = serde_json::to_string(&s).unwrap();
+        assert!(!out.contains("officialTitle"), "absent identity is not written");
+    }
 
     #[test]
     fn renames_matching_folder_and_trims_whitespace() {

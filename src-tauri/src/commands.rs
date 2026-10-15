@@ -203,6 +203,8 @@ pub(crate) fn song_from_result(
 ) -> Song {
     Song {
         id: song_id.to_string(),
+        official_title: Some(title.clone()),
+        official_artist: None,
         title,
         duration: data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0),
         detected_key: data.get("detectedKey").and_then(|v| v.as_str()).map(|s| s.to_string()),
@@ -330,6 +332,15 @@ pub async fn set_song_loops(song_id: String, loops: Vec<library::NamedLoop>) -> 
 #[tauri::command]
 pub async fn rename_song(song_id: String, title: String) -> Result<Song, String> {
     library::rename(&song_id, &title)
+}
+
+#[tauri::command]
+pub async fn set_song_identity(
+    song_id: String,
+    official_title: Option<String>,
+    official_artist: Option<String>,
+) -> Result<Song, String> {
+    library::set_identity(&song_id, official_title.as_deref(), official_artist.as_deref())
 }
 
 // --- Folder commands ---
@@ -861,6 +872,14 @@ pub async fn find_lyrics(
     song_id: String,
 ) -> Result<crate::lyrics::FoundLyrics, String> {
     crate::lyrics::find_impl(&state, &song_id)
+}
+
+#[tauri::command]
+pub async fn search_lyrics(
+    state: State<'_, SidecarState>,
+    song_id: String,
+) -> Result<crate::lyrics::LyricsSearch, String> {
+    crate::lyrics::search_impl(&state, &song_id)
 }
 
 #[tauri::command]

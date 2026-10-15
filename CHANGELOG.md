@@ -6,6 +6,15 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.62] - 2026-10-15
+
+### Added
+- **Lyrics search keeps the song's real name.** Renaming a song (for example to "Hallelujah (live)") no longer changes what **Find online** looks for. The lyrics panel shows **Searches as: Artist – Title** with a **Change** link to correct it.
+- **Choose among the results.** When more than one lyrics result is found, they are listed under the text box with their length and whether they are timed; click one to use it. A result of a different length than your song is marked, so a live or acoustic version can still be picked.
+
+### Changed
+- The shared package moved to mps-core 0.11.0 (it was 0.7.0).
+
 ## [0.0.61] - 2026-10-15
 
 ### Added

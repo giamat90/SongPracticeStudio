@@ -21,6 +21,8 @@ interface Song {
   metronomeOffset?: number; // song time (s) where the metronome's beat 1 lands
   folderId?: string | null; // library folder this song belongs to; null/absent = root
   sortIndex: number;        // rank among sibling songs sharing the same folderId
+  officialTitle?: string;   // what online lookups search for; `title` is free for the user to rename
+  officialArtist?: string;
 }
 ```
 
@@ -150,7 +152,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `read_bass_tab` | `songId: string` | `BassTab` or `null` (`bass_tab.json`: `{version, duration, notes[]}`; `null` when the song has none) |
 | `export_file` | `data: u8[], suggestedName: string` | `void` (Save As for a file the app built; only `.txt` and `.mid` names are accepted) |
 | `set_song_loops` | `songId: string, loops: NamedLoop[]` | `Song` (replaces the saved loops; names trimmed, at most 100, 1-80 characters, regions at least 0.25 s, unique ids, stored in time order) |
-| `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected) |
+| `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected; leaves `officialTitle` alone, and a song with none yet gets its old title copied into it first) |
+| `set_song_identity` | `songId, officialTitle: string \| null, officialArtist: string \| null` | `Song` (trimmed; blank clears, and the lookup then falls back to `title`) |
 | `set_metronome_offset` | `songId: string, offset?: f64` | `Song` (persists the metronome's downbeat anchor; `null` clears it back to song start) |
 | `read_song_tab` | `songId: string` | `TabRecord` or `null` (`{fileName, originalName, path, sync}`; `sync` is `tab_sync.json` once aligned) |
 | `import_song_tab` | `songId: string, sourcePath: string` | `TabRecord` (copies a `.gp`/`.gp3`-`.gp5`/`.gpx`/`.musicxml`/`.xml` of at most 20 MB next to the song as `tab.<ext>`, replacing an earlier tab and its alignment) |
@@ -182,7 +185,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `pitch_shift_song` | `songDir: string, stemNames: string[], nSteps: i32` | `{ stems: Record<string, string> }` (phase-vocoder shift via sidecar `pitch_shift`, cached under `{songDir}/pitched/{nSteps}/{stem}.wav`; ported from VPS, generalized from the fixed vocals/instrumental pair — see `wiki/audio-engine.md#key-transpose`) |
 | `load_lyrics` | `songId: string` | `Lyrics` or `null` |
 | `sync_lyrics` | `songId, text: string, source?: "paste"/"lrclib"` | `Lyrics` (aligns via sidecar `align_lyrics`, persists `lyrics.json`, emits `"lyrics-progress"`; errors for empty text / song without the vocals stem or file) |
-| `find_lyrics` | `songId: string` | `FoundLyrics` (sidecar `find_lyrics` with the song's title and duration; nothing is saved) |
+| `find_lyrics` | `songId: string` | `FoundLyrics` (sidecar `find_lyrics` with the song's official title/artist and duration; nothing is saved) |
+| `search_lyrics` | `songId: string` | `LyricsSearch` (sidecar `search_lyrics`: every usable result, best first; nothing is saved) |
 | `delete_lyrics` | `songId: string` | `void` (no error when there are none) |
 
 All commands are async and return a `Promise`. Errors are thrown as strings.

@@ -296,7 +296,7 @@ def test_the_commands_main_py_handles_are_exactly_the_ones_documented():
     handled = set(re.findall(r'cmd\.get\("cmd"\) == "(\w+)"', main_py))
     assert handled == {
         "process", "import_yt", "convert_take", "normalize_take", "mix_export", "pitch_shift",
-        "detect_chords", "align_tab", "align_lyrics", "find_lyrics", "ping", "quit",
+        "detect_chords", "align_tab", "align_lyrics", "find_lyrics", "search_lyrics", "ping", "quit",
     }
 
 

@@ -193,6 +193,15 @@ export async function renameSongApi(songId: string, title: string): Promise<Song
   return invoke<Song>("rename_song", { songId, title });
 }
 
+/** Set the title and artist online lookups use for a song. Blank clears a field (the lookup falls back to the song's own title). */
+export async function setSongIdentityApi(
+  songId: string,
+  officialTitle: string | null,
+  officialArtist: string | null,
+): Promise<Song> {
+  return invoke<Song>("set_song_identity", { songId, officialTitle, officialArtist });
+}
+
 /** Persist the metronome's downbeat anchor (song time, seconds) for this song; null clears it back to song start */
 export async function setMetronomeOffsetApi(songId: string, offset: number | null): Promise<Song> {
   return invoke<Song>("set_metronome_offset", { songId, offset });
