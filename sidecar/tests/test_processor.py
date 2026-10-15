@@ -282,7 +282,7 @@ class TestProcessDegradesGracefully:
         assert events[-1] == (1.0, "complete")
 
     def test_a_chord_failure_is_non_fatal(self, mix, demucs, tmp_path, monkeypatch):
-        monkeypatch.setattr(processor, "_detect_chords", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cqt")))
+        monkeypatch.setattr(processor, "_detect_chords_full", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cqt")))
         result, _ = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         assert result["chords"] is False
         assert not (tmp_path / "o" / "chords.json").exists()
