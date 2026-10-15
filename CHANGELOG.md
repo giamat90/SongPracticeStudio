@@ -6,6 +6,16 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.61] - 2026-10-15
+
+### Added
+- **Hear a chord before you accept it.** In the chord editor (click a chord on the timeline), **Hear** plays the chord on a synthesiser, and changing the root, quality or bass plays the new chord straight away, so you can listen to a correction instead of guessing. The chord is tuned to the recording, so a song that sits a little sharp or flat does not make a correct chord sound wrong, and it follows the song's transpose.
+- **With song** loops that chord's part of the song and holds the synthesised chord under it, so you can compare the two on the same notes. Closing the editor stops it.
+- **Choose from a list.** Under the editor, **Also heard** lists the other chords the detector considered for that stretch with how well each fit, and **In this key** lists the chords of the song's key. Click one to hear it; double-click it (or press **Use**) to apply it. On a test set of twelve songs the right chord was among the detector's first three guesses about nine times in ten (major and minor chords).
+
+### Notes
+- Songs imported earlier have no "Also heard" list and are tuned to concert pitch until you press **Re-detect chords**. Re-detecting replaces your hand corrections, and asks first.
+
 ## [0.0.60] - 2026-10-15
 
 ### Added
