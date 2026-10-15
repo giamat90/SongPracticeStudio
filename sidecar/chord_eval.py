@@ -75,6 +75,8 @@ def parse_label(label: str):
 
 def simplify(label: str, level: str):
     """The label reduced to `level`: _NO_CHORD, a name, or None when it cannot be expressed there."""
+    if label.strip().split("/")[0] in ("X", "*"):
+        return None
     parsed = parse_label(label)
     if parsed is None:
         return _NO_CHORD
