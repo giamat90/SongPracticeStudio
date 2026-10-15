@@ -203,7 +203,7 @@ _NO_CHORD_LABEL = "N"
 
 # A seventh chord has to beat the best plain triad by this much (cosine score)
 # before it is named: a faint seventh, or noise, should not turn C into Cmaj7.
-_SEVENTH_MARGIN = 0.02
+_SEVENTH_MARGIN = 0.07
 # The bass has to hold one pitch class this share of a window's bass energy
 # for a slash chord to be reported.
 _BASS_DOMINANCE = 0.5
