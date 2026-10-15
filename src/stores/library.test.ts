@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   renameFolder: vi.fn(),
   renameSongApi: vi.fn(),
   reorderFolders: vi.fn(),
+  setSongIdentityApi: vi.fn(),
 }));
 
 vi.mock("../lib/tauri", () => api);
@@ -201,6 +202,26 @@ describe("renameSong", () => {
     await useLibraryStore.getState().renameSong("a", "  ");
     expect(useLibraryStore.getState().songs[0].title).toBe("a");
     expect(useLibraryStore.getState().error).toBe("Song title cannot be empty");
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("sets the lookup identity, sending blanks as null, and returns the saved song", async () => {
+    const saved = song("a", { officialTitle: "Hallelujah", officialArtist: "Leonard Cohen" });
+    api.setSongIdentityApi.mockResolvedValue(saved);
+    const result = await useLibraryStore.getState().setSongIdentity("a", "  Hallelujah ", " Leonard Cohen");
+    expect(api.setSongIdentityApi).toHaveBeenCalledWith("a", "Hallelujah", "Leonard Cohen");
+    expect(result).toEqual(saved);
+    expect(useLibraryStore.getState().songs.find((s) => s.id === "a")?.officialTitle).toBe("Hallelujah");
+    api.setSongIdentityApi.mockResolvedValue(song("a"));
+    await useLibraryStore.getState().setSongIdentity("a", "", "   ");
+    expect(api.setSongIdentityApi).toHaveBeenLastCalledWith("a", null, null);
+  });
+
+  it("returns null and stores the error when the identity cannot be saved", async () => {
+    api.setSongIdentityApi.mockRejectedValue("Song not found: a");
+    const result = await useLibraryStore.getState().setSongIdentity("a", "x", "");
+    expect(result).toBeNull();
+    expect(useLibraryStore.getState().error).toBe("Song not found: a");
     expect(errorSpy).toHaveBeenCalled();
   });
 });

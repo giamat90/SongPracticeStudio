@@ -7,7 +7,7 @@ Ported from VPS (2026-10-10, VPS PR #3) and since moved into the shared `mps-cor
 ## User flow
 
 1. Open a song → **Lyrics (add)** tab below the stems. (A song imported *without* the vocals stem shows an explanation instead: SPS lets the user pick which stems to extract, and there is nothing to align to without `vocals`.)
-2. Paste the lyrics, or press **Find online** (looks the song up on [LRCLIB](https://lrclib.net), a free community lyrics database; sends only the song title and duration). The found text lands in the box for review; nothing is saved yet.
+2. Paste the lyrics, or press **Find online** (looks the song up on [LRCLIB](https://lrclib.net), a free community lyrics database; sends only the song's official title/artist and its duration). The best match lands in the box for review; nothing is saved yet. When there is more than one result they are listed under the box (title, artist, length, timed or plain) and clicking one puts its text in the box; a result of a different length than the song is flagged, so a live or acoustic version can still be picked. The line **Searches as: Artist – Title** shows what is sent and **Change** edits it (see below).
 3. Press **Sync lyrics**. Progress is streamed; the first run also downloads a ~360 MB speech model once into `~/.songpracticestudio/models/` (about 100 s on the measured connection). Typical time afterwards: 10-25 s for a 3-5 minute song on CPU.
 4. The karaoke view shows every line; the line being sung is lit and centred, the sung words in it are highlighted. Clicking a line seeks to it (0.3 s early so the first word is not clipped). **Edit and re-sync** and **Remove** are beside it.
 
@@ -43,8 +43,20 @@ Engine: torchaudio `WAV2VEC2_ASR_BASE_960H` (English, 360 MB), windowed 20 s + 2
 |---|---|---|
 | `align_lyrics` | `{vocalsPath, lyrics, modelsDir?}` + progress | `{aligner, lines[], meanScore, evidenceRatio, alignedWords, totalWords, warning}` |
 | `find_lyrics` | `{title, artist?, duration?}` | `{text, synced, title, artist, duration, source}` |
+| `search_lyrics` | `{title, artist?, duration?}` | `{query, candidates: [{text, synced, title, artist, duration, source, lengthMismatch}]}`, best first, wrong-length entries kept and flagged |
 
-Rust (`src-tauri/src/lyrics.rs`, thin wrappers in `commands.rs`): `load_lyrics`, `sync_lyrics`, `find_lyrics`, `delete_lyrics`; progress arrives on `"lyrics-progress"` (`{songId, progress, stage}`). The sidecar lock is held for the duration, like `process_song`, so a take being saved or a transpose waits behind a running sync (no cancel button).
+Rust (`src-tauri/src/lyrics.rs`, thin wrappers in `commands.rs`): `load_lyrics`, `sync_lyrics`, `find_lyrics`, `search_lyrics`, `delete_lyrics`; progress arrives on `"lyrics-progress"` (`{songId, progress, stage}`). The sidecar lock is held for the duration, like `process_song`, so a take being saved or a transpose waits behind a running sync (no cancel button).
+
+### Lookup identity (official title and artist)
+
+A song's `title` is the user's to rename, typically to tell versions apart (studio, live, acoustic), and SPS titles start out as raw YouTube titles. The online search must not follow the display title, so `Song` carries a second pair, `officialTitle` / `officialArtist`, and `Song::lookup_identity()` (`library.rs`) is what `find_lyrics` and `search_lyrics` send:
+
+- imports seed `officialTitle` with the imported title (`officialArtist` stays empty until set);
+- `rename_song` never changes them; renaming a song that has no `officialTitle` yet first copies the old title into it, so a library written before this existed keeps looking itself up under the name it had;
+- an empty `officialTitle` falls back to `title`;
+- `set_song_identity(songId, officialTitle?, officialArtist?)` sets them (trimmed, blank clears). The lyrics panel's **Change** link is the only UI for it.
+
+The wrong-length results are kept because the duration filter (15 s) is a guess about the recording, not about the song: a live version rarely matches the studio length, and the user can see which entry is theirs. `find_lyrics` still drops them.
 
 ### Storage
 

@@ -18,6 +18,9 @@ export interface Song {
   loops?: NamedLoop[];
   folderId?: string | null;
   sortIndex: number;
+  /** What the song is called in the world; online lookups use these instead of `title`, which the user renames to tell versions apart */
+  officialTitle?: string;
+  officialArtist?: string;
 }
 
 /** User-named, flat (non-nested) grouping of songs in the library */

@@ -3398,6 +3398,85 @@ body,
   background: var(--accent-hover);
 }
 
+.lyrics-panel__lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lyrics-panel__identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lyrics-panel__input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.lyrics-panel__link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--info);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.lyrics-panel__link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lyrics-panel__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.lyrics-panel__result {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-surface);
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.lyrics-panel__result:hover:not(:disabled) {
+  background: var(--bg-raised);
+}
+
+.lyrics-panel__result--chosen {
+  border-color: var(--accent);
+}
+
+.lyrics-panel__result-meta {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .lyrics-panel__hint {
   margin: 0;
   font-size: 0.75rem;

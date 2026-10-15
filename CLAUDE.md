@@ -76,6 +76,8 @@ interface Song {
   hasChords?: boolean; // true if chords.json was written — see read_song_chords
   folderId?: string | null; // library folder this song belongs to; null/absent = root
   sortIndex: number;        // rank among sibling songs sharing the same folderId
+  officialTitle?: string;   // what online lookups search for; `title` is the user's to rename
+  officialArtist?: string;
 }
 
 interface Folder {           // flat, user-named grouping of songs (e.g. all songs by one band)
@@ -110,7 +112,7 @@ SongPracticeStudio/
 │   ├── processor.py      ← Demucs 6s + BPM + key + chords + bass tab (main pipeline) + pitch_shift_song (transpose)
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
 │   ├── tab_sync.py       ← tab sync: place a Guitar Pro tab's bar lines on the recording (chroma + kick/snare DTW); see wiki/tab-sync.md
-│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, detect_chords, align_tab, align_lyrics, find_lyrics, ping, quit)
+│   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, detect_chords, align_tab, align_lyrics, find_lyrics, search_lyrics, ping, quit)
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
@@ -179,7 +181,7 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
+    ├── commands.rs   ← process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_identity, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, search_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
     ├── tab.rs        ← tab sync: the stored tab file, tab_sync.json (atomic), validation of hand-corrected bar lines, the align_tab round trip
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
     ├── library.rs    ← Song struct (includes stems: Vec<String>, hasChords, folderId, sortIndex), Folder/ChordSegment structs, library.json CRUD, read_chords()

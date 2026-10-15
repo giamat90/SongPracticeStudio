@@ -12,7 +12,7 @@ The Python sidecar handles computationally heavy audio processing:
 - **Take post-processing** — WAV conversion and RMS loudness normalization of recordings (`recording.py`)
 - **Mixdown rendering** — sum tracks with per-source gain over a time window (`mix_export`)
 - **Key transpose** — phase-vocoder pitch-shift every stem by N semitones, tempo preserved (`pitch_shift`)
-- **Lyrics sync** — CTC forced alignment of lyric text to the vocals stem, plus an LRCLIB lookup (`align_lyrics`, `find_lyrics`; `mps_core.lyrics`, see [Lyrics Sync](lyrics.md))
+- **Lyrics sync** — CTC forced alignment of lyric text to the vocals stem, plus an LRCLIB lookup (`align_lyrics`, `find_lyrics`, `search_lyrics`; `mps_core.lyrics`, see [Lyrics Sync](lyrics.md))
 
 ## IPC Protocol
 
@@ -167,13 +167,23 @@ Result: `{aligner, lines: [{text, start, end, score, words: [{text, start, end, 
 
 ### `find_lyrics`
 
-Looks a song up on LRCLIB (`https://lrclib.net/api/search`, 20 s timeout). Titles are cleaned of video decoration (`(Official Video)`, `[HQ]`, `lyrics`) first, which matters here because SPS titles are raw YouTube titles and the library has no separate artist. Candidates are ranked by duration closeness (within 15 s), then synced-over-plain, then title overlap. When a synced version exists its timestamps are stripped and the text returned, because synced versions write repeated choruses out in full.
+Looks a song up on LRCLIB (`https://lrclib.net/api/search`, 20 s timeout). Titles are cleaned of video decoration (`(Official Video)`, `[HQ]`, `lyrics`) first, which matters here because SPS titles are raw YouTube titles; the artist, when the user has set one, is the song's `officialArtist`. Candidates are ranked by duration closeness (within 15 s), then synced-over-plain, then title overlap. When a synced version exists its timestamps are stripped and the text returned, because synced versions write repeated choruses out in full.
 
 ```json
 {"cmd": "find_lyrics", "title": "Audioslave - Like a stone (HD)", "duration": 294.1}
 ```
 
 Result: `{text, synced, title, artist, duration, source}` (`artist` is LRCLIB's, not SPS's).
+
+### `search_lyrics`
+
+Same lookup and arguments as `find_lyrics`, but returns every usable result instead of one, so the user can choose. Instrumentals and entries with no lyrics are dropped; entries more than 15 s off the song's length are kept and flagged.
+
+```json
+{"cmd": "search_lyrics", "title": "Like a stone", "artist": "Audioslave", "duration": 294.1}
+```
+
+Result: `{query, candidates: [{text, synced, title, artist, duration, source: "lrclib", lengthMismatch}]}`, best match first.
 
 ### `ping` / `quit`
 

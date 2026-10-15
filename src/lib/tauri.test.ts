@@ -23,6 +23,8 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["importYoutube", () => api.importYoutube("u", ["drums"], false, "/c.txt"), "import_youtube",
       { url: "u", stemsToExtract: ["drums"], highQuality: false, cookiesPath: "/c.txt" }],
     ["renameSongApi", () => api.renameSongApi("s1", "New"), "rename_song", { songId: "s1", title: "New" }],
+    ["setSongIdentityApi", () => api.setSongIdentityApi("s1", "Hallelujah", null), "set_song_identity",
+      { songId: "s1", officialTitle: "Hallelujah", officialArtist: null }],
     ["setSongLoopsApi", () => api.setSongLoopsApi("s1", [{ id: "l", name: "V", start: 1, end: 2 }]), "set_song_loops",
       { songId: "s1", loops: [{ id: "l", name: "V", start: 1, end: 2 }] }],
     ["cancelLyricsSync", () => api.cancelLyricsSync(), "cancel_lyrics_sync", undefined],
