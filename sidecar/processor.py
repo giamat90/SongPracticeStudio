@@ -217,7 +217,7 @@ _CHORD_EXCLUDED_STEMS = {"drums", "vocals"}
 _CHORD_HARMONY_STEMS = {"guitar", "piano", "other"}
 # 2: sevenths and slash chords. 3: read from the stems without drums and vocals.
 # 4: windows follow the beats and the labels are decoded with Viterbi.
-CHORDS_FORMAT_VERSION = 5
+CHORDS_FORMAT_VERSION = 6
 
 _CHORD_HOP_LENGTH = 512
 
@@ -245,6 +245,7 @@ _SWITCH_COST_NO_CHORD = 0.02
 # ambiguous windows, never enough to override clear evidence.
 _KEY_BONUS = 0.02
 _SILENT_SCORE = -2.0
+_ALTERNATIVES = 6
 
 _MAJOR_KEY_CHORDS = {"maj": (0, 5, 7), "min": (2, 4, 9), "maj7": (0, 5), "7": (7,), "min7": (2, 4, 9)}
 _MINOR_KEY_CHORDS = {"min": (0, 5, 7), "maj": (3, 8, 10, 7), "min7": (0, 5, 7), "maj7": (3, 8), "7": (10, 7)}
@@ -349,7 +350,7 @@ def _slash_bass(chord: str, bass_win):
     return None
 
 
-def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frames=None) -> list:
+def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frames=None, tuning=None) -> list:
     """
     Windowed chroma -> chord-template matching over the whole signal, decoded
     with Viterbi so one noisy window cannot flip a chord and a change has to be
@@ -357,7 +358,9 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
     hop 512) when given, otherwise a fixed grid of `hop_seconds`.
     Returns {"start", "end", "chord"} segments (chord like "C:maj", "G:7",
     "A:min7"), with "bass" (a note name) when the bass stem plays a chord tone
-    other than the root.
+    other than the root, a "confidence" (0-1) and the "alternatives" the audio
+    looked most like. `tuning` is the recording's offset from A440 in semitones
+    (estimated from `y` when left out).
     """
     hop_length  = _CHORD_HOP_LENGTH
     frame_dur   = hop_length / sr
@@ -365,7 +368,8 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
 
     # librosa's own default estimate misses recordings about a quarter-tone off
     # A440 (a 2019 remix at +29 cents scored 26% with it, 60% with this one).
-    tuning = float(librosa.estimate_tuning(y=y, sr=sr))
+    if tuning is None:
+        tuning = float(librosa.estimate_tuning(y=y, sr=sr))
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length, tuning=tuning)
     rms    = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     n_frames = chroma.shape[1]
@@ -460,6 +464,14 @@ def _chords_from_signal(y, sr, bass_y=None, hop_seconds: float = 1.0, beat_frame
         weights = np.array([windows[k][1] - windows[k][0] for k in range(first, last + 1)], dtype=float)
         fit = np.array([fits[k][path[k]] for k in range(first, last + 1)])
         seg["confidence"] = round(float(np.average(fit, weights=weights)), 2)
+        # The chords this stretch of audio looked most like, best first, for the
+        # editor's list. Ranked on what the decoder itself weighs: the fit plus
+        # the seventh margin and the key bonus.
+        mean_fit = np.average(fits[first:last + 1], axis=0, weights=weights)
+        ranking = np.argsort(-(mean_fit + prior))
+        chosen = chord_names.index(label[0])
+        alternatives = [int(i) for i in ranking if int(i) != chosen][:_ALTERNATIVES]
+        seg["alternatives"] = [{"chord": chord_names[i], "fit": round(float(mean_fit[i]), 2)} for i in alternatives]
         segments.append(seg)
 
     first = 0
@@ -525,6 +537,12 @@ def _detect_chords(stem_paths: dict, input_path: str | None = None) -> tuple:
     that from is read from `input_path`, or from the sum of every stem when
     there is no original file.
     """
+    segments, duration, _ = _detect_chords_full(stem_paths, input_path)
+    return segments, duration
+
+
+def _detect_chords_full(stem_paths: dict, input_path: str | None = None) -> tuple:
+    """`_detect_chords` plus how far the recording sits from A440, in cents (+ is sharp)."""
     sources = _harmonic_stem_paths(stem_paths)
     if sources is None:
         sources = {"mix": input_path} if input_path else stem_paths
@@ -535,7 +553,18 @@ def _detect_chords(stem_paths: dict, input_path: str | None = None) -> tuple:
         bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
     beats = _beat_frames(stem_paths if stem_paths else sources)
     _log(f"Chord windows follow {'the beats' if beats is not None else 'a fixed grid'}")
-    return _chords_from_signal(mix, SAMPLE_RATE, bass_y, beat_frames=beats), len(mix) / SAMPLE_RATE
+    tuning = float(librosa.estimate_tuning(y=mix, sr=SAMPLE_RATE))
+    segments = _chords_from_signal(mix, SAMPLE_RATE, bass_y, beat_frames=beats, tuning=tuning)
+    return segments, len(mix) / SAMPLE_RATE, round(tuning * 100, 1)
+
+
+def _chords_document(segments: list, duration: float, tuning_cents: float) -> dict:
+    return {
+        "version": CHORDS_FORMAT_VERSION,
+        "duration": duration,
+        "tuning": tuning_cents,
+        "segments": segments,
+    }
 
 
 def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: str | None = None) -> list:
@@ -554,9 +583,9 @@ def detect_chords_from_stems(stem_paths: dict, output_path: str) -> dict:
     """
     if not stem_paths:
         raise ValueError("No stems to detect chords from")
-    segments, duration = _detect_chords(stem_paths)
+    segments, duration, tuning = _detect_chords_full(stem_paths)
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump({"version": CHORDS_FORMAT_VERSION, "duration": duration, "segments": segments}, f)
+        json.dump(_chords_document(segments, duration, tuning), f)
     return {"segments": len(segments)}
 
 
@@ -773,10 +802,10 @@ def process(
     _log("Detecting chords...")
     chords_written = False
     try:
-        chord_segments, _ = _detect_chords(stem_paths, input_path)
+        chord_segments, _, chord_tuning = _detect_chords_full(stem_paths, input_path)
         chords_path = os.path.join(output_dir, "chords.json")
         with open(chords_path, "w", encoding="utf-8") as f:
-            json.dump({"version": CHORDS_FORMAT_VERSION, "duration": duration, "segments": chord_segments}, f)
+            json.dump(_chords_document(chord_segments, duration, chord_tuning), f)
         _log(f"Chords written: {len(chord_segments)} segments → {chords_path}")
         chords_written = True
     except Exception as e:

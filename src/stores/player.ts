@@ -3,6 +3,7 @@ import { AudioEngine } from "../audio/engine";
 import { VocalRecorder } from "@giamat90/mps-core/recorder";
 import type { NamedLoop, Song, StemName, Take } from "../lib/types";
 import { isChordDetail, type ChordDetail } from "../lib/chordNames";
+import { chordSynth } from "../audio/chordSynth";
 import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, setSongLoopsApi, pitchShiftSong } from "../lib/tauri";
 import { addLoop, removeLoop, renameLoop as renameLoopIn } from "@giamat90/mps-core/loops";
 import {
@@ -734,6 +735,7 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
   },
 
   setOutputDevice: async (deviceId) => {
+    chordSynth.setOutputDevice(deviceId ?? "");
     await getEngine().setOutputDevice(deviceId ?? "");
     set({ selectedOutputDeviceId: deviceId });
   },

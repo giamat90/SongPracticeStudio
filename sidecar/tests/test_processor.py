@@ -228,9 +228,10 @@ class TestProcessResult:
     def test_chords_json_has_the_documented_shape(self, mix, demucs, tmp_path):
         run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         doc = json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
-        assert doc["version"] == 5 and doc["duration"] == pytest.approx(2.0, abs=0.01)
+        assert doc["version"] == 6 and doc["duration"] == pytest.approx(2.0, abs=0.01)
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
-        assert set(doc["segments"][0]) == {"start", "end", "chord", "confidence"}
+        assert set(doc["segments"][0]) == {"start", "end", "chord", "confidence", "alternatives"}
+        assert isinstance(doc["tuning"], float) and abs(doc["tuning"]) <= 50
 
     def test_a_bass_tab_is_written_only_when_a_bass_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         tone = np.tile(sine(55, 44100, 1.0, amp=0.5), (2, 1))
@@ -281,7 +282,7 @@ class TestProcessDegradesGracefully:
         assert events[-1] == (1.0, "complete")
 
     def test_a_chord_failure_is_non_fatal(self, mix, demucs, tmp_path, monkeypatch):
-        monkeypatch.setattr(processor, "_detect_chords", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cqt")))
+        monkeypatch.setattr(processor, "_detect_chords_full", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cqt")))
         result, _ = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         assert result["chords"] is False
         assert not (tmp_path / "o" / "chords.json").exists()
@@ -396,6 +397,28 @@ class TestChordDetection:
         muddy = processor._detect_chords_chroma(
             write_wav(tmp_path / "b.wav", chord_audio(C_MAJOR, 4) + noise, SR))
         assert muddy and muddy[0]["confidence"] < clean[0]["confidence"]
+
+    def test_the_alternatives_are_other_chords_ranked_by_how_much_they_fit(self, tmp_path):
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", chord_audio(C_MAJOR, 4), SR))
+        alts = segs[0]["alternatives"]
+        assert 1 <= len(alts) <= processor._ALTERNATIVES
+        assert segs[0]["chord"] not in [a["chord"] for a in alts]
+        assert len({a["chord"] for a in alts}) == len(alts)
+        assert all(0.0 <= a["fit"] <= 1.0 for a in alts)
+
+    def test_a_chord_that_is_really_there_is_among_the_alternatives_of_its_neighbour_in_the_key(self, tmp_path):
+        # C with a faint E-minor colour: the audio looks like C, and A minor / E minor are close behind.
+        audio = chord_audio(C_MAJOR, 4) + 0.3 * chord_audio((164.81, 196.00, 246.94), 4)
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", audio, SR))
+        assert segs[0]["chord"] == "C:maj"
+        assert "E:min" in [a["chord"] for a in segs[0]["alternatives"]]
+
+    def test_tuning_is_reported_in_cents_and_follows_a_detuned_recording(self, tmp_path):
+        ratio = 2 ** (30 / 1200)
+        tone = tuple(f * ratio for f in C_MAJOR)
+        stems = {"guitar": write_wav(tmp_path / "guitar.wav", chord_audio(tone, 8), SR)}
+        _, _, cents = processor._detect_chords_full(stems)
+        assert cents == pytest.approx(30, abs=12)
 
     def test_segments_are_contiguous_and_ordered(self, tmp_path):
         audio = np.concatenate([chord_audio(C_MAJOR, 3), chord_audio(G_MAJOR, 3)])
@@ -514,7 +537,7 @@ class TestRedetectChords:
         result = processor.detect_chords_from_stems({"other": a, "bass": b}, str(out))
         assert result == {"segments": 1}
         doc = json.loads(out.read_text(encoding="utf-8"))
-        assert doc["version"] == 5
+        assert doc["version"] == 6
         assert doc["segments"][0]["chord"] == "C:maj" and doc["segments"][0]["bass"] == "E"
         assert doc["duration"] == pytest.approx(5.0, abs=0.1)
 
@@ -782,7 +805,7 @@ class TestProcessReadsChordsFromTheHarmonicStems:
             guitar=(G_MAJOR, 0.04), vocals=(C_MAJOR, 0.04), drums=(C_MAJOR, 0.04),
         )
         assert [s["chord"] for s in doc["segments"]] == ["G:maj"]
-        assert doc["version"] == 5
+        assert doc["version"] == 6
 
     def test_the_source_file_is_read_when_no_harmony_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         doc = self.run_with(mix, tmp_path, monkeypatch, ["vocals", "drums"], vocals=(G_MAJOR, 0.04), drums=(G_MAJOR, 0.04))

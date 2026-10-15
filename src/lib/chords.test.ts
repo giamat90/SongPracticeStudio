@@ -5,7 +5,7 @@ vi.mock("../stores/player", () => ({ usePlayerStore: () => 0 }));
 vi.mock("./tauri", () => ({ readSongChords: vi.fn() }));
 
 import {
-  LOW_CONFIDENCE, findActiveChordIndex, findNearestChordIndex, formatChordName, isUnsure, transposeChord, transposeKey, transposeNote,
+  LOW_CONFIDENCE, findActiveChordIndex, findNearestChordIndex, formatChordName, isUnsure, shiftSegment, transposeChord, transposeKey, transposeNote,
 } from "./chords";
 
 const seg = (start: number, end: number, chord: string): ChordSegment => ({ start, end, chord });
@@ -138,6 +138,25 @@ describe("transposeKey", () => {
 
   it("returns an unparseable key unchanged", () => {
     expect(transposeKey("unknown", 2)).toBe("unknown");
+  });
+});
+
+describe("shiftSegment", () => {
+  it("moves the chord, the bass note and every alternative together", () => {
+    const seg = {
+      start: 0, end: 2, chord: "C:maj", bass: "E", confidence: 0.8,
+      alternatives: [{ chord: "A:min", fit: 0.7 }, { chord: "E:min7", fit: 0.6 }],
+    };
+    expect(shiftSegment(seg, 2)).toEqual({
+      start: 0, end: 2, chord: "D:maj", bass: "F#", confidence: 0.8,
+      alternatives: [{ chord: "B:min", fit: 0.7 }, { chord: "F#:min7", fit: 0.6 }],
+    });
+  });
+
+  it("leaves a segment with no bass or alternatives without them", () => {
+    const moved = shiftSegment({ start: 0, end: 1, chord: "G:7" }, -3);
+    expect(moved).toEqual({ start: 0, end: 1, chord: "E:7" });
+    expect("alternatives" in moved).toBe(false);
   });
 });
 

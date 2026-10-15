@@ -36,6 +36,7 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["deleteSongTab", () => api.deleteSongTab("s1"), "delete_song_tab", { songId: "s1" }],
     ["exportFile", () => api.exportFile([1, 2], "a.txt"), "export_file", { data: [1, 2], suggestedName: "a.txt" }],
     ["readSongChords", () => api.readSongChords("s1"), "read_song_chords", { songId: "s1" }],
+    ["readChordTuning", () => api.readChordTuning("s1"), "read_chord_tuning", { songId: "s1" }],
     ["saveChordEdits", () => api.saveChordEdits("s1", [{ start: 0, end: 2, chord: "C:maj" }]), "save_chord_edits",
       { songId: "s1", segments: [{ start: 0, end: 2, chord: "C:maj" }] }],
     ["clearChordEdits", () => api.clearChordEdits("s1"), "clear_chord_edits", { songId: "s1" }],
