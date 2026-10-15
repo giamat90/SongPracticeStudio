@@ -6,6 +6,18 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.60] - 2026-10-15
+
+### Added
+- **Easy / Medium / Advanced chords.** A new menu next to the capo chooses how much of each chord is shown: *Easy* reduces sevenths and sixths to the plain major or minor chord and drops slash bass notes, *Medium* keeps the sevenths, *Advanced* shows everything that was detected. The choice applies to the chord display, the chord row, the detached chord window and the exported chord sheet, and is remembered for every song.
+- **Unsure chords are dimmed.** After **Re-detect chords**, a chord the detector was not confident about is shown faded and in italics in the chord row, with "not sure about this one" in its tooltip: those are the ones worth a second listen. A chord you set by hand is never dimmed.
+
+### Changed
+- **Recordings that are not at concert pitch are read more accurately.** The detector now measures how far a recording sits from A440 before it listens for chords, which matters for older recordings and remasters a few tens of cents sharp or flat. On a test set of twelve songs the share of correct chords went up by about two to three points overall, and by far more on a recording a quarter-tone off pitch. Songs imported earlier keep their chords until you press **Re-detect chords**.
+
+### Notes
+- Checked against published reference charts on twelve songs, not by ear on a large library: major and minor chords are right about 64% of the time and sevenths about 38%. A plain chord shown as a major seventh is the most common mistake; *Easy* hides it, it is not fixed yet.
+
 ## [0.0.59] - 2026-10-14
 
 ### Added
