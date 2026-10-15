@@ -116,6 +116,7 @@ SongPracticeStudio/
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
+│   ├── tab_chords.py     ← dev tool: a tab's MIDI export -> the app's tab score -> `tab_sync` alignment -> a Harte `.lab` chord chart from the notes played in each beat, for `chord_eval.py`; see wiki/testing.md#chord-accuracy
 │   ├── chord_eval.py     ← dev tool: scores detected chords against a reference .lab chart (WCSR at root / majmin / sevenths); `--detect`, `--set NAME=VALUE`; see wiki/testing.md#chord-accuracy
 │   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
