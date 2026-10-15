@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { AudioEngine } from "../audio/engine";
 import { VocalRecorder } from "@giamat90/mps-core/recorder";
 import type { NamedLoop, Song, StemName, Take } from "../lib/types";
+import { isChordDetail, type ChordDetail } from "../lib/chordNames";
 import { saveTake, listTakes, deleteTakeApi, renameTakeApi, setTakeManualOffsetApi, setMetronomeOffsetApi, setSongLoopsApi, pitchShiftSong } from "../lib/tauri";
 import { addLoop, removeLoop, renameLoop as renameLoopIn } from "@giamat90/mps-core/loops";
 import {
@@ -203,6 +204,9 @@ interface PlayerActions {
   setCapo: (fret: number) => void;
   chordsRevision: number;
   bumpChordsRevision: () => void;
+  // How much of each chord the displays and the sheet show (a preference, kept for every song)
+  chordDetail: ChordDetail;
+  setChordDetail: (detail: ChordDetail) => void;
   // Named loops: saved regions of the song
   saveLoop: (name: string) => Promise<void>;
   renameLoop: (id: string, name: string) => Promise<void>;
@@ -350,6 +354,18 @@ function _persistTakePrefs(prefs: typeof DEFAULT_TAKE_PREFS): void {
     localStorage.setItem(TAKE_PREFS_KEY, JSON.stringify(prefs));
   } catch (e) {
     console.warn("[player] could not save the take preferences:", e);
+  }
+}
+
+const CHORD_DETAIL_KEY = "sps_chord_detail";
+
+function _readChordDetail(): ChordDetail {
+  try {
+    const raw = localStorage.getItem(CHORD_DETAIL_KEY);
+    return isChordDetail(raw) ? raw : "advanced";
+  } catch (e) {
+    console.warn("[player] could not read the saved chord detail:", e);
+    return "advanced";
   }
 }
 
@@ -1044,6 +1060,16 @@ export const usePlayerStore = create<PlayerState & PlayerActions>((set, get) => 
     set({ capo: clamped });
     const song = get().song;
     if (song) _writeCapo(song.id, clamped);
+  },
+
+  chordDetail: _readChordDetail(),
+  setChordDetail: (detail) => {
+    set({ chordDetail: detail });
+    try {
+      localStorage.setItem(CHORD_DETAIL_KEY, detail);
+    } catch (e) {
+      console.warn("[player] could not save the chord detail:", e);
+    }
   },
 
   chordsRevision: 0,

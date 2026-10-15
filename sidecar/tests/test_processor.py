@@ -228,9 +228,9 @@ class TestProcessResult:
     def test_chords_json_has_the_documented_shape(self, mix, demucs, tmp_path):
         run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         doc = json.loads((tmp_path / "o" / "chords.json").read_text(encoding="utf-8"))
-        assert doc["version"] == 4 and doc["duration"] == pytest.approx(2.0, abs=0.01)
+        assert doc["version"] == 5 and doc["duration"] == pytest.approx(2.0, abs=0.01)
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
-        assert set(doc["segments"][0]) == {"start", "end", "chord"}
+        assert set(doc["segments"][0]) == {"start", "end", "chord", "confidence"}
 
     def test_a_bass_tab_is_written_only_when_a_bass_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         tone = np.tile(sine(55, 44100, 1.0, amp=0.5), (2, 1))
@@ -383,6 +383,20 @@ class TestChordDetection:
         assert segs[2]["start"] == pytest.approx(8.0, abs=1.1)
         assert segs[-1]["end"] == pytest.approx(12.0, abs=0.1)
 
+    def test_every_chord_carries_a_confidence_that_a_clean_chord_earns(self, tmp_path):
+        audio = np.concatenate([chord_audio(C_MAJOR, 4), chord_audio(G_MAJOR, 4)])
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", audio, SR))
+        assert all(0.0 <= s["confidence"] <= 1.0 for s in segs)
+        assert all(s["confidence"] > 0.9 for s in segs)
+
+    def test_a_muddy_chord_is_less_certain_than_a_clean_one(self, tmp_path):
+        rng = np.random.default_rng(3)
+        noise = (rng.normal(0, 0.25, SR * 4)).astype(np.float32)
+        clean = processor._detect_chords_chroma(write_wav(tmp_path / "a.wav", chord_audio(C_MAJOR, 4), SR))
+        muddy = processor._detect_chords_chroma(
+            write_wav(tmp_path / "b.wav", chord_audio(C_MAJOR, 4) + noise, SR))
+        assert muddy and muddy[0]["confidence"] < clean[0]["confidence"]
+
     def test_segments_are_contiguous_and_ordered(self, tmp_path):
         audio = np.concatenate([chord_audio(C_MAJOR, 3), chord_audio(G_MAJOR, 3)])
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", audio, SR))
@@ -410,6 +424,14 @@ class TestChordDetection:
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", audio, SR))
         assert [s["chord"] for s in segs] == ["C:maj", "G:maj", "C:maj"]
         assert segs[1]["start"] == pytest.approx(4.0, abs=0.1)
+
+    @pytest.mark.parametrize("cents", [-35, 29, 45])
+    def test_a_recording_off_concert_pitch_reads_the_same_chords(self, tmp_path, cents):
+        ratio = 2 ** (cents / 1200)
+        detune = lambda chord: tuple(f * ratio for f in chord)
+        audio = np.concatenate([chord_audio(detune(C_MAJOR), 4), chord_audio(detune(G_MAJOR), 4), chord_audio(detune(A_MINOR), 4)])
+        segs = processor._detect_chords_chroma(write_wav(tmp_path / "c.wav", audio, SR))
+        assert [s["chord"] for s in segs] == ["C:maj", "G:maj", "A:min"]
 
     def test_a_clip_shorter_than_the_smoothing_window_still_works(self, tmp_path):
         segs = processor._detect_chords_chroma(write_wav(tmp_path / "s.wav", chord_audio(C_MAJOR, 1.5), SR))
@@ -492,7 +514,7 @@ class TestRedetectChords:
         result = processor.detect_chords_from_stems({"other": a, "bass": b}, str(out))
         assert result == {"segments": 1}
         doc = json.loads(out.read_text(encoding="utf-8"))
-        assert doc["version"] == 4
+        assert doc["version"] == 5
         assert doc["segments"][0]["chord"] == "C:maj" and doc["segments"][0]["bass"] == "E"
         assert doc["duration"] == pytest.approx(5.0, abs=0.1)
 
@@ -760,7 +782,7 @@ class TestProcessReadsChordsFromTheHarmonicStems:
             guitar=(G_MAJOR, 0.04), vocals=(C_MAJOR, 0.04), drums=(C_MAJOR, 0.04),
         )
         assert [s["chord"] for s in doc["segments"]] == ["G:maj"]
-        assert doc["version"] == 4
+        assert doc["version"] == 5
 
     def test_the_source_file_is_read_when_no_harmony_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         doc = self.run_with(mix, tmp_path, monkeypatch, ["vocals", "drums"], vocals=(G_MAJOR, 0.04), drums=(G_MAJOR, 0.04))

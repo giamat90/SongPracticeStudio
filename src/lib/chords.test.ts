@@ -4,7 +4,9 @@ import type { ChordSegment } from "./types";
 vi.mock("../stores/player", () => ({ usePlayerStore: () => 0 }));
 vi.mock("./tauri", () => ({ readSongChords: vi.fn() }));
 
-import { findActiveChordIndex, findNearestChordIndex, formatChordName, transposeChord, transposeKey, transposeNote } from "./chords";
+import {
+  LOW_CONFIDENCE, findActiveChordIndex, findNearestChordIndex, formatChordName, isUnsure, transposeChord, transposeKey, transposeNote,
+} from "./chords";
 
 const seg = (start: number, end: number, chord: string): ChordSegment => ({ start, end, chord });
 const SEGMENTS = [seg(2, 4, "C:maj"), seg(4, 6, "A:min"), seg(8, 9, "G:maj")];
@@ -136,5 +138,20 @@ describe("transposeKey", () => {
 
   it("returns an unparseable key unchanged", () => {
     expect(transposeKey("unknown", 2)).toBe("unknown");
+  });
+});
+
+describe("isUnsure", () => {
+  const seg = (confidence?: number) => ({ start: 0, end: 1, chord: "C:maj", ...(confidence === undefined ? {} : { confidence }) });
+
+  it("flags a chord the detector fit poorly", () => {
+    expect(isUnsure(seg(0.6))).toBe(true);
+    expect(isUnsure(seg(LOW_CONFIDENCE - 0.01))).toBe(true);
+  });
+
+  it("does not flag a good fit, the threshold itself, or a chord with no confidence", () => {
+    expect(isUnsure(seg(0.9))).toBe(false);
+    expect(isUnsure(seg(LOW_CONFIDENCE))).toBe(false);
+    expect(isUnsure(seg())).toBe(false);
   });
 });

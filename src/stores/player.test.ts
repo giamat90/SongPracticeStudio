@@ -1522,6 +1522,24 @@ describe("named loops", () => {
   });
 });
 
+describe("chord detail", () => {
+  const KEY = "sps_chord_detail";
+
+  it("starts at advanced, every chord shown as detected", async () => {
+    await loadedSong();
+    expect(store().getState().chordDetail).toBe("advanced");
+  });
+
+  it("is remembered as one preference for every song", async () => {
+    await loadedSong();
+    store().getState().setChordDetail("easy");
+    expect(store().getState().chordDetail).toBe("easy");
+    expect(localStorage.getItem(KEY)).toBe("easy");
+    await loadedSong(song({ id: "s2" }));
+    expect(store().getState().chordDetail).toBe("easy");
+  });
+});
+
 describe("capo", () => {
   const CAPO_KEY = "sps_capo_by_song";
 

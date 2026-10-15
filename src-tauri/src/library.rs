@@ -99,6 +99,10 @@ pub struct ChordSegment {
     /// The bass note when it is a chord tone other than the root (a slash chord).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bass: Option<String>,
+    /// How well the chord's notes matched the audio (0-1), written by the detector;
+    /// absent on chords from older detections and on any chord the user set by hand.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
 }
 
 /// A user-named, flat (non-nested) grouping of songs.
@@ -306,7 +310,8 @@ pub fn clean_chord_segments(segments: Vec<ChordSegment>) -> Result<Vec<ChordSegm
             Some(b) => return Err(format!("Unknown bass note: {b}")),
             None => None,
         };
-        cleaned.push(ChordSegment { start, end, chord: seg.chord, bass });
+        let confidence = seg.confidence.filter(|c| c.is_finite()).map(|c| (c.clamp(0.0, 1.0) * 100.0).round() / 100.0);
+        cleaned.push(ChordSegment { start, end, chord: seg.chord, bass, confidence });
     }
     cleaned.sort_by(|a, b| a.start.total_cmp(&b.start));
     for i in 1..cleaned.len() {
@@ -877,7 +882,7 @@ mod tests {
     // ── chord edits ───────────────────────────────────────────────────────
 
     fn seg(start: f64, end: f64, chord: &str) -> ChordSegment {
-        ChordSegment { start, end, chord: chord.to_string(), bass: None }
+        ChordSegment { start, end, chord: chord.to_string(), bass: None, confidence: None }
     }
 
     fn song_with_detected_chords(home: &TestHome) {
@@ -931,6 +936,17 @@ mod tests {
         assert_eq!((cleaned[1].start, cleaned[1].end), (4.0, 8.0));
         let overlapping_by_a_hair = clean_chord_segments(vec![seg(0.0, 4.0007, "C:maj"), seg(4.0, 8.0, "A:min")]).unwrap();
         assert_eq!(overlapping_by_a_hair[1].start, 4.001, "the start moves to the previous end, never earlier");
+    }
+
+    #[test]
+    fn cleaning_keeps_a_confidence_in_range_and_drops_one_that_is_not_a_number() {
+        let with = |confidence: Option<f64>| ChordSegment { confidence, ..seg(0.0, 4.0, "C:maj") };
+        let cleaned = |c| clean_chord_segments(vec![with(c)]).unwrap()[0].confidence;
+        assert_eq!(cleaned(Some(0.734)), Some(0.73));
+        assert_eq!(cleaned(Some(1.7)), Some(1.0));
+        assert_eq!(cleaned(Some(-0.2)), Some(0.0));
+        assert_eq!(cleaned(Some(f64::NAN)), None);
+        assert_eq!(cleaned(None), None);
     }
 
     #[test]

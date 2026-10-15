@@ -57,7 +57,7 @@ Five stages:
 1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.75)
 2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
-4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read), one window per beat (`librosa.beat.beat_track` on drums + bass; a fixed 1 s grid when there is no usable pulse), decoded with Viterbi (switch cost + key prior) → `chords.json` v4, non-fatal on failure (0.92→0.96). The user's corrections live apart in `chords_edited.json` and win when present (`ChordEditor`, `lib/chordEdit.ts`); re-detecting deletes them.
+4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read), one window per beat (`librosa.beat.beat_track` on drums + bass; a fixed 1 s grid when there is no usable pulse), decoded with Viterbi (switch cost + key prior) → `chords.json` v5 (each segment also carries a 0-1 `confidence`, the fit of the chosen chord; the chord row dims the unsure ones), non-fatal on failure (0.92→0.96). The user's corrections live apart in `chords_edited.json` and win when present (`ChordEditor`, `lib/chordEdit.ts`); re-detecting deletes them.
 5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). Read back by `read_bass_tab` (`None` for songs without one) and shown by `BassTabPanel`; "Export MIDI" writes it as a `.mid`.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — `chords`/`bassTab` are booleans (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
@@ -114,6 +114,7 @@ SongPracticeStudio/
 │   ├── recording.py      ← take WAV conversion (convert_take_to_wav), RMS loudness normalization (normalize_take), mixdown rendering (mix_export)
 │   ├── fetch_models.py   ← vendors htdemucs weights into the frozen build at build time
 │   ├── smoke_test.py     ← standalone sanity script, not part of the main.py dispatch loop
+│   ├── chord_eval.py     ← dev tool: scores detected chords against a reference .lab chart (WCSR at root / majmin / sevenths); `--detect`, `--set NAME=VALUE`; see wiki/testing.md#chord-accuracy
 │   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
 ├── tests/contract/    ← cross-language tests that read the TS and Rust sources (IPC command/argument contract)
@@ -137,6 +138,7 @@ SongPracticeStudio/
 │   │   │   ├── ExportMixButton.tsx ← export current mix as WAV (rendered in AnalyzerPage header)
 │   │   │   ├── LoopsMenu.tsx      ← saved named loops, sections from the chords, bar sections (analyzer topbar)
 │   │   │   ├── CapoSelect.tsx     ← capo fret (per song); chord displays and the sheet show the shapes (analyzer topbar)
+│   │   │   ├── ChordDetailSelect.tsx ← Easy / Medium / Advanced: triads only, with sevenths, or everything incl. slash bass (one preference for every song; analyzer topbar)
 │   │   │   ├── ExportChartButton.tsx ← chord sheet as .txt, with a capo choice (AnalyzerPage header)
 │   │   │   ├── BassTabPanel.tsx   ← scrolling four-string bass tab + Export MIDI (below the stems)
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)

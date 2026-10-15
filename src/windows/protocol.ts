@@ -1,3 +1,4 @@
+import { isChordDetail, type ChordDetail } from "../lib/chordNames";
 import {
   EVT_COMMAND,
   EVT_DOCKED,
@@ -37,6 +38,8 @@ export interface SharedState {
   transpose: number;
   /** Capo fret and the chords.json revision, so the detached chord display shows the same shapes. */
   capo: number;
+  /** How much of each chord is shown (easy / medium / advanced). */
+  chordDetail: ChordDetail;
   chordsRevision: number;
   activeTakeId: string | null;
   /** Takes with a lane on screen, in the order they were shown. */
@@ -88,6 +91,7 @@ export function isSharedState(value: unknown): value is SharedState {
     isNumber(value.duration) &&
     isNumber(value.transpose) &&
     isNumber(value.capo) &&
+    isChordDetail(value.chordDetail) &&
     isNumber(value.chordsRevision) &&
     isStringOrNull(value.activeTakeId) &&
     Array.isArray(value.shownTakeIds) &&

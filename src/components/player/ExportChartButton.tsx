@@ -53,7 +53,7 @@ export default function ExportChartButton({ song }: ExportChartButtonProps) {
     setMessage(null);
     try {
       const segments = await readSongChords(song.id);
-      const { transpose, capo } = usePlayerStore.getState();
+      const { transpose, capo, chordDetail } = usePlayerStore.getState();
       await exportChordChart({
         title: song.title,
         key: song.detectedKey,
@@ -61,6 +61,7 @@ export default function ExportChartButton({ song }: ExportChartButtonProps) {
         segments,
         transpose,
         capo,
+        detail: chordDetail,
       });
     } catch (e) {
       console.error("[ExportChartButton] chord chart export failed:", e);

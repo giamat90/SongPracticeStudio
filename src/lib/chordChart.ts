@@ -1,5 +1,5 @@
 import type { ChordSegment } from "./types";
-import { formatChordName, transposeChord, transposeKey, transposeNote } from "./chordNames";
+import { formatChordName, simplifyChord, transposeChord, transposeKey, transposeNote, type ChordDetail } from "./chordNames";
 
 export interface ChordChartInput {
   title: string;
@@ -10,6 +10,8 @@ export interface ChordChartInput {
   transpose: number;
   /** Fret the capo is on; the chords become the shapes to play, the key stays the sounding one. */
   capo: number;
+  /** How much of each chord to print; every detail when left out. */
+  detail?: ChordDetail;
 }
 
 const CHORDS_PER_LINE = 4;
@@ -22,7 +24,7 @@ export function formatClock(seconds: number): string {
 
 /** A plain-text chord sheet: a start time and chord name per chord, four to a line. */
 export function buildChordChart(input: ChordChartInput): string {
-  const { title, key, bpm, segments, transpose, capo } = input;
+  const { title, key, bpm, segments, transpose, capo, detail = "advanced" } = input;
   const lines: string[] = [title];
 
   const facts: string[] = [];
@@ -36,10 +38,12 @@ export function buildChordChart(input: ChordChartInput): string {
   const shown: { start: number; name: string }[] = [];
   for (const seg of segments) {
     const shift = transpose - capo;
-    const name = formatChordName(
+    const simple = simplifyChord(
       transposeChord(seg.chord, shift),
       seg.bass ? transposeNote(seg.bass, shift) : null,
+      detail,
     );
+    const name = formatChordName(simple.chord, simple.bass);
     if (shown.length > 0 && shown[shown.length - 1].name === name) continue;
     shown.push({ start: seg.start, name });
   }

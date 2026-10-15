@@ -14,6 +14,7 @@ function harness() {
     duration: 200,
     transpose: 3,
     capo: 2,
+    chordDetail: "easy",
     chordsRevision: 4,
     playbackRate: 1,
     activeTakeId: null,
