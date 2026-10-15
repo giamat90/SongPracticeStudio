@@ -469,7 +469,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
         <div className="about-overlay" onClick={() => setShowAbout(false)}>
           <div className="about-modal" onClick={(e) => e.stopPropagation()}>
             <h2 className="about-modal__title">Song Practice Studio</h2>
-            {appVersion && <p className="about-modal__version">v{appVersion}</p>}
+            {appVersion && <p className="about-modal__version">v{appVersion}{import.meta.env.DEV ? "d" : ""}</p>}
             <p className="about-modal__desc">
               Desktop app for musicians: drop any audio file or paste a YouTube URL,
               split it into up to six instrument stems with Demucs, then mix, loop,
