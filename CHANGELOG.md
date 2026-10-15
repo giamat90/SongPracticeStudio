@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.63] - 2026-10-15
+
+### Changed
+- **Fewer plain chords shown as seventh chords.** The detector used to name a seventh (Cmaj7, G7, Am7) whenever the extra note was only faintly there, which was the most common mistake against reference charts: a plain C or G read as Cmaj7 or G7. A seventh now needs clearly more evidence before it is named. On a test of eleven tabs the detector did not see during tuning, sevenths came out right about 57% of the time instead of 47%, and major and minor chords went from 63% to 65%. Songs imported earlier keep their chords until you press **Re-detect chords**.
+
+### Notes
+- Both test sets are mostly rock and pop. A song with a lot of real sevenths (jazz, soul) may now read some of them as plain chords; **Easy / Medium / Advanced** and the chord editor are still there to correct it, and **Hear** helps to decide.
+
 ## [0.0.62] - 2026-10-15
 
 ### Added
