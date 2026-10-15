@@ -421,6 +421,13 @@ pub async fn read_song_chords(song_id: String) -> Result<Vec<ChordSegment>, Stri
     library::read_chords(&song_id)
 }
 
+/// How far the song's recording sits from A440 in cents (positive = sharp), so a synthesised
+/// chord can be tuned to it; 0 when it was not measured.
+#[tauri::command]
+pub async fn read_chord_tuning(song_id: String) -> Result<f64, String> {
+    library::read_chord_tuning(&song_id)
+}
+
 /// Store the user's corrected chord list; `read_song_chords` returns it from then on.
 #[tauri::command]
 pub async fn save_chord_edits(song_id: String, segments: Vec<ChordSegment>) -> Result<Vec<ChordSegment>, String> {

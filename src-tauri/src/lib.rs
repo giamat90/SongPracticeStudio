@@ -41,6 +41,7 @@ pub fn run() {
         commands::export_take,
         commands::export_mix,
         commands::read_song_chords,
+        commands::read_chord_tuning,
         commands::redetect_song_chords,
         commands::save_chord_edits,
         commands::clear_chord_edits,

@@ -1034,6 +1034,58 @@ body,
   background: rgba(255, 255, 255, 0.07);
 }
 
+/* The lists of other chords in the editor: hear one, double-click to use it. */
+.chord-editor__list {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chord-editor__list-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-right: 0.2rem;
+}
+
+.chord-editor__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.8rem;
+  cursor: pointer;
+}
+
+.chord-editor__chip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.chord-editor__chip--previewed {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.chord-editor__fit {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.chord-editor__button--on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.chord-editor__button--primary {
+  border-color: var(--accent);
+}
+
 /* A detected chord the detector was not sure of: worth a second look. */
 .chord-row__chip--unsure {
   color: var(--text-muted, var(--text-secondary));

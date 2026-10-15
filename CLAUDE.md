@@ -57,7 +57,7 @@ Five stages:
 1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.75)
 2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
-4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read), one window per beat (`librosa.beat.beat_track` on drums + bass; a fixed 1 s grid when there is no usable pulse), decoded with Viterbi (switch cost + key prior) → `chords.json` v5 (each segment also carries a 0-1 `confidence`, the fit of the chosen chord; the chord row dims the unsure ones), non-fatal on failure (0.92→0.96). The user's corrections live apart in `chords_edited.json` and win when present (`ChordEditor`, `lib/chordEdit.ts`); re-detecting deletes them.
+4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read), one window per beat (`librosa.beat.beat_track` on drums + bass; a fixed 1 s grid when there is no usable pulse), decoded with Viterbi (switch cost + key prior) → `chords.json` v6 (each segment also carries a 0-1 `confidence`, the fit of the chosen chord, which the chord row dims when low, and `alternatives`, the six other chords the audio looked most like, for the editor's list; the document carries `tuning`, the recording's cents off A440, so a heard chord is in tune with it), non-fatal on failure (0.92→0.96). The user's corrections live apart in `chords_edited.json` and win when present (`ChordEditor`, `lib/chordEdit.ts`); re-detecting deletes them.
 5. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.96→1.0). Read back by `read_bass_tab` (`None` for songs without one) and shown by `BassTabPanel`; "Export MIDI" writes it as a `.mid`.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — `chords`/`bassTab` are booleans (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
@@ -121,6 +121,7 @@ SongPracticeStudio/
 ├── src/
 │   ├── audio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
+│   │   ├── chordSynth.ts       ← organ-like Web Audio chord for auditioning (ChordEditor); own AudioContext, follows the output device
 │   ├── stores/
 │   │   ├── player.ts           ← Zustand: stemVolumes/mute/solo, punch region, transport, recording, latency calibration
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
@@ -145,7 +146,7 @@ SongPracticeStudio/
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
 │   │   │   ├── ChordRow.tsx       ← chord segments as timeline chips (inside StemView); click one to correct it
-│   │   │   ├── ChordEditor.tsx    ← root / quality / bass, start / end at playhead, split, join, delete
+│   │   │   ├── ChordEditor.tsx    ← root / quality / bass, start / end at playhead, split, join, delete; Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), lists of the detector's other guesses and of the key's chords
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region

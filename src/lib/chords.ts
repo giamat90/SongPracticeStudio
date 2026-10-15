@@ -6,6 +6,18 @@ import { simplifyChord, transposeChord, transposeNote } from "./chordNames";
 
 export { formatChordName, simplifyChord, transposeChord, transposeKey, transposeNote } from "./chordNames";
 
+/** The segment `semitones` higher: its chord, slash bass and the alternatives the detector offered. */
+export function shiftSegment(seg: ChordSegment, semitones: number): ChordSegment {
+  return {
+    ...seg,
+    chord: transposeChord(seg.chord, semitones),
+    ...(seg.bass ? { bass: transposeNote(seg.bass, semitones) } : {}),
+    ...(seg.alternatives
+      ? { alternatives: seg.alternatives.map((a) => ({ ...a, chord: transposeChord(a.chord, semitones) })) }
+      : {}),
+  };
+}
+
 /**
  * Below this a detected chord is a guess worth a second look. Measured on 12
  * Beatles/Queen songs against their reference charts: chords under 0.70 were
@@ -58,11 +70,7 @@ export function useChordSegments(song: Song) {
     () =>
       shift === 0
         ? detected
-        : detected.map((seg) => ({
-            ...seg,
-            chord: transposeChord(seg.chord, shift),
-            ...(seg.bass ? { bass: transposeNote(seg.bass, shift) } : {}),
-          })),
+        : detected.map((seg) => shiftSegment(seg, shift)),
     [detected, shift],
   );
 

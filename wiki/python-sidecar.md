@@ -129,7 +129,7 @@ Each source is loaded only over the `[startSec, endSec)` window; takes are align
 
 ### `detect_chords`
 
-Detects a song's chords again from its separated stems and writes `chords.json` (version 5: beat windows, Viterbi, per-chord `confidence`) to `outputPath`. Beats are tracked on every stem passed (the rhythm section when there is a `drums` stem), so the stems have to be the song's own. The stems are summed without `drums` and `vocals`, the same rule as step 4 of `process`; when the song has no stem that carries the harmony there is no original file to fall back to, so every stem is summed instead. The `bass` stem gives slash-chord bass notes. Used by the app's "Re-detect chords" button so songs imported before sevenths, slash chords or the drum/vocal exclusion existed can be upgraded without re-separating.
+Detects a song's chords again from its separated stems and writes `chords.json` (version 6: beat windows, Viterbi, per-chord `confidence` and `alternatives`, document-level `tuning`) to `outputPath`. Beats are tracked on every stem passed (the rhythm section when there is a `drums` stem), so the stems have to be the song's own. The stems are summed without `drums` and `vocals`, the same rule as step 4 of `process`; when the song has no stem that carries the harmony there is no original file to fall back to, so every stem is summed instead. The `bass` stem gives slash-chord bass notes. Used by the app's "Re-detect chords" button so songs imported before sevenths, slash chords or the drum/vocal exclusion existed can be upgraded without re-separating.
 
 ```json
 {"cmd": "detect_chords", "stemPaths": {"other": "/song/other.wav", "bass": "/song/bass.wav"}, "outputPath": "/song/chords.json"}

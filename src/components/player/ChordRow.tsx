@@ -5,7 +5,8 @@ import { transposeChord, transposeNote } from "../../lib/chordNames";
 import {
   MIN_CHORD_SECONDS, addChordAt, deleteChordAt, joinWithNext, setChordAt, setChordEnd, setChordStart, splitChordAt,
 } from "../../lib/chordEdit";
-import { saveChordEdits } from "../../lib/tauri";
+import { keyChords } from "../../lib/keyChords";
+import { readChordTuning, saveChordEdits } from "../../lib/tauri";
 import type { ChordSegment, Song } from "../../lib/types";
 import ChordEditor from "./ChordEditor";
 
@@ -24,6 +25,9 @@ export default function ChordRow({ song }: ChordRowProps) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const isPlaying   = usePlayerStore((s) => s.isPlaying);
   const { segments, display, stored, shift, activeIndex } = useChordSegments(song);
+  const capo = usePlayerStore((s) => s.capo);
+  const revision = usePlayerStore((s) => s.chordsRevision);
+  const [tuningCents, setTuningCents] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +36,17 @@ export default function ChordRow({ song }: ChordRowProps) {
     setSelected(null);
     setError(null);
   }, [song.id]);
+
+  // Read when a chord is opened for correcting: it is only used to tune what is heard.
+  const editing = selected !== null;
+  useEffect(() => {
+    if (!editing || !song.hasChords) return;
+    let cancelled = false;
+    readChordTuning(song.id)
+      .then((cents) => { if (!cancelled) setTuningCents(cents); })
+      .catch((e: unknown) => console.error("[ChordRow] readChordTuning failed:", e));
+    return () => { cancelled = true; };
+  }, [editing, song.id, song.hasChords, revision]);
 
   if (!song.hasChords || minPxPerSec <= 0) return null;
 
@@ -125,6 +140,10 @@ export default function ChordRow({ song }: ChordRowProps) {
       {shown && picked !== null && (
         <ChordEditor
           segment={shown}
+          soundingOffset={capo}
+          tuningCents={tuningCents}
+          suggestions={shown.alternatives ?? []}
+          keyChordNames={keyChords(song.detectedKey, shift)}
           canSplit={currentTime - shown.start >= MIN_CHORD_SECONDS && shown.end - currentTime >= MIN_CHORD_SECONDS}
           canJoin={picked < stored.length - 1}
           busy={busy}

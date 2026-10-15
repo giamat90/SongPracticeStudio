@@ -89,6 +89,14 @@ pub fn set_loops(song_id: &str, loops: Vec<NamedLoop>) -> Result<Song, String> {
     Ok(updated)
 }
 
+/// A chord the audio of one segment looked like, and how well it fit (0-1).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChordAlternative {
+    pub chord: String,
+    pub fit: f64,
+}
+
 /// A single detected chord segment, read on demand from `chords.json`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -103,6 +111,9 @@ pub struct ChordSegment {
     /// absent on chords from older detections and on any chord the user set by hand.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confidence: Option<f64>,
+    /// The other chords this stretch of audio looked most like, best first, for the editor's list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alternatives: Option<Vec<ChordAlternative>>,
 }
 
 /// A user-named, flat (non-nested) grouping of songs.
@@ -219,6 +230,9 @@ pub fn rename(song_id: &str, title: &str) -> Result<Song, String> {
 #[derive(Deserialize)]
 struct ChordsFile {
     segments: Vec<ChordSegment>,
+    /// How far the recording sits from A440, in cents (positive = sharp); absent before `chords.json` v6.
+    #[serde(default)]
+    tuning: Option<f64>,
 }
 
 /// Record that a song now has a `chords.json`.
@@ -268,6 +282,18 @@ pub fn read_chords(song_id: &str) -> Result<Vec<ChordSegment>, String> {
     Ok(parsed.segments)
 }
 
+/// How far the recording sits from A440 in cents, as measured when the chords were detected;
+/// 0 for a song detected before that was kept, or one with no chords.
+pub fn read_chord_tuning(song_id: &str) -> Result<f64, String> {
+    let path = song_directory(song_id)?.join("chords.json");
+    if !path.exists() {
+        return Ok(0.0);
+    }
+    let data = fs::read_to_string(&path).map_err(|e| format!("Read chords: {e}"))?;
+    let parsed: ChordsFile = serde_json::from_str(&data).map_err(|e| format!("Parse chords: {e}"))?;
+    Ok(parsed.tuning.filter(|t| t.is_finite()).map_or(0.0, |t| t.clamp(-100.0, 100.0)))
+}
+
 /// Whether a song's chords carry the user's corrections.
 pub fn has_chord_edits(song_id: &str) -> Result<bool, String> {
     Ok(song_directory(song_id)?.join(CHORD_EDITS_FILE).exists())
@@ -285,6 +311,14 @@ pub fn clear_chord_edits(song_id: &str) -> Result<(), String> {
 
 /// Check a list of segments from the editor and return it sorted, rounded to the millisecond.
 /// A chord is `Root:quality` with a sharp-spelled root; a segment must have a length and may not overlap the next.
+const MAX_ALTERNATIVES: usize = 8;
+
+fn is_valid_chord(chord: &str) -> bool {
+    chord
+        .split_once(':')
+        .is_some_and(|(root, quality)| CHORD_NOTES.contains(&root) && CHORD_QUALITIES.contains(&quality))
+}
+
 pub fn clean_chord_segments(segments: Vec<ChordSegment>) -> Result<Vec<ChordSegment>, String> {
     if segments.len() > MAX_CHORD_SEGMENTS {
         return Err(format!("Too many chord segments ({})", segments.len()));
@@ -298,10 +332,7 @@ pub fn clean_chord_segments(segments: Vec<ChordSegment>) -> Result<Vec<ChordSegm
         if end - start < MIN_CHORD_SECONDS {
             return Err(format!("The chord at {start:.2} s is shorter than {MIN_CHORD_SECONDS} s"));
         }
-        let valid = seg.chord.split_once(':').is_some_and(|(root, quality)| {
-            CHORD_NOTES.contains(&root) && CHORD_QUALITIES.contains(&quality)
-        });
-        if !valid {
+        if !is_valid_chord(&seg.chord) {
             return Err(format!("Unknown chord: {}", seg.chord));
         }
         let bass = match seg.bass {
@@ -311,7 +342,15 @@ pub fn clean_chord_segments(segments: Vec<ChordSegment>) -> Result<Vec<ChordSegm
             None => None,
         };
         let confidence = seg.confidence.filter(|c| c.is_finite()).map(|c| (c.clamp(0.0, 1.0) * 100.0).round() / 100.0);
-        cleaned.push(ChordSegment { start, end, chord: seg.chord, bass, confidence });
+        // The list is a courtesy of the detector: one entry that is not a chord is dropped, not an error.
+        let alternatives = seg.alternatives.map(|alts| {
+            alts.into_iter()
+                .filter(|a| a.fit.is_finite() && is_valid_chord(&a.chord))
+                .take(MAX_ALTERNATIVES)
+                .map(|a| ChordAlternative { chord: a.chord, fit: (a.fit.clamp(0.0, 1.0) * 100.0).round() / 100.0 })
+                .collect::<Vec<_>>()
+        });
+        cleaned.push(ChordSegment { start, end, chord: seg.chord, bass, confidence, alternatives });
     }
     cleaned.sort_by(|a, b| a.start.total_cmp(&b.start));
     for i in 1..cleaned.len() {
@@ -882,7 +921,7 @@ mod tests {
     // ── chord edits ───────────────────────────────────────────────────────
 
     fn seg(start: f64, end: f64, chord: &str) -> ChordSegment {
-        ChordSegment { start, end, chord: chord.to_string(), bass: None, confidence: None }
+        ChordSegment { start, end, chord: chord.to_string(), bass: None, confidence: None, alternatives: None }
     }
 
     fn song_with_detected_chords(home: &TestHome) {
@@ -896,6 +935,22 @@ mod tests {
         let mut a = song("a", "A");
         a.directory = dir.to_string_lossy().to_string();
         add(a).unwrap();
+    }
+
+    #[test]
+    fn the_tuning_is_read_from_chords_json_and_is_zero_when_it_was_not_kept() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        assert_eq!(read_chord_tuning("a").unwrap(), 0.0, "a v4 file has none");
+
+        let dir = home.path().join("library").join("a");
+        let doc = |tuning: &str| format!(r#"{{"version":6,"duration":8.0,"tuning":{tuning},"segments":[]}}"#);
+        fs::write(dir.join("chords.json"), doc("29.0")).unwrap();
+        assert_eq!(read_chord_tuning("a").unwrap(), 29.0);
+        fs::write(dir.join("chords.json"), doc("-640.0")).unwrap();
+        assert_eq!(read_chord_tuning("a").unwrap(), -100.0, "clamped: it is cents off pitch, not a transposition");
+        fs::remove_file(dir.join("chords.json")).unwrap();
+        assert_eq!(read_chord_tuning("a").unwrap(), 0.0, "no chords is not an error");
     }
 
     #[test]
@@ -947,6 +1002,17 @@ mod tests {
         assert_eq!(cleaned(Some(-0.2)), Some(0.0));
         assert_eq!(cleaned(Some(f64::NAN)), None);
         assert_eq!(cleaned(None), None);
+    }
+
+    #[test]
+    fn cleaning_keeps_good_alternatives_and_drops_the_ones_that_are_not_chords() {
+        let alt = |chord: &str, fit: f64| ChordAlternative { chord: chord.to_string(), fit };
+        let with = ChordSegment {
+            alternatives: Some(vec![alt("A:min", 0.8123), alt("H:maj", 0.7), alt("E:min7", 1.4), alt("G:maj", f64::NAN)]),
+            ..seg(0.0, 4.0, "C:maj")
+        };
+        let cleaned = clean_chord_segments(vec![with]).unwrap();
+        assert_eq!(cleaned[0].alternatives, Some(vec![alt("A:min", 0.81), alt("E:min7", 1.0)]));
     }
 
     #[test]

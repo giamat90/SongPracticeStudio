@@ -27,6 +27,12 @@ export interface Folder {
   sortIndex: number;
 }
 
+/** A chord the audio of a segment looked like, and how well it fit (0-1). */
+export interface ChordAlternative {
+  chord: string;
+  fit: number;
+}
+
 export interface ChordSegment {
   start: number;
   end: number;
@@ -36,6 +42,8 @@ export interface ChordSegment {
   bass?: string;
   /** 0-1, how well the chord's notes matched the audio; absent on older detections and on chords set by hand. */
   confidence?: number;
+  /** The other chords the audio looked most like, best first; written by the detector. */
+  alternatives?: ChordAlternative[];
 }
 
 export interface ProcessingStatus {

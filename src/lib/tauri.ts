@@ -35,6 +35,11 @@ export async function readSongChords(songId: string): Promise<ChordSegment[]> {
   return invoke<ChordSegment[]>("read_song_chords", { songId });
 }
 
+/** How far the recording sits from A440 in cents (positive = sharp); 0 when it was not measured. */
+export async function readChordTuning(songId: string): Promise<number> {
+  return invoke<number>("read_chord_tuning", { songId });
+}
+
 /** Store the user's corrected chord list for a song; resolves to what was stored (rounded, sorted) */
 export async function saveChordEdits(songId: string, segments: ChordSegment[]): Promise<ChordSegment[]> {
   return invoke<ChordSegment[]>("save_chord_edits", { songId, segments });
