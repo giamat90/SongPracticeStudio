@@ -130,7 +130,7 @@ SongPracticeStudio/
 │   │   ├── chordSynth.ts       ← organ-like Web Audio chord for auditioning (ChordEditor); own AudioContext, follows the output device
 │   ├── stores/
 │   │   ├── player/             ← Zustand, one store built from slices: transport, mixer (volumes/mute/solo/transpose), timeline (punch, zoom, loops, metronome offset), devices (+ latency calibration), recording, takes, chords; plus audioMix/prefs/singletons helpers
-│   │   ├── library.ts          ← Zustand: song list, upload/import, progress
+│   │   ├── library.ts          ← Zustand: song list, upload/import, progress (`libraryStateCreator` from `@giamat90/mps-core/hooks` + this app's request shape)
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
 │   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
@@ -183,7 +183,7 @@ SongPracticeStudio/
 │   │       ├── YouTubeImport.tsx  ← URL paste → importYoutube
 │   │       └── StemPicker.tsx     ← per-stem extraction toggle + high-quality checkbox, shared by both import paths
 │   ├── pages/
-│   │   ├── LibraryPage.tsx    ← Song list + import + About modal; SongCard shows stem count
+│   │   ├── LibraryPage.tsx    ← Markup of the song list + import + About modal; SongCard shows stem count; state and drag logic are `useLibraryPage` etc. from `@giamat90/mps-core/hooks`
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/

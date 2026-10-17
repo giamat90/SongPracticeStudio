@@ -1,14 +1,9 @@
-import { useUpdaterStore } from "@giamat90/mps-core/updater";
+import { useUpdateDialog } from "@giamat90/mps-core/hooks";
 
 function UpdateDialog() {
-  const status = useUpdaterStore((s) => s.status);
-  const update = useUpdaterStore((s) => s.update);
-  const progress = useUpdaterStore((s) => s.progress);
-  const dismissed = useUpdaterStore((s) => s.dismissed);
-  const installAndRestart = useUpdaterStore((s) => s.installAndRestart);
-  const dismiss = useUpdaterStore((s) => s.dismiss);
+  const { visible, status, update, percent, install, dismiss } = useUpdateDialog();
 
-  if (dismissed || status === "idle" || status === "checking") {
+  if (!visible) {
     return null;
   }
 
@@ -26,7 +21,7 @@ function UpdateDialog() {
               <button className="update-dialog__btn-secondary" type="button" onClick={dismiss}>
                 Later
               </button>
-              <button className="update-dialog__btn-primary" type="button" onClick={installAndRestart}>
+              <button className="update-dialog__btn-primary" type="button" onClick={install}>
                 Install &amp; Restart
               </button>
             </div>
@@ -39,7 +34,7 @@ function UpdateDialog() {
             <div className="update-dialog__progress-track">
               <div
                 className="update-dialog__progress-fill"
-                style={{ width: `${Math.round(progress * 100)}%` }}
+                style={{ width: `${percent}%` }}
               />
             </div>
           </>
@@ -59,7 +54,7 @@ function UpdateDialog() {
               <button className="update-dialog__btn-secondary" type="button" onClick={dismiss}>
                 Later
               </button>
-              <button className="update-dialog__btn-primary" type="button" onClick={installAndRestart}>
+              <button className="update-dialog__btn-primary" type="button" onClick={install}>
                 Try again
               </button>
             </div>

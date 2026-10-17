@@ -1,48 +1,15 @@
-import { useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { useSettingsStore } from "../../stores/settings";
-import { cookiesSource, signInYoutube, signOutYoutube } from "@giamat90/mps-core/youtube";
+import { pickFile } from "../../lib/pickFile";
+import { useYouTubeCookies } from "@giamat90/mps-core/hooks";
 
 function YouTubeCookiesControl() {
   const youtubeCookiesPath = useSettingsStore((s) => s.youtubeCookiesPath);
   const setYoutubeCookiesPath = useSettingsStore((s) => s.setYoutubeCookiesPath);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const source = cookiesSource(youtubeCookiesPath);
-
-  const handleSignIn = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setYoutubeCookiesPath(await signInYoutube());
-    } catch (e) {
-      console.warn("[youtube] sign-in failed:", e);
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    setError(null);
-    try {
-      await signOutYoutube();
-      setYoutubeCookiesPath(null);
-    } catch (e) {
-      console.warn("[youtube] sign-out failed:", e);
-      setError(String(e));
-    }
-  };
-
-  const handleChoose = async () => {
-    const selected = await open({
-      multiple: false,
-      filters: [{ name: "Cookies", extensions: ["txt"] }],
-    });
-    if (selected) {
-      setYoutubeCookiesPath(selected);
-    }
-  };
+  const { source, busy, error, signIn, signOut, choose, clear } = useYouTubeCookies({
+    cookiesPath: youtubeCookiesPath,
+    setCookiesPath: setYoutubeCookiesPath,
+    pickFile,
+  });
 
   return (
     <div className="youtube-cookies-control">
@@ -59,13 +26,13 @@ function YouTubeCookiesControl() {
           {source === "file" && youtubeCookiesPath}
           {source === "none" && "Not signed in — falls back to reading a running browser's cookies"}
         </span>
-        <button className="youtube-cookies-control__btn" onClick={handleSignIn} disabled={busy}>
+        <button className="youtube-cookies-control__btn" onClick={signIn} disabled={busy}>
           {busy ? "Waiting for sign-in…" : source === "sign-in" ? "Sign in again" : "Sign in to YouTube"}
         </button>
         {source === "sign-in" && (
           <button
             className="youtube-cookies-control__btn youtube-cookies-control__btn--clear"
-            onClick={handleSignOut}
+            onClick={signOut}
             disabled={busy}
           >
             Sign out
@@ -74,7 +41,7 @@ function YouTubeCookiesControl() {
         {source === "file" && (
           <button
             className="youtube-cookies-control__btn youtube-cookies-control__btn--clear"
-            onClick={() => setYoutubeCookiesPath(null)}
+            onClick={clear}
           >
             Clear
           </button>
@@ -84,7 +51,7 @@ function YouTubeCookiesControl() {
       {source !== "sign-in" && (
         <button
           className="youtube-cookies-control__link"
-          onClick={handleChoose}
+          onClick={choose}
           disabled={busy}
           title="For when signing in here does not work: a cookies.txt exported from your browser"
         >

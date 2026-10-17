@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createPanelStore } from "@giamat90/mps-core/panels";
-import SortablePanels, { MoveGrip, applyDrop } from "./SortablePanels";
+import SortablePanels, { MoveGrip } from "./SortablePanels";
 
 const PANELS = [
   { id: "a", label: "Alpha", defaultVisible: true },
@@ -13,8 +13,6 @@ const PANELS = [
 type Id = (typeof PANELS)[number]["id"];
 
 const make = () => createPanelStore({ storageKey: "sortable_test", panels: PANELS });
-const event = (active: string, over: string | null) =>
-  ({ active: { id: active }, over: over === null ? null : { id: over } }) as never;
 
 beforeEach(() => localStorage.clear());
 
@@ -56,21 +54,5 @@ describe("SortablePanels", () => {
 
   it("has no grip outside a sortable list", () => {
     expect(renderToStaticMarkup(createElement(MoveGrip))).toBe("");
-  });
-});
-
-describe("applyDrop", () => {
-  it("moves the dragged panel to the place of the one it was dropped on", () => {
-    const store = make();
-    applyDrop(store, event("a", "c"));
-    expect(store.getState().order).toEqual(["b", "c", "a"]);
-  });
-
-  it("leaves the order alone when dropped on itself, or on nothing", () => {
-    const store = make();
-    applyDrop(store, event("b", "b"));
-    applyDrop(store, event("b", null));
-    expect(store.getState().order).toEqual(["a", "b", "c"]);
-    expect(localStorage.getItem("sortable_test")).toBeNull();
   });
 });

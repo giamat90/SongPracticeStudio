@@ -1,16 +1,8 @@
-import { useEffect } from "react";
+import { useMicSelect } from "@giamat90/mps-core/hooks";
 import { usePlayerStore } from "../../stores/player";
 
 function MicSelector() {
-  const audioDevices = usePlayerStore((s) => s.audioDevices);
-  const selectedDeviceId = usePlayerStore((s) => s.selectedDeviceId);
-  const fetchAudioDevices = usePlayerStore((s) => s.fetchAudioDevices);
-  const setAudioDevice = usePlayerStore((s) => s.setAudioDevice);
-  const isRecording = usePlayerStore((s) => s.isRecording);
-
-  useEffect(() => {
-    fetchAudioDevices();
-  }, []);
+  const mic = useMicSelect(usePlayerStore);
 
   return (
     <div className="mic-selector">
@@ -18,14 +10,14 @@ function MicSelector() {
       <select
         id="mic-select"
         className="mic-selector__select"
-        value={selectedDeviceId ?? ""}
-        onChange={(e) => setAudioDevice(e.target.value || null)}
-        disabled={isRecording}
+        value={mic.value}
+        onChange={(e) => mic.onChange(e.target.value)}
+        disabled={mic.disabled}
       >
         <option value="">Default</option>
-        {audioDevices.map((d) => (
-          <option key={d.deviceId} value={d.deviceId}>
-            {d.label || `Microphone ${d.deviceId.slice(0, 6)}`}
+        {mic.options.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.label}
           </option>
         ))}
       </select>

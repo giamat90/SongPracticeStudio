@@ -1,34 +1,15 @@
-import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type Announcements,
-  type DragEndEvent,
-  type Modifier,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import type { ReactNode } from "react";
+import { DndContext } from "@dnd-kit/core";
+import { SortableContext } from "@dnd-kit/sortable";
+import { PanelGripProvider, usePanelGrip, useSortablePanel, useSortablePanels } from "@giamat90/mps-core/hooks/dnd";
 import type { PanelStore } from "@giamat90/mps-core/panels";
-
-type Grip = Pick<ReturnType<typeof useSortable>, "attributes" | "listeners" | "setActivatorNodeRef" | "isDragging">;
-
-const GripContext = createContext<Grip | null>(null);
 
 /**
  * The grip that moves the panel it is in. Renders nothing outside a
  * SortablePanels, so a panel shown in a window of its own has none.
  */
 export function MoveGrip() {
-  const grip = useContext(GripContext);
+  const grip = usePanelGrip();
   if (!grip) return null;
   return (
     <button
@@ -45,14 +26,6 @@ export function MoveGrip() {
   );
 }
 
-/** Dropping a panel on another puts it in that panel's place; anywhere else leaves the order alone. */
-export function applyDrop<Id extends string>(store: PanelStore<Id>, { active, over }: Pick<DragEndEvent, "active" | "over">) {
-  if (!over || active.id === over.id) return;
-  store.getState().move(active.id as Id, over.id as Id);
-}
-
-const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 });
-
 interface SortablePanelProps {
   id: string;
   className?: string;
@@ -60,15 +33,13 @@ interface SortablePanelProps {
 }
 
 function SortablePanel({ id, className, children }: SortablePanelProps) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style: CSSProperties = { transform: CSS.Translate.toString(transform), transition };
-  const classes = ["sortable-panel", isDragging && "sortable-panel--dragging", className].filter(Boolean).join(" ");
+  const slot = useSortablePanel(id, className);
   return (
-    <GripContext.Provider value={{ attributes, listeners, setActivatorNodeRef, isDragging }}>
-      <div ref={setNodeRef} style={style} className={classes}>
+    <PanelGripProvider value={slot.grip}>
+      <div ref={slot.setNodeRef} style={slot.style} className={slot.className}>
         {children}
       </div>
-    </GripContext.Provider>
+    </PanelGripProvider>
   );
 }
 
@@ -87,37 +58,11 @@ interface SortablePanelsProps<Id extends string> {
  * parent's layout is unchanged.
  */
 function SortablePanels<Id extends string>({ store, ids, className, children }: SortablePanelsProps<Id>) {
-  const panels = store((s) => s.panels);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const label = (id: string | number) => panels.find((p) => p.id === id)?.label ?? String(id);
-  const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${label(active.id)}.`,
-    onDragOver: ({ active, over }) => (over ? `${label(active.id)} is over ${label(over.id)}.` : undefined),
-    onDragEnd: ({ active, over }) =>
-      over && over.id !== active.id
-        ? `${label(active.id)} was moved to the place of ${label(over.id)}.`
-        : `${label(active.id)} was dropped where it was.`,
-    onDragCancel: ({ active }) => `Moving ${label(active.id)} was cancelled.`,
-  };
+  const { dnd, strategy } = useSortablePanels(store);
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      modifiers={[verticalOnly]}
-      onDragEnd={(event) => applyDrop(store, event)}
-      accessibility={{
-        announcements,
-        screenReaderInstructions: {
-          draggable: "Press space to pick this panel up, the up and down arrows to move it, space to drop it, escape to cancel.",
-        },
-      }}
-    >
-      <SortableContext items={[...ids]} strategy={verticalListSortingStrategy}>
+    <DndContext {...dnd}>
+      <SortableContext items={[...ids]} strategy={strategy}>
         {ids.map((id) => (
           <SortablePanel key={id} id={id} className={className?.(id)}>
             {children(id)}
