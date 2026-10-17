@@ -25,6 +25,8 @@ Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, p
 | Stem separation | Python sidecar via Demucs `htdemucs_6s` |
 | IPC | JSON lines on stdin/stdout (Python ↔ Rust); `invoke()` (Rust ↔ TS) |
 
+**Adding an IPC command:** write the `#[tauri::command]` fn with a `///` doc (it becomes the JSDoc), add it to `generate_handler!` in `src-tauri/src/lib.rs`, run `npm run gen:ipc`, add a case to `src/lib/tauri.test.ts`. A new Rust struct or `serde_json::Value` return needs an entry in `scripts/ipc-types.json`; the generator fails loudly otherwise. `tests/contract/ipcContract.test.ts` names whichever step was forgotten.
+
 **Toolchain**: Rust 1.94.1, Node 24, Tauri v2. `cargo` requires PATH fix in bash — use PowerShell for Rust commands.
 
 ---
@@ -44,7 +46,8 @@ Replaces the fixed `vocals`/`instrumental`/`take` WaveSurfer trio with a dynamic
 - A recorded take loads as one extra instance via `loadTakeTrack(path, container, startOffset, audioOffset)`, aligned to song time with `_takeOffset`/`_takeAudioOffset` (same mapping as VPS: `fileTime = songTime - startOffset + audioOffset`).
 - `setOutputDevice(deviceId)` re-routes every instance (and future ones) via `setSinkId`.
 
-### Player store (`src/stores/player.ts`)
+### Player store (`src/stores/player/`)
+One `usePlayerStore`, composed in `player/index.ts` from seven zustand slices (`transportSlice`, `mixerSlice`, `timelineSlice`, `devicesSlice`, `recordingSlice`, `takesSlice`, `chordsSlice`); see `wiki/components.md#player-store`. Shared pieces: `audioMix.ts` (pure gain/mix helpers + the take-audio subscription), `prefs.ts` (localStorage), `singletons.ts` (engine, recorder, recording session, count-in handles). The public surface is unchanged: `usePlayerStore`, `getEngine`, `buildMixSources`, `effectiveStemGain`, `takesSilenced`, `TAKE_TRACK_KEY`, `MAX_CAPO_FRET`, `CalibrationEntry`.
 `stemVolumes: Record<string, number>` per-stem volume, `mutedStems: Record<string, boolean>` and `soloedStem: string | null` for the per-stem mute/solo buttons.  
 Punch region state (`punchIn`, `punchOut`, `punchLoop`) is shared with the TimeRuler — same pattern as VPS.  
 Recording state: `isRecording`, `isSavingTake`, `takes: Take[]`, `activeTakeId`, `takeVolume`, mic/output device selection, and `recordingOffsets: Record<string, CalibrationEntry>` (per-device latency calibration `{ offset, stale?, madMs? }`, localStorage-backed, with `usedLatencyFallback` set when recording starts without a usable calibration). Recording auto-stops when playback stops itself (punch-out or song end).  
@@ -126,14 +129,16 @@ SongPracticeStudio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
 │   │   ├── chordSynth.ts       ← organ-like Web Audio chord for auditioning (ChordEditor); own AudioContext, follows the output device
 │   ├── stores/
-│   │   ├── player.ts           ← Zustand: stemVolumes/mute/solo, punch region, transport, recording, latency calibration
+│   │   ├── player/             ← Zustand, one store built from slices: transport, mixer (volumes/mute/solo/transpose), timeline (punch, zoom, loops, metronome offset), devices (+ latency calibration), recording, takes, chords; plus audioMix/prefs/singletons helpers
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
 │   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
-│   ├── lib/tauri.ts            ← IPC wrappers: processSong, listSongs, saveTake, exportStem, exportMix, …
+│   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
+│   ├── lib/ipc.generated.ts    ← GENERATED IPC wrappers (scripts/gen-ipc.mjs, `npm run gen:ipc`); never edit by hand
+│   ├── lib/ipcTypes.ts         ← shapes that cross IPC and are not Rust-derived (MixSource, ZipExportEntry)
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
 │   ├── lib/lyrics.ts           ← canSyncLyrics only (SPS songs may lack the vocals stem); the rest of lyrics is @giamat90/mps-core/lyrics
 │   ├── components/
