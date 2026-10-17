@@ -6,6 +6,15 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.64] - 2026-10-18
+
+### Fixed
+- **Latency calibration reads the click and the clap more accurately.** The calibration wizard measured the delay between a click and the sound the microphone picked up with a timing error in its frame counting; it now uses the corrected measurement that Vocal Practice Studio already had, so the offset it suggests is closer to the real one. Run **Calibrate** again if recordings sit slightly off.
+
+### Changed
+- **Internal restructuring, nothing else to relearn.** The player, the library, the panels and the controls now share their logic with Vocal Practice Studio through one common package (mps-core 0.13.0) instead of keeping two copies. The screens, the buttons and the files on disk are unchanged.
+- **Fewer security advisories in the build tools.** The development toolchain was updated; the installed app is not affected.
+
 ## [0.0.63] - 2026-10-15
 
 ### Changed
