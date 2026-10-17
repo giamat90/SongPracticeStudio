@@ -1,4 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
+import {
+  finishPunchDrag,
+  grabPunchEdge,
+  startPunchDrag,
+  updatePunchPreview,
+  type PunchCommit,
+  type PunchDrag,
+} from "@giamat90/mps-core/punch";
 import { usePlayerStore } from "../../stores/player";
 
 const HANDLE_HIT_PX = 12;
@@ -17,7 +25,7 @@ function fmt(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-type DragMode = "create" | "drag-in" | "drag-out" | "drag-metronome";
+type RulerDrag = { kind: "metronome" } | { kind: "punch"; drag: PunchDrag };
 
 export default function TimeRuler() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -32,11 +40,7 @@ export default function TimeRuler() {
   const metronomeOffset    = usePlayerStore((s) => s.metronomeOffset);
   const setMetronomeOffset = usePlayerStore((s) => s.setMetronomeOffset);
 
-  // anchorT: the fixed end when dragging a single handle
-  const drag = useRef<{ mode: DragMode | null; anchorT: number }>({
-    mode: null,
-    anchorT: 0,
-  });
+  const drag = useRef<RulerDrag | null>(null);
 
   // ── drawing ──────────────────────────────────────────────────────────────
 
@@ -156,14 +160,22 @@ export default function TimeRuler() {
     if (canvasRef.current) canvasRef.current.style.cursor = c;
   };
 
-  // Determine which drag mode to start based on mouse position
-  const modeForOffset = (offsetX: number): DragMode => {
-    if (punchIn === null || punchOut === null) return "create";
-    const x1 = (punchIn  - scrollTime) * minPxPerSec;
-    const x2 = (punchOut - scrollTime) * minPxPerSec;
-    if (Math.abs(offsetX - x1) <= HANDLE_HIT_PX) return "drag-in";
-    if (Math.abs(offsetX - x2) <= HANDLE_HIT_PX) return "drag-out";
-    return "create";
+  const edgeAt = (offsetX: number) =>
+    grabPunchEdge(
+      offsetX,
+      punchIn === null ? null : (punchIn - scrollTime) * minPxPerSec,
+      punchOut === null ? null : (punchOut - scrollTime) * minPxPerSec,
+      HANDLE_HIT_PX,
+    );
+
+  const commitPunch = (commit: PunchCommit) => {
+    if (commit.type === "in") setPunchIn(commit.t);
+    else if (commit.type === "out") setPunchOut(commit.t);
+    else if (commit.type === "clear") clearPunch();
+    else {
+      setPunchIn(commit.inT);
+      setPunchOut(commit.outT);
+    }
   };
 
   // ── mouse handlers ───────────────────────────────────────────────────────
@@ -175,32 +187,23 @@ export default function TimeRuler() {
 
     const metroX = (metronomeOffset - scrollTime) * minPxPerSec;
     if (Math.abs(offsetX - metroX) <= HANDLE_HIT_PX) {
-      drag.current = { mode: "drag-metronome", anchorT: 0 };
+      drag.current = { kind: "metronome" };
       setCursor("ew-resize");
       return;
     }
 
-    const mode = modeForOffset(offsetX);
-    const t = xToTime(offsetX);
-
-    if (mode === "drag-in") {
-      drag.current = { mode, anchorT: punchOut! };
-      setCursor("ew-resize");
-    } else if (mode === "drag-out") {
-      drag.current = { mode, anchorT: punchIn! };
-      setCursor("ew-resize");
-    } else {
-      drag.current = { mode: "create", anchorT: t };
-      draw(t, t);
-    }
+    const started = startPunchDrag(edgeAt(offsetX), xToTime(offsetX), punchIn, punchOut);
+    drag.current = { kind: "punch", drag: started.drag };
+    if (started.drag.mode === "create") draw(started.preview.inT, started.preview.outT);
+    else setCursor("ew-resize");
   };
 
   const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const { offsetX } = e.nativeEvent;
-    const { mode, anchorT } = drag.current;
+    const active = drag.current;
     const t = xToTime(offsetX);
 
-    if (!mode) {
+    if (!active) {
       // Hover: update cursor to signal draggable handles
       const metroX = (metronomeOffset - scrollTime) * minPxPerSec;
       if (Math.abs(offsetX - metroX) <= HANDLE_HIT_PX) {
@@ -208,58 +211,34 @@ export default function TimeRuler() {
         return;
       }
       if (punchIn !== null && punchOut !== null) {
-        const m = modeForOffset(offsetX);
-        setCursor(m !== "create" ? "ew-resize" : "crosshair");
+        setCursor(edgeAt(offsetX) !== "create" ? "ew-resize" : "crosshair");
       }
       return;
     }
 
-    if (mode === "drag-metronome") {
+    if (active.kind === "metronome") {
       draw(undefined, undefined, t);
-    } else if (mode === "drag-in") {
-      // In handle moves; out handle (anchorT) stays fixed
-      const newIn = Math.min(t, anchorT - 0.1);
-      draw(newIn, anchorT);
-    } else if (mode === "drag-out") {
-      const newOut = Math.max(t, anchorT + 0.1);
-      draw(anchorT, newOut);
     } else {
-      // Creating a new region
-      draw(Math.min(anchorT, t), Math.max(anchorT, t));
+      const preview = updatePunchPreview(active.drag, t);
+      draw(preview.inT, preview.outT);
     }
   };
 
   const onMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const { mode, anchorT } = drag.current;
-    if (!mode) return;
-    drag.current.mode = null;
+    const active = drag.current;
+    if (!active) return;
+    drag.current = null;
 
     const t = xToTime(e.nativeEvent.offsetX);
-
-    if (mode === "drag-metronome") {
-      setMetronomeOffset(Math.round(t * 10) / 10);
-    } else if (mode === "drag-in") {
-      setPunchIn(Math.round(Math.min(t, anchorT - 0.1) * 10) / 10);
-    } else if (mode === "drag-out") {
-      setPunchOut(Math.round(Math.max(t, anchorT + 0.1) * 10) / 10);
-    } else {
-      // Create: commit or clear
-      const inT  = Math.min(anchorT, t);
-      const outT = Math.max(anchorT, t);
-      if (outT - inT < 0.5) {
-        clearPunch();
-      } else {
-        setPunchIn(Math.round(inT * 10) / 10);
-        setPunchOut(Math.round(outT * 10) / 10);
-      }
-    }
+    if (active.kind === "metronome") setMetronomeOffset(Math.round(t * 10) / 10);
+    else commitPunch(finishPunchDrag(active.drag, t));
 
     // Restore hover cursor
     setCursor(duration <= 0 ? "default" : "crosshair");
   };
 
   const onMouseLeave = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (drag.current.mode) onMouseUp(e);
+    if (drag.current) onMouseUp(e);
     else setCursor("default");
   };
 

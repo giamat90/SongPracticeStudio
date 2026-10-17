@@ -30,3 +30,6 @@ tauri-plugin-dialog = "2.7.0"
 tauri-plugin-updater = "2.10.1"
 zip = "2.2"
 mps-youtube-signin = { git = "https://github.com/giamat90/mps-core", tag = "v0.11.0" }
+# Local path until mps-core is tagged with these two crates; then pin them by tag like mps-youtube-signin.
+mps-sidecar = { path = "../../core/rust/sidecar" }
+mps-detached-windows = { path = "../../core/rust/detached-windows" }

@@ -58,9 +58,24 @@ Errors from `importYoutube` and `uploadSong` are parsed by `friendlyError()` int
 
 `{ songId, lyrics, draft, draftSource, status: "idle"|"loading"|"finding"|"syncing", progress, stage, error, notice }` with `load`, `setDraft`, `findOnline`, `sync`, `remove`, `clear`. Every async action re-checks `songId` before writing, so a result for a song that is no longer open is dropped. Pure timing logic (`activeLineIndex`, `activeWordIndex`, `lineSeekTime`, `canSyncLyrics`) is in `src/lib/lyrics.ts`. Ported from VPS, see [Lyrics Sync](lyrics.md).
 
-### Player Store (`src/stores/player.ts`)
+### Player Store (`src/stores/player/`)
 
-All player state lives in a single Zustand store.
+All player state lives in a single Zustand store, composed from slices in `src/stores/player/index.ts`:
+
+| File | Owns |
+|---|---|
+| `transportSlice.ts` | song, play/pause/seek, playback rate, `loadSong`, `cleanup`, the engine callbacks (punch-out, finish) |
+| `mixerSlice.ts` | stem volumes, mute, solo, transpose |
+| `timelineSlice.ts` | punch region, zoom/scroll, metronome offset, named loops |
+| `devicesSlice.ts` | mic/output devices, `recordingOffsets` calibration, the `devicechange` watcher |
+| `recordingSlice.ts` | `startRecording` / `stopRecording`, count-in, latency compensation |
+| `takesSlice.ts` | takes list, shown/active/muted/soloed takes, per-take gain, take preferences |
+| `chordsSlice.ts` | capo, chord detail, chords revision |
+| `audioMix.ts` | `effectiveStemGain`, `buildMixSources`, `takesSilenced`, and the subscription that pushes take audibility to the engine |
+| `prefs.ts` | every localStorage read/write the store does |
+| `singletons.ts` | the `AudioEngine`, the recorder, the recording session and count-in handles (module-level on purpose: start/stop/cancel are separate actions) |
+
+A slice reaches another slice's state or actions only through `get()`; `transportSlice` imports the other slices' `*Reset()` helpers for `loadSong`/`cleanup`, and no slice imports `transportSlice`.
 
 ```ts
 import { usePlayerStore } from "../../stores/player";

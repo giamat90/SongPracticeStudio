@@ -25,10 +25,10 @@ Time is not streamed 30 times a second: the detached window extrapolates from th
 | `src/windows/useMainBridge.ts`, `DetachedHost.tsx` | the React ends; `main.tsx` picks `DetachedHost` from the window label |
 | `src/components/panels/DetachHandle.tsx`, `DockHandle.tsx` | corner grip / pop-out on a panel; dock grip in a detached window |
 | `src/stores/detached.ts` | which panels are in their own window (never persisted) |
-| `src-tauri/src/windows.rs` | `detach_panel`, `dock_panel`, `close_detached_panel`, `cursor_over_main`, `close_detached_windows`; allowlist; remembered geometry (`~/.songpracticestudio/detached_windows.json`) |
+| `src-tauri/src/windows.rs` | SPS's panel table and the five `#[tauri::command]` wrappers (`detach_panel`, `dock_panel`, `close_detached_panel`, `cursor_over_main`, `close_detached_windows`); the allowlist check, remembered geometry (`~/.songpracticestudio/detached_windows.json`) and docking are mps-core's `mps-detached-windows` crate |
 | `src-tauri/capabilities/detached.json` | events and core only: no dialog or updater access |
 
-`windows.rs` is the same file as VPS's apart from the panel table and the data directory. It is Rust, so it is not in `mps-core`; keep the two in step by hand until a Rust crate exists.
+The window handling is shared with VPS in mps-core's `mps-detached-windows` crate; this app supplies the panel table and the data directory. `tests/contract/detachablePanels.test.ts` compares the table with `DETACHABLE_PANELS`; the label prefix and the `mps:docked` event are pinned in mps-core against its frontend half.
 
 ## Behaviour
 

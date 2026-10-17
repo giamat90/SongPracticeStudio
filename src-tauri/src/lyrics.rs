@@ -190,19 +190,9 @@ fn vocals_path(song: &Song) -> Result<PathBuf, String> {
 }
 
 /// Align `text` to the song's vocals stem, persist and return the result.
-/// `on_progress(fraction, stage)` is called as the sidecar reports.
-pub fn sync_impl(
-    state: &SidecarState,
-    song_id: &str,
-    text: &str,
-    source: &str,
-    on_progress: &mut dyn FnMut(f32, &str),
-) -> Result<Lyrics, String> {
-    sync_cancellable(state, song_id, text, source, &AtomicBool::new(false), on_progress)
-}
-
-/// `sync_impl` that the user can cancel: setting `cancel` abandons the job and
-/// stops the sidecar, which a running alignment cannot be interrupted in.
+/// `on_progress(fraction, stage)` is called as the sidecar reports. Setting
+/// `cancel` abandons the job and stops the sidecar, which a running alignment
+/// cannot be interrupted in.
 pub fn sync_cancellable(
     state: &SidecarState,
     song_id: &str,
@@ -447,7 +437,7 @@ mod tests {
     fn syncing_refuses_empty_text_without_starting_the_sidecar() {
         let _home = TestHome::new();
         let state = offline_state();
-        let err = sync_impl(&state, "s1", "  \n ", "paste", &mut |_, _| {}).unwrap_err();
+        let err = sync_cancellable(&state, "s1", "  \n ", "paste", &AtomicBool::new(false), &mut |_, _| {}).unwrap_err();
         assert!(err.contains("Paste the lyrics"));
         assert!(!spawned(&state));
     }
@@ -469,7 +459,7 @@ mod tests {
     fn syncing_an_unknown_song_is_reported() {
         let _home = TestHome::new();
         let state = offline_state();
-        let err = sync_impl(&state, "ghost", "la la", "paste", &mut |_, _| {}).unwrap_err();
+        let err = sync_cancellable(&state, "ghost", "la la", "paste", &AtomicBool::new(false), &mut |_, _| {}).unwrap_err();
         assert!(err.contains("Song not found"));
         assert!(!spawned(&state));
     }
@@ -479,7 +469,7 @@ mod tests {
         let _home = TestHome::new();
         add_song("drums-only", &["drums", "bass"]);
         let state = offline_state();
-        let err = sync_impl(&state, "drums-only", "la la", "paste", &mut |_, _| {}).unwrap_err();
+        let err = sync_cancellable(&state, "drums-only", "la la", "paste", &AtomicBool::new(false), &mut |_, _| {}).unwrap_err();
         assert!(err.contains("without it"), "{err}");
         assert!(!spawned(&state));
     }
@@ -489,7 +479,7 @@ mod tests {
         let _home = TestHome::new();
         add_song("s1", &["vocals", "drums"]);
         let state = offline_state();
-        let err = sync_impl(&state, "s1", "la la", "paste", &mut |_, _| {}).unwrap_err();
+        let err = sync_cancellable(&state, "s1", "la la", "paste", &AtomicBool::new(false), &mut |_, _| {}).unwrap_err();
         assert!(err.contains("missing"), "{err}");
         assert!(!spawned(&state));
     }

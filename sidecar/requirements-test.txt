@@ -2,6 +2,7 @@
 # demucs, so the Demucs separation itself is never run: the pipeline tests
 # replace `_run_demucs` with a fake that returns synthetic stems.
 pytest
+pytest-cov
 numpy
 scipy
 librosa

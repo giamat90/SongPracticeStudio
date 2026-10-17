@@ -1,0 +1,14 @@
+[run]
+omit =
+    */tests/*
+    */.venv/*
+    */vendor/*
+    */build/*
+    */pitch_lab/*
+    */testdata/*
+    */smoke_test.py
+    */site-packages/*
+
+[report]
+show_missing = False
+skip_empty = True

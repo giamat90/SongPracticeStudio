@@ -1,6 +1,6 @@
 # Loop Region, Recording & Playback
 
-**Key files:** `src/components/player/TimeRuler.tsx` · `src/stores/player.ts` · `@giamat90/mps-core/recorder` · `src/components/recording/`
+**Key files:** `src/components/player/TimeRuler.tsx` · `src/stores/player/` (`recordingSlice.ts`, `devicesSlice.ts`) · `@giamat90/mps-core/recorder` · `src/components/recording/`
 
 ## Punch Region
 
@@ -31,7 +31,7 @@ The loop toggle itself is **not** a ruler button — it's `LoopButton.tsx` (`src
 
 When `punchIn` is set, pressing **Play** always seeks to `punchIn` first.
 
-`onTimeUpdate` in `stores/player.ts` (not the engine's rAF tick — that only handles `_loopStart`/`_loopEnd`, the separate legacy A/B loop with no UI exposed) checks `punchOut` on every frame:
+`onTimeUpdate` in `stores/player/transportSlice.ts` (not the engine's rAF tick — that only handles `_loopStart`/`_loopEnd`, the separate legacy A/B loop with no UI exposed) checks `punchOut` on every frame:
 
 ```ts
 if (punchOut !== null && time >= punchOut) {
@@ -66,7 +66,7 @@ The player hears the stems with a monitoring delay (typically 50–300 ms on USB
 
 ### Calibration entry schema
 
-Each `recordingOffsets` entry is a `CalibrationEntry` (`player.ts`), keyed by input `deviceId` and persisted to `localStorage` (`songpracticestudio_recording_offsets`):
+Each `recordingOffsets` entry is a `CalibrationEntry` (`player/types.ts`), keyed by input `deviceId` and persisted to `localStorage` (`songpracticestudio_recording_offsets`):
 
 ```ts
 interface CalibrationEntry {

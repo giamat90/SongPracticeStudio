@@ -47,3 +47,6 @@ src-tauri/binaries/*
 
 # Lyrics fetched by the local-only real-data tests (copyrighted, never committed)
 sidecar/tests/_local/
+
+# Python coverage data (pytest --cov)
+sidecar/.coverage
