@@ -121,6 +121,7 @@ SongPracticeStudio/
 │   ├── tests/            ← pytest suite (see wiki/testing.md); requirements-test.txt is its light dependency set
 │   └── requirements.txt
 ├── tests/contract/    ← cross-language tests that read the TS and Rust sources (IPC command/argument contract)
+│   ├── chord_lab/        ← dev workspace for the chord detector, like VPS's pitch_lab: benchmark with confidence intervals, tune/held-out sweep, plot of chroma + detected + reference chords, sonify; data sets (gitignored) in `datasets/`; read its README.md first
 ├── src/
 │   ├── audio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
