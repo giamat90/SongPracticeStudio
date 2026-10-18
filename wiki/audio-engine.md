@@ -145,3 +145,7 @@ The engine keeps a `Map<id, TakeTrack>` instead of one take: every take with a l
 **The selected lane is marked** by a tinted header with an accent edge (`--active`), independent of audibility; a dimmed waveform means the take is not heard. `takeSilence()` in `@giamat90/mps-core/takes` gives the reason a take is silent (kept in step with `audibleTakes` by a test) but the UI does not show it.
 
 Behaviour: clicking a take in the list shows it (and selects it), clicking a shown one selects it (in selected-only mode that also switches the sound), clicking the selected one hides it (the most recently shown remaining take becomes the selected one). With "all shown" every shown take plays together and **M** on a lane silences one. Starting a recording with `muteTakesWhileRecording` on (the default) silences the takes and drops the selection, as before; with it off they keep playing and the selection stays. Takes are mixed into the export exactly as they are heard.
+
+## Reading samples (chord spectrum)
+
+`getStemSamples(names, start, end)` returns the mono sum (channels averaged) of the named stems' decoded audio between two song times, with its sample rate, or `null` when none of them is decoded. It reads `WaveSurfer.getDecodedData()`, so it follows a transposed song (the reloaded stems) and costs nothing while idle. `ChordSpectrumPanel` is its only caller.

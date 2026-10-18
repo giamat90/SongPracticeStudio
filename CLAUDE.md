@@ -155,7 +155,8 @@ SongPracticeStudio/
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
 │   │   │   ├── ChordRow.tsx       ← chord segments as timeline chips (inside StemView); click one to correct it
-│   │   │   ├── ChordEditor.tsx    ← root / quality / bass, start / end at playhead, split, join, delete; Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), lists of the detector's other guesses and of the key's chords
+│   │   │   ├── ChordEditor.tsx    ← root / quality / bass, start / end at playhead, split, join, delete; Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), lists of the detector's other guesses and of the key's chords; Spectrum opens ChordSpectrumPanel
+│   │   │   ├── ChordSpectrumPanel.tsx ← spectrum of the ticked stems over a chord's stretch plus the spectrum of a synthetic candidate chord, per-note readings (lib/chordSpectrum.ts)
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region
