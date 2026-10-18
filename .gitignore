@@ -48,5 +48,11 @@ src-tauri/binaries/*
 # Lyrics fetched by the local-only real-data tests (copyrighted, never committed)
 sidecar/tests/_local/
 
+# Chord lab: audio, charts and generated results stay local
+sidecar/chord_lab/datasets/*
+!sidecar/chord_lab/datasets/.gitkeep
+sidecar/chord_lab/results/*
+!sidecar/chord_lab/results/.gitkeep
+
 # Python coverage data (pytest --cov)
 sidecar/.coverage
