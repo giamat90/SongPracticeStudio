@@ -83,6 +83,11 @@ _CHORD_TONE_OFFSETS = {
     "7": {4, 7, 10},
     "maj7": {4, 7, 11},
     "min7": {3, 7, 10},
+    "sus2": {2, 7},
+    "sus4": {5, 7},
+    "dim": {3, 6},
+    "aug": {4, 8},
+    "6": {4, 7, 9},
 }
 
 BASS_OPEN_MIDI = [28, 33, 38, 43]
@@ -220,6 +225,65 @@ _CHORD_HARMONY_STEMS = {"guitar", "piano", "other"}
 CHORDS_FORMAT_VERSION = 6
 
 _CHORD_HOP_LENGTH = 512
+
+# Which detector reads the chords. "classic" is the chroma-template detector above;
+# "neural" is an opt-in beta (a pretrained transformer, see neural_chords/): select it with
+# the SPS_CHORD_ENGINE environment variable or by writing the word into the file below.
+# Without its weights, or on any failure, the classical detector runs instead.
+CHORD_ENGINES = ("classic", "neural")
+_CHORD_ENGINE_FILE = "~/.songpracticestudio/chord_engine"
+
+
+class ChordSegments(list):
+    """The detected segments, remembering which engine made them (chords.json records a non-classical one)."""
+
+    engine = "classic"
+    model = None
+
+
+def _chord_engine() -> str:
+    value = os.environ.get("SPS_CHORD_ENGINE", "")
+    if not value.strip():
+        path = Path(os.path.expanduser(_CHORD_ENGINE_FILE))
+        value = path.read_text(encoding="utf-8") if path.is_file() else ""
+    value = value.strip().lower() or "classic"
+    if value not in CHORD_ENGINES:
+        raise ValueError(f"Unknown chord engine {value!r}; use one of: {', '.join(CHORD_ENGINES)}")
+    return value
+
+
+_neural_engine = None
+
+
+def _neural_chords(mix, bass_y, tuning: float) -> ChordSegments:
+    """The chords read by the neural engine, with slash-chord bass notes from the bass stem like the classical ones."""
+    global _neural_engine
+    from neural_chords import engine as neural
+
+    if _neural_engine is None:
+        _neural_engine = neural.NeuralChords.load()
+    segments = ChordSegments(_neural_engine.detect(mix))
+    segments.engine, segments.model = "neural", neural.MODEL_ID
+    _add_bass_notes(segments, bass_y, tuning)
+    return segments
+
+
+def _add_bass_notes(segments: list, bass_y, tuning: float) -> None:
+    if bass_y is None or len(bass_y) == 0 or not segments:
+        return
+    chroma = librosa.feature.chroma_cqt(
+        y=bass_y, sr=SAMPLE_RATE, hop_length=_CHORD_HOP_LENGTH, fmin=librosa.note_to_hz(_BASS_FMIN_NOTE), n_octaves=4,
+        tuning=tuning,
+    )
+    frame = _CHORD_HOP_LENGTH / SAMPLE_RATE
+    for seg in segments:
+        first = int(seg["start"] / frame)
+        last = max(int(seg["end"] / frame), first + 1)
+        if first >= chroma.shape[1]:
+            continue
+        note = _slash_bass(seg["chord"], chroma[:, first:last].mean(axis=1))
+        if note is not None:
+            seg["bass"] = note
 
 # Beat tracking: fewer beats than this, or a pulse outside the plausible range
 # (median interval, seconds), means the track has no usable beat grid and the
@@ -551,20 +615,32 @@ def _detect_chords_full(stem_paths: dict, input_path: str | None = None) -> tupl
     bass_y = None
     if "bass" in stem_paths:
         bass_y, _ = librosa.load(stem_paths["bass"], sr=SAMPLE_RATE, mono=True)
+    tuning = float(librosa.estimate_tuning(y=mix, sr=SAMPLE_RATE))
+    if _chord_engine() == "neural":
+        try:
+            segments = _neural_chords(mix, bass_y, tuning)
+            _log(f"Chords read by the neural engine ({segments.model}): {len(segments)} segments")
+            return segments, len(mix) / SAMPLE_RATE, round(tuning * 100, 1)
+        except Exception as e:
+            _log(f"The neural chord engine failed, the classical detector runs instead: {e}\n{traceback.format_exc()}")
     beats = _beat_frames(stem_paths if stem_paths else sources)
     _log(f"Chord windows follow {'the beats' if beats is not None else 'a fixed grid'}")
-    tuning = float(librosa.estimate_tuning(y=mix, sr=SAMPLE_RATE))
     segments = _chords_from_signal(mix, SAMPLE_RATE, bass_y, beat_frames=beats, tuning=tuning)
     return segments, len(mix) / SAMPLE_RATE, round(tuning * 100, 1)
 
 
 def _chords_document(segments: list, duration: float, tuning_cents: float) -> dict:
-    return {
+    document = {
         "version": CHORDS_FORMAT_VERSION,
         "duration": duration,
         "tuning": tuning_cents,
         "segments": segments,
     }
+    engine = getattr(segments, "engine", "classic")
+    if engine != "classic":
+        document["engine"] = engine
+        document["model"] = getattr(segments, "model", None)
+    return document
 
 
 def _detect_chords_chroma(input_path: str, hop_seconds: float = 1.0, bass_path: str | None = None) -> list:

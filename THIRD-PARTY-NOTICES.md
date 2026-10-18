@@ -43,3 +43,16 @@ Song Practice Studio bundles pretrained weights for the `htdemucs` and
 - Project: https://github.com/facebookresearch/demucs
 - License: MIT (code); weights distributed under the same repository terms
 - Source: https://dl.fbaipublicfiles.com/demucs/
+
+## BTC chord recognition model (optional, not bundled)
+
+The opt-in neural chord engine (`sidecar/neural_chords/`) contains a reduced,
+inference-only reimplementation of the BTC model and loads its pretrained weights.
+
+- Project: https://github.com/jayg996/BTC-ISMIR19 (Jonggwon Park et al., "A Bi-Directional
+  Transformer for Musical Chord Recognition", ISMIR 2019), MIT License, Copyright (c) 2019
+  Jonggwon Park. The license text is in `sidecar/neural_chords/LICENSE-BTC`.
+- The weights are not part of this repository or of the installer. `sidecar/fetch_btc.py`
+  downloads them at a pinned upstream commit and the engine refuses a file whose SHA-256
+  differs. They were trained by the authors on public chord-annotated corpora under those
+  corpora's own terms; check those terms before bundling them in a distributed build.
