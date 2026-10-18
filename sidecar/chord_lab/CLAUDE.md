@@ -31,7 +31,7 @@ fast-orientation layer for picking up mid-investigation.
   (`devices`, `listen [--plot]`, `file`, `replay`). Tests in `sidecar/tests/test_chord_live.py` use a fake
   `sounddevice`, so they need no hardware. The user's interface is a Focusrite (WASAPI device by name:
   `--device Focusrite`). Held-out result in README: level with the offline detector on root, 4-5 points
-  behind on major-minor and sevenths on `tabs`; the 5-point lead on `isophonics` did not transfer.
+  behind on major-minor and sevenths on `tabs`; the 2-3 point lead on `isophonics` (8 on sevenths) did not transfer.
 - `CHORD_LAB_DATASETS` overrides where `datasets/` lives (a worktree can point at the main checkout's).
 
 ## Not built yet (ideas, roughly in order)

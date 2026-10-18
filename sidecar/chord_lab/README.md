@@ -102,11 +102,11 @@ Measured (time-weighted root / major-minor / sevenths), live engine at its defau
 
 | Set | Live engine | App's offline detector | Notes |
 |---|---|---|---|
-| `isophonics` (tuning set, 12 songs) | 78.9 / 71.5 / 63.1 | 72.7 / 64.3 / 55.4 | `--stick 0.4`: 79.6 / 72.7 / 64.3; `--stick 0.15`: 77.9 / 69.9 / 61.6 |
+| `isophonics` (tuning set, 12 songs) | 78.9 / 71.5 / 63.1 | 76.1 / 69.1 / 55.4 | `--stick 0.4`: 79.6 / 72.7 / 64.3; `--stick 0.15`: 77.9 / 69.9 / 61.6 |
 | `tabs` (held out, 11 songs) | 72.9 / 60.9 / 51.5 | 71.6 / 65.3 / 56.5 | the old floor and margin (0.05 / 0.07) scored 72.5 / 61.5 / 52.5 there |
 
 Read it as: about level with the offline detector on root, ahead on one set and behind on the other for the
-rest. The lead on `isophonics` did not carry over to `tabs`, so the peak-based front end is not shown to be
+rest. The 2-3 point lead (8 on sevenths) on `isophonics` did not carry over to `tabs`, so the peak-based front end is not shown to be
 better than the app's chroma, and the tuned floor and margin are not shown to matter. Each set's interval is
 several points wide. Chosen because: a clear seventh needs a larger margin on this chroma than on the app's
 (0.02 cost 11 points of sevenths on `isophonics`), and a quarter second of evidence (`--stick`) balances
