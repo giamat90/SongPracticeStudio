@@ -410,6 +410,30 @@ export class AudioEngine {
     this._takeGains = new Map();
   }
 
+  /**
+   * The mono sum of the named stems between two song times, read from their decoded audio (the chord
+   * spectrum panel analyses it). Null when none of them is decoded yet.
+   */
+  getStemSamples(names: readonly string[], start: number, end: number): { sampleRate: number; samples: Float32Array } | null {
+    let sampleRate = 0;
+    let out: Float32Array | null = null;
+    for (const name of names) {
+      const data = this._stems.get(name)?.getDecodedData();
+      if (!data || (sampleRate !== 0 && data.sampleRate !== sampleRate)) continue;
+      sampleRate = data.sampleRate;
+      const from = Math.max(0, Math.floor(start * sampleRate));
+      const to = Math.min(data.length, Math.floor(end * sampleRate));
+      if (to <= from) continue;
+      out ??= new Float32Array(to - from);
+      for (let c = 0; c < data.numberOfChannels; c++) {
+        const channel = data.getChannelData(c);
+        const n = Math.min(out.length, to - from);
+        for (let i = 0; i < n; i++) out[i] += channel[from + i] / data.numberOfChannels;
+      }
+    }
+    return out ? { sampleRate, samples: out } : null;
+  }
+
   // ─── Timeline zoom/pan ──────────────────────────────────────────────────
 
   /**

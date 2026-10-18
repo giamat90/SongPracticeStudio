@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { usePlayerStore } from "../../stores/player";
+import { useEffect, useMemo, useState } from "react";
+import { getEngine, usePlayerStore } from "../../stores/player";
 import { useChordSegments, findActiveChordIndex, formatChordName, isUnsure } from "../../lib/chords";
 import { transposeChord, transposeNote } from "../../lib/chordNames";
 import {
@@ -47,6 +47,11 @@ export default function ChordRow({ song }: ChordRowProps) {
       .catch((e: unknown) => console.error("[ChordRow] readChordTuning failed:", e));
     return () => { cancelled = true; };
   }, [editing, song.id, song.hasChords, revision]);
+
+  const spectrumSource = useMemo(() => ({
+    stems: song.stems,
+    samples: (names: readonly string[], from: number, to: number) => getEngine().getStemSamples(names, from, to),
+  }), [song.stems]);
 
   if (!song.hasChords || minPxPerSec <= 0) return null;
 
@@ -144,6 +149,7 @@ export default function ChordRow({ song }: ChordRowProps) {
           tuningCents={tuningCents}
           suggestions={shown.alternatives ?? []}
           keyChordNames={keyChords(song.detectedKey, shift)}
+          spectrumSource={spectrumSource}
           canSplit={currentTime - shown.start >= MIN_CHORD_SECONDS && shown.end - currentTime >= MIN_CHORD_SECONDS}
           canJoin={picked < stored.length - 1}
           busy={busy}
