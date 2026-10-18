@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.66] - 2026-10-18
+
+### Added
+- **Chord spectrum: look at a chord before you decide.** In the chord editor, the new *Spectrum* button shows the spectrum of the song over the selected chord (the stems you tick; drums and vocals start off, like the detector reads) with the spectrum of a synthetic candidate chord drawn over it. Pick a root and a quality (Cm, Cm7, Csus2 ...) with one click and see whether the song's peaks line up; the chord now there is drawn dashed for comparison, and *Use* makes the candidate the chord. Under the plot, each note of the candidate shows how strong it is in the song (or that it is probably only an overtone of another note) and the strongest note the candidate does not have. Tick the vocals to see what the sung note adds. It is a tool for judging a chord, not a second detector.
+
 ## [0.0.65] - 2026-10-18
 
 ### Fixed
