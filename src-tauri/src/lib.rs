@@ -73,7 +73,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SidecarState(std::sync::Mutex::new(None)))
-        .manage(windows::WindowMemory::load())
+        .manage(windows::load_memory())
         .invoke_handler(move |invoke| {
             // The sign-in window shows Google's pages; none of this app's commands are open to it.
             if !mps_youtube_signin::may_invoke(invoke.message.webview().label()) {

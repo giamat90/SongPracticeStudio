@@ -53,3 +53,6 @@ sidecar/chord_lab/datasets/*
 !sidecar/chord_lab/datasets/.gitkeep
 sidecar/chord_lab/results/*
 !sidecar/chord_lab/results/.gitkeep
+
+# Python coverage data (pytest --cov)
+sidecar/.coverage

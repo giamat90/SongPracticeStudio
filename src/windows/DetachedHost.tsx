@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
+import { detachedTitle, dockSafely, useBridgeRun } from "@giamat90/mps-core/hooks";
 import ChordCarousel from "../components/player/ChordCarousel";
 import DockHandle from "../components/panels/DockHandle";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
@@ -43,42 +43,32 @@ function PanelBody({ panel, song }: { panel: DetachablePanel; song: Song }) {
 function DetachedHost({ panel }: DetachedHostProps) {
   const song = usePlayerStore((s) => s.song);
 
-  useEffect(() => {
-    let cancelled = false;
-    let bridge: { dispose(): void } | null = null;
-
-    startDetachedBridge({
-      panelId: panel,
-      player: usePlayerStore,
-      emit: (event, payload) => emit(event, payload),
-      listen: (event, cb) => listen(event, (e) => cb(e.payload)),
-      now: () => Date.now(),
-      takeTrackKey: TAKE_TRACK_KEY,
-    })
-      .then((b) => {
-        if (cancelled) b.dispose();
-        else bridge = b;
-      })
-      .catch((e: unknown) => console.error("[detached] could not connect to the main window:", e));
-
-    return () => {
-      cancelled = true;
-      bridge?.dispose();
-    };
-  }, [panel]);
+  useBridgeRun(
+    () => ({
+      bridge: startDetachedBridge({
+        panelId: panel,
+        player: usePlayerStore,
+        emit: (event, payload) => emit(event, payload),
+        listen: (event, cb) => listen(event, (e) => cb(e.payload)),
+        now: () => Date.now(),
+        takeTrackKey: TAKE_TRACK_KEY,
+      }),
+    }),
+    "[detached] could not connect to the main window:",
+    [panel],
+  );
 
   return (
     <div className="detached-host">
       <header className="detached-host__bar">
         <span className="detached-host__title">
-          {TITLES[panel]}
-          {song ? ` — ${song.title}` : ""}
+          {detachedTitle(TITLES, panel, song?.title)}
         </span>
         <DockHandle />
         <button
           type="button"
           className="detached-host__dock"
-          onClick={() => dockPanel().catch((e: unknown) => console.error("[detached] could not dock:", e))}
+          onClick={() => dockSafely(dockPanel)}
         >
           Dock
         </button>

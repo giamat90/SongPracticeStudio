@@ -2177,9 +2177,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mps-detached-windows"
+version = "0.1.0"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.13.0#51ea179959b77382375d97043a3af28eff8bebaa"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+]
+
+[[package]]
+name = "mps-sidecar"
+version = "0.1.0"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.13.0#51ea179959b77382375d97043a3af28eff8bebaa"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mps-youtube-signin"
 version = "0.7.0"
-source = "git+https://github.com/giamat90/mps-core?tag=v0.11.0#c8ea6df4a2058b5b6c59f0e2d99afd70d1cb27bf"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.13.0#51ea179959b77382375d97043a3af28eff8bebaa"
 dependencies = [
  "log",
  "tauri",
@@ -3726,11 +3747,13 @@ dependencies = [
 
 [[package]]
 name = "song-practice-studio"
-version = "0.0.63"
+version = "0.0.64"
 dependencies = [
  "chrono",
  "dirs",
  "log",
+ "mps-detached-windows",
+ "mps-sidecar",
  "mps-youtube-signin",
  "serde",
  "serde_json",

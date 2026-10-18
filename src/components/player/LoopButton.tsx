@@ -1,23 +1,17 @@
+import { useLoopToggle } from "@giamat90/mps-core/hooks";
 import { usePlayerStore } from "../../stores/player";
 
 function LoopButton() {
-  const punchIn      = usePlayerStore((s) => s.punchIn);
-  const punchOut     = usePlayerStore((s) => s.punchOut);
-  const punchLoop    = usePlayerStore((s) => s.punchLoop);
-  const isRecording  = usePlayerStore((s) => s.isRecording);
-  const setPunchLoop = usePlayerStore((s) => s.setPunchLoop);
-
-  const hasRegion = punchIn !== null && punchOut !== null;
-  const disabled = !hasRegion || isRecording;
+  const loop = useLoopToggle(usePlayerStore);
 
   return (
     <button
-      className={`loop-btn${punchLoop ? " loop-btn--active" : ""}`}
-      title={!hasRegion ? "Set a punch region first" : punchLoop ? "Disable loop" : "Loop region"}
-      aria-label={!hasRegion ? "Set a punch region first" : punchLoop ? "Disable loop" : "Loop region"}
-      disabled={disabled}
-      aria-pressed={punchLoop}
-      onClick={() => setPunchLoop(!punchLoop)}
+      className={`loop-btn${loop.active ? " loop-btn--active" : ""}`}
+      title={loop.title}
+      aria-label={loop.title}
+      disabled={loop.disabled}
+      aria-pressed={loop.active}
+      onClick={loop.toggle}
     >
       ⟳
     </button>

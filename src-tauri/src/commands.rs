@@ -298,6 +298,7 @@ pub(crate) fn process_song_impl(
     run_song_job(state, &cmd, &song_id, output_dir_str, Some(title), emit)
 }
 
+/// Process a song file through the Python sidecar
 #[tauri::command]
 pub async fn process_song(
     app: AppHandle,
@@ -309,31 +310,37 @@ pub async fn process_song(
     process_song_impl(&state, file_path, stems_to_extract, high_quality, &|s| emit_status(&app, s))
 }
 
+/// List all songs in the library
 #[tauri::command]
 pub async fn list_songs() -> Result<Vec<Song>, String> {
     library::load_songs()
 }
 
+/// Delete a song from the library
 #[tauri::command]
 pub async fn delete_song(song_id: String) -> Result<(), String> {
     library::remove(&song_id)
 }
 
+/// Persist the metronome's downbeat anchor (song time, seconds) for this song; null clears it back to song start
 #[tauri::command]
 pub async fn set_metronome_offset(song_id: String, offset: Option<f64>) -> Result<Song, String> {
     library::update_metronome_offset(&song_id, offset)
 }
 
+/// Replace the song's saved named loops; the backend trims names and keeps them in time order
 #[tauri::command]
 pub async fn set_song_loops(song_id: String, loops: Vec<library::NamedLoop>) -> Result<Song, String> {
     library::set_loops(&song_id, loops)
 }
 
+/// Rename a song's library title. Empty/whitespace is rejected.
 #[tauri::command]
 pub async fn rename_song(song_id: String, title: String) -> Result<Song, String> {
     library::rename(&song_id, &title)
 }
 
+/// Set the title and artist online lookups use for a song. Blank clears a field (the lookup falls back to the song's own title).
 #[tauri::command]
 pub async fn set_song_identity(
     song_id: String,
@@ -345,31 +352,37 @@ pub async fn set_song_identity(
 
 // --- Folder commands ---
 
+/// List all folders in the library
 #[tauri::command]
 pub async fn list_folders() -> Result<Vec<library::Folder>, String> {
     library::load_folders()
 }
 
+/// Create a new (flat) folder. Empty/whitespace name is rejected.
 #[tauri::command]
 pub async fn create_folder(name: String) -> Result<library::Folder, String> {
     library::create_folder(&name)
 }
 
+/// Rename a folder. Empty/whitespace name is rejected.
 #[tauri::command]
 pub async fn rename_folder(folder_id: String, name: String) -> Result<library::Folder, String> {
     library::rename_folder(&folder_id, &name)
 }
 
+/// Delete a folder; its songs move back to the root list, they are not deleted.
 #[tauri::command]
 pub async fn delete_folder(folder_id: String) -> Result<(), String> {
     library::delete_folder(&folder_id)
 }
 
+/// Reorder folders (drag-to-reorder the folder sections themselves)
 #[tauri::command]
 pub async fn reorder_folders(ordered_ids: Vec<String>) -> Result<Vec<library::Folder>, String> {
     library::reorder_folders(&ordered_ids)
 }
 
+/// Move/reorder songs into `folderId` (null = root) in the given order. Covers both a same-folder reorder and a cross-folder drag-drop-at-position.
 #[tauri::command]
 pub async fn move_songs(
     folder_id: Option<String>,
@@ -415,6 +428,7 @@ pub(crate) fn import_youtube_impl(
     run_song_job(state, &cmd, &song_id, output_dir_str, None, emit)
 }
 
+/// Import a YouTube URL through yt-dlp + Demucs pipeline
 #[tauri::command]
 pub async fn import_youtube(
     app: AppHandle,
@@ -427,6 +441,7 @@ pub async fn import_youtube(
     import_youtube_impl(&state, url, stems_to_extract, high_quality, cookies_path, &|s| emit_status(&app, s))
 }
 
+/// Read detected chord segments for a processed song
 #[tauri::command]
 pub async fn read_song_chords(song_id: String) -> Result<Vec<ChordSegment>, String> {
     library::read_chords(&song_id)
@@ -451,11 +466,13 @@ pub async fn clear_chord_edits(song_id: String) -> Result<(), String> {
     library::clear_chord_edits(&song_id)
 }
 
+/// Whether a song's chords carry the user's corrections
 #[tauri::command]
 pub async fn has_chord_edits(song_id: String) -> Result<bool, String> {
     library::has_chord_edits(&song_id)
 }
 
+/// A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem
 #[tauri::command]
 pub async fn read_bass_tab(song_id: String) -> Result<Option<library::BassTab>, String> {
     library::read_bass_tab(&song_id)
@@ -512,6 +529,7 @@ async fn save_bytes_via_dialog(app: &AppHandle, data: &[u8], suggested_name: &st
     Ok(())
 }
 
+/// Offer a file the app built (a .txt or .mid) through a Save As dialog
 #[tauri::command]
 pub async fn export_file(app: AppHandle, data: Vec<u8>, suggested_name: String) -> Result<(), String> {
     save_bytes_via_dialog(&app, &data, &suggested_name).await
@@ -531,6 +549,7 @@ async fn save_copy_via_dialog(
     Ok(())
 }
 
+/// Open a native Save As dialog and copy a stem WAV to user-chosen location
 #[tauri::command]
 pub async fn export_stem(
     app: AppHandle,
@@ -568,6 +587,7 @@ pub(crate) fn write_zip_archive(dest: &Path, entries: &[ZipEntry]) -> Result<(),
     Ok(())
 }
 
+/// Open a native Save As dialog and bundle stems + takes into a zip archive
 #[tauri::command]
 pub async fn export_all(
     app: AppHandle,
@@ -672,6 +692,7 @@ pub(crate) fn save_take_impl(
     Ok(take)
 }
 
+/// Save a recorded take
 #[tauri::command]
 pub async fn save_take(
     state: State<'_, SidecarState>,
@@ -683,21 +704,25 @@ pub async fn save_take(
     save_take_impl(&state, song_id, audio_data, start_position, audio_offset)
 }
 
+/// List takes recorded for a song
 #[tauri::command]
 pub async fn list_takes(song_id: String) -> Result<Vec<Take>, String> {
     takes::load(&song_id)
 }
 
+/// Delete a take
 #[tauri::command]
 pub async fn delete_take(song_id: String, take_id: String) -> Result<(), String> {
     takes::remove(&song_id, &take_id)
 }
 
+/// Rename a take (empty/whitespace name clears it back to the default "Take N" label)
 #[tauri::command]
 pub async fn rename_take(song_id: String, take_id: String, name: String) -> Result<Take, String> {
     takes::rename(&song_id, &take_id, &name)
 }
 
+/// Persist a manual drag nudge (seconds, signed) on top of a take's auto-detected startPosition; 0 clears it back to that position
 #[tauri::command]
 pub async fn set_take_manual_offset(song_id: String, take_id: String, offset: f64) -> Result<Take, String> {
     takes::set_manual_offset(&song_id, &take_id, offset)
@@ -735,6 +760,7 @@ pub(crate) fn convert_take_to_temp_wav(state: &SidecarState, take_path: &str) ->
     Ok(temp)
 }
 
+/// Open a native Save As dialog and export a take as WAV
 #[tauri::command]
 pub async fn export_take(
     app: AppHandle,
@@ -818,6 +844,7 @@ pub(crate) fn redetect_chords_impl(state: &SidecarState, song_id: &str) -> Resul
     library::mark_chords_detected(song_id)
 }
 
+/// Detect the song's chords again from its stems (sevenths, slash chords); resolves to the updated song
 #[tauri::command]
 pub async fn redetect_song_chords(state: State<'_, SidecarState>, song_id: String) -> Result<Song, String> {
     redetect_chords_impl(&state, &song_id)
@@ -896,16 +923,19 @@ pub struct TabProgress {
     pub stage: String,
 }
 
+/// A song's stored tab and its alignment; null for a song with no tab
 #[tauri::command]
 pub async fn read_song_tab(song_id: String) -> Result<Option<crate::tab::TabRecord>, String> {
     crate::tab::read(&song_id)
 }
 
+/// Copy a Guitar Pro file next to the song, replacing any earlier tab and its alignment
 #[tauri::command]
 pub async fn import_song_tab(song_id: String, source_path: String) -> Result<crate::tab::TabRecord, String> {
     crate::tab::import(&song_id, Path::new(&source_path))
 }
 
+/// Place the stored tab's bar lines on the recording; `scoreJson` is the TabScore built from the tab
 #[tauri::command]
 pub async fn align_song_tab(
     app: AppHandle,
@@ -921,11 +951,13 @@ pub async fn align_song_tab(
     })
 }
 
+/// Store bar lines the user moved
 #[tauri::command]
 pub async fn save_tab_bars(song_id: String, bars: Vec<crate::tab::TabBar>) -> Result<crate::tab::TabSync, String> {
     crate::tab::save_bars(&song_id, bars)
 }
 
+/// Remove the song's tab and its alignment
 #[tauri::command]
 pub async fn delete_song_tab(song_id: String) -> Result<(), String> {
     crate::tab::delete(&song_id)
@@ -969,6 +1001,9 @@ pub(crate) fn render_mix_to_temp_wav(
     Ok(temp)
 }
 
+/// Render a mixdown WAV from `sources` (each already resolved to a final
+/// linear gain by the caller) trimmed to [startSec, endSec) of the project
+/// timeline, then open a native Save As dialog for the result.
 #[tauri::command]
 pub async fn export_mix(
     app: AppHandle,

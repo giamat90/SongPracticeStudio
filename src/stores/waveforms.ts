@@ -1,3 +1,4 @@
+import { hiddenTrackTags } from "@giamat90/mps-core/hooks";
 import { createPanelStore } from "@giamat90/mps-core/panels";
 import type { StemName } from "../lib/types";
 
@@ -54,11 +55,5 @@ export function hiddenStemTags(
     soloed,
   }: { stems: readonly StemName[]; muted: Readonly<Partial<Record<string, boolean>>>; soloed: string | null },
 ): Partial<Record<WaveformPanelId, string>> {
-  const tags: Partial<Record<WaveformPanelId, string>> = {};
-  for (const name of stems) {
-    if (visible[name]) continue;
-    if (soloed === name) tags[name] = "solo";
-    else if (muted[name]) tags[name] = "muted";
-  }
-  return tags;
+  return hiddenTrackTags(visible, stems, { muted, soloed });
 }

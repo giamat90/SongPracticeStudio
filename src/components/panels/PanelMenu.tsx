@@ -1,42 +1,8 @@
-import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { create } from "zustand";
-import type { PanelDef, PanelStore } from "@giamat90/mps-core/panels";
+import { Fragment } from "react";
+import { usePanelMenu, type PanelMenuItem, type PanelMenuListProps, type UsePanelMenuOptions } from "@giamat90/mps-core/hooks";
 import { useDetachedStore } from "../../stores/detached";
 
-type VisibleStore = (select: (s: { visible: Record<string, boolean> }) => Record<string, boolean>) => Record<string, boolean>;
-
-// Stands in when a menu has no fixed areas, so the store hook below is always called.
-const NO_AREAS = create<{ visible: Record<string, boolean> }>(() => ({ visible: {} }));
-
-/** An area that is hidden by collapsing it, with the tracks the user can also hide one by one. */
-export interface PanelMenuItem {
-  id: string;
-  label: string;
-  parts?: readonly { id: string; label: string }[];
-}
-
-interface FixedListProps {
-  items: readonly PanelMenuItem[];
-  visible: Readonly<Record<string, boolean>>;
-  /** A short note on a track, e.g. why a hidden one is silent. */
-  tags?: Readonly<Partial<Record<string, string>>>;
-  onToggle: (id: string) => void;
-}
-
-interface PanelMenuListProps {
-  panels: readonly PanelDef[];
-  visible: Readonly<Record<string, boolean>>;
-  /** Panels that are in a window of their own. */
-  detached?: Readonly<Partial<Record<string, boolean>>>;
-  /** Areas listed above the panels that cannot be moved. */
-  fixed?: FixedListProps;
-  /** Whether the panels can be dragged: the hint about the grip is only true then. */
-  movable?: boolean;
-  onToggle: (id: string) => void;
-  onShowAll: () => void;
-  onHideAll: () => void;
-  onReset: () => void;
-}
+export type { PanelMenuItem };
 
 export function PanelMenuList({
   panels, visible, detached, fixed, movable = true, onToggle, onShowAll, onHideAll, onReset,
@@ -84,92 +50,28 @@ export function PanelMenuList({
   );
 }
 
-interface PanelMenuProps<Id extends string, FixedId extends string> {
-  store: PanelStore<Id>;
-  panels: readonly PanelDef<Id>[];
-  /** Areas that are collapsed, never unmounted, when hidden. They have a store of their own and are listed first. */
-  fixed?: {
-    store: PanelStore<FixedId>;
-    items: readonly PanelMenuItem[];
-    tags?: Readonly<Partial<Record<string, string>>>;
-  };
-  movable?: boolean;
-}
+const useDetached = () => useDetachedStore((s) => s.detached);
 
-function PanelMenu<Id extends string, FixedId extends string = never>({
-  store, panels, fixed, movable,
-}: PanelMenuProps<Id, FixedId>) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const listId = useId();
-  const visible = store((s) => s.visible);
-  const order = store((s) => s.order);
-  const detached = useDetachedStore((s) => s.detached);
-  const { toggle, showAll, hideAll, reset } = store.getState();
-  const fixedVisible = ((fixed?.store ?? NO_AREAS) as unknown as VisibleStore)((s) => s.visible);
-  const fixedItems = fixed?.items ?? [];
-  const shown = panels.filter((p) => visible[p.id]).length + fixedItems.filter((i) => fixedVisible[i.id]).length;
-  const total = panels.length + fixedItems.length;
-  const ordered = [...panels].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+function PanelMenu<Id extends string, FixedId extends string = never>(
+  props: Omit<UsePanelMenuOptions<Id, FixedId>, "useDetached">,
+) {
+  const menu = usePanelMenu<Id, FixedId>({ ...props, useDetached });
 
   return (
-    <div className="panel-menu" ref={root}>
+    <div className="panel-menu" ref={menu.rootRef}>
       <button
         type="button"
-        className={`panel-menu__button${open ? " panel-menu__button--active" : ""}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={listId}
+        className={`panel-menu__button${menu.open ? " panel-menu__button--active" : ""}`}
+        onClick={menu.toggle}
+        aria-expanded={menu.open}
+        aria-controls={menu.listId}
         title="Choose which panels to show"
       >
-        Panels {shown}/{total}
+        Panels {menu.shown}/{menu.total}
       </button>
-      {open && (
-        <div className="panel-menu__popover" id={listId}>
-          <PanelMenuList
-            panels={ordered}
-            visible={visible}
-            detached={detached}
-            movable={movable}
-            fixed={
-              fixed && {
-                items: fixed.items,
-                visible: fixedVisible,
-                tags: fixed.tags,
-                onToggle: (id) => fixed.store.getState().toggle(id as FixedId),
-              }
-            }
-            onToggle={(id) => toggle(id as Id)}
-            onShowAll={() => {
-              showAll();
-              fixed?.store.getState().showAll();
-            }}
-            onHideAll={() => {
-              hideAll();
-              // Only the areas go: the user's choice of tracks inside them comes back with them.
-              for (const item of fixedItems) fixed?.store.getState().setVisible(item.id as FixedId, false);
-            }}
-            onReset={() => {
-              reset();
-              fixed?.store.getState().reset();
-            }}
-          />
+      {menu.open && (
+        <div className="panel-menu__popover" id={menu.listId}>
+          <PanelMenuList {...menu.list} />
         </div>
       )}
     </div>

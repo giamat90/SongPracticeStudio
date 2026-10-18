@@ -298,7 +298,7 @@ fn lyrics_sync_goes_through_the_real_sidecar_and_is_persisted() {
     let text = "[Verse]
 hello there my friend
 sing it out loud";
-    let result = lyrics::sync_impl(&state, "song-ly", text, "paste", &mut |p, s| seen.push((p, s.to_string())))
+    let result = lyrics::sync_cancellable(&state, "song-ly", text, "paste", &std::sync::atomic::AtomicBool::new(false), &mut |p, s| seen.push((p, s.to_string())))
         .expect("sync_lyrics");
 
     assert_eq!(result.lines.len(), 2, "the [Verse] marker is not a lyric line");
@@ -320,13 +320,13 @@ sing it out loud";
 
     // A failure inside the sidecar surfaces as its own message and leaves the saved lyrics alone.
     std::fs::write(song_dir.join("vocals.wav"), vec![0u8; 16]).unwrap();
-    let err = lyrics::sync_impl(&state, "song-ly", "la la la", "paste", &mut |_, _| {}).unwrap_err();
+    let err = lyrics::sync_cancellable(&state, "song-ly", "la la la", "paste", &std::sync::atomic::AtomicBool::new(false), &mut |_, _| {}).unwrap_err();
     assert!(err.to_lowercase().contains("read"), "{err}");
     assert_eq!(lyrics::load("song-ly").unwrap(), Some(result));
 
     // ...and the sidecar is still usable afterwards.
     write_wav(&song_dir.join("vocals.wav"), &samples, sr);
-    lyrics::sync_impl(&state, "song-ly", "la la la", "paste", &mut |_, _| {}).expect("sync after a failure");
+    lyrics::sync_cancellable(&state, "song-ly", "la la la", "paste", &std::sync::atomic::AtomicBool::new(false), &mut |_, _| {}).expect("sync after a failure");
 
     std::env::remove_var("SPS_LYRICS_ENGINE");
 }

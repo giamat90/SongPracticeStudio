@@ -28,7 +28,7 @@ imported without the vocals stem, which VPS cannot, so the check is this app's.
 - **`sidecar/requirements.txt` and `requirements-test.txt`**: `git+https://github.com/giamat90/mps-core.git@vX.Y.Z#subdirectory=python`. Keep the two tags equal to each other and to `package.json`.
 - **`vitest.config.ts`**: `server.deps.inline: [/@giamat90\/mps-core/]` (the package ships TypeScript source).
 - **`sidecar/main.py`**: `APP = AppIdentity(name="SongPracticeStudio", url="https://github.com/giamat90/SongPracticeStudio", data_dir="~/.songpracticestudio", env_prefix="SPS")`, passed as `app=APP` to `check_yt_dlp_freshness`, `align_lyrics`, `find_lyrics`. This is why the models directory, the yt-dlp cache and `SPS_LYRICS_ENGINE` are where they always were.
-- **`tests/contract/ipcContract.test.ts`**: reads `node_modules/@giamat90/mps-core/src/lyrics/ipc.ts` next to `src/lib/tauri.ts`, so the package's wrappers are checked against this app's Rust handlers.
+- **`tests/contract/ipcContract.test.ts`**: reads `node_modules/@giamat90/mps-core/src/lyrics/ipc.ts` next to `src/lib/ipc.generated.ts`, so the package's wrappers are checked against this app's Rust handlers.
 - **`sidecar/tests/test_yt_dlp_floor.py`**: the requirement files must carry the floor `mps_core.version_check.MIN_YT_DLP_VERSION`.
 
 ## Working with it
@@ -43,6 +43,11 @@ imported without the vocals stem, which VPS cannot, so the check is this app's.
 ## What stayed behind, and why
 
 `KeyTranspose`, `OutputSelector`, `MicSelector`, `YouTubeCookiesControl` are
-identical in both apps but read app stores and app CSS; `sidecar.rs`,
-`test_util.rs` and `lyrics.rs` are largely shared but tied to each app's `Song`
-model. The shared repository's `wiki/architecture.md` lists each with the reason.
+identical in both apps but read app stores and app CSS; `test_util.rs` and
+`lyrics.rs` are largely shared but tied to each app's `Song` model.
+
+## Rust crates, `punch` and the headless hooks (mps-core v0.13.0, 2026-10-17)
+
+`sidecar.rs` and `windows.rs` are thin wrappers over mps-core's `mps-sidecar` (the process manager and the JSON-lines protocol; this app supplies its binary name) and `mps-detached-windows` (allowlist, remembered position, docking; this app supplies its `PanelSpec` table and data directory and keeps the `#[tauri::command]` wrappers). Both, and `mps-youtube-signin`, are Cargo git dependencies pinned to `tag = "v0.13.0"`.
+
+The logic of the components both apps carry is in `@giamat90/mps-core/hooks` (panel menu, device selectors, transpose, tempo, record and transport controls, time ruler, take list, latency calibration, lyrics panel, YouTube import and cookies, drop zone, update dialog, library page and store, settings, shortcuts, bridge host); the drag-and-drop ones are in `@giamat90/mps-core/hooks/dnd`. A component here is the markup and the CSS class names around one hook call, with the store, the IPC functions and the dialogs passed in. `TimeRuler` and the punch rules use `@giamat90/mps-core/punch`. To change behaviour that is in a hook, change it in mps-core, tag, and bump the pin in both apps.

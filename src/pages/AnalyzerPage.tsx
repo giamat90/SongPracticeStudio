@@ -28,7 +28,7 @@ import { ANALYZER_PANELS, useAnalyzerPanels, type AnalyzerPanelId } from "../sto
 import { hiddenStemTags, useWaveformPanels, waveformMenuItems } from "../stores/waveforms";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
-import { installPlayerShortcuts } from "../lib/shortcuts";
+import { installPlayerShortcuts } from "@giamat90/mps-core/hooks";
 import type { DetachablePanel } from "../windows/protocol";
 import { useMainBridge } from "../windows/useMainBridge";
 

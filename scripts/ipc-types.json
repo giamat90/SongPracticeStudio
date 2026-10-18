@@ -1,0 +1,48 @@
+{
+  "skip": {
+    "load_lyrics": "wrapped by @giamat90/mps-core/lyrics",
+    "sync_lyrics": "wrapped by @giamat90/mps-core/lyrics",
+    "find_lyrics": "wrapped by @giamat90/mps-core/lyrics",
+    "search_lyrics": "wrapped by @giamat90/mps-core/lyrics",
+    "delete_lyrics": "wrapped by @giamat90/mps-core/lyrics",
+    "sign_in_youtube": "wrapped by @giamat90/mps-core/youtube",
+    "sign_out_youtube": "wrapped by @giamat90/mps-core/youtube"
+  },
+  "names": {
+    "delete_take": "deleteTakeApi",
+    "rename_take": "renameTakeApi",
+    "set_take_manual_offset": "setTakeManualOffsetApi",
+    "set_metronome_offset": "setMetronomeOffsetApi",
+    "set_song_loops": "setSongLoopsApi",
+    "rename_song": "renameSongApi",
+    "set_song_identity": "setSongIdentityApi"
+  },
+  "types": {
+    "Song": "Song",
+    "Take": "Take",
+    "Folder": "Folder",
+    "NamedLoop": "NamedLoop",
+    "ChordSegment": "ChordSegment",
+    "BassTab": "BassTabData",
+    "TabRecord": "TabRecord",
+    "TabSync": "TabSync",
+    "TabBar": "TabBar",
+    "ZipEntry": "ZipExportEntry",
+    "MixSource": "MixSource"
+  },
+  "params": {
+    "process_song.stemsToExtract": "StemName[]",
+    "import_youtube.stemsToExtract": "StemName[]"
+  },
+  "defaults": {
+    "save_take.audioOffset": "0"
+  },
+  "returns": {
+    "pitch_shift_song": "{ stems: Record<string, string> }"
+  },
+  "imports": {
+    "./types": ["Song", "Take", "Folder", "NamedLoop", "ChordSegment", "StemName", "TabBar", "TabRecord", "TabSync"],
+    "./bassTab": ["BassTabData"],
+    "./ipcTypes": ["MixSource", "ZipExportEntry"]
+  }
+}
