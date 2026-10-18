@@ -9,6 +9,7 @@ not have to decode the song again for every value.
 """
 
 import json
+import os
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from pathlib import Path
 
 LAB = Path(__file__).resolve().parent
 SIDECAR = LAB.parent
-DATASETS = LAB / "datasets"
+DATASETS = Path(os.environ.get("CHORD_LAB_DATASETS") or LAB / "datasets")
 RESULTS = LAB / "results"
 
 if str(SIDECAR) not in sys.path:
