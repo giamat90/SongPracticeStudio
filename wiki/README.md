@@ -20,3 +20,4 @@
 | [YouTube sign-in](youtube-signin.md) | In-app Google sign-in that produces the cookies file for YouTube import, plus the bundled Deno runtime (ported from VPS) |
 | [Tab sync](tab-sync.md) | Import a Guitar Pro tab and place its bars on the recording: data flow, the alignment algorithm and its measured accuracy, limits, storage |
 | [Testing](testing.md) | The three test suites (vitest, cargo, pytest), their fakes, what the cross-language tests assert, how to run them |
+| [UML diagrams](uml.md) | Fifteen Mermaid diagrams: layers, screens, domain model, stems engine, chord and tab-sync data flows, Rust backend, sidecar, sequences |
