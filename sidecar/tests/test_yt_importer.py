@@ -221,6 +221,13 @@ class TestImportFlow:
         with pytest.raises(FileNotFoundError):
             run([INFO], source_wav=False)
 
+    def test_the_artist_comes_from_the_videos_metadata_or_its_channel(self, run):
+        assert run([{"title": "T", "artist": "Queen"}])[0]["artist"] == "Queen"
+        assert run([{"title": "T", "channel": "Queen Official"}])[0]["artist"] == "Queen"
+
+    def test_a_video_that_names_no_artist_leaves_it_empty(self, run):
+        assert run([INFO])[0]["artist"] is None
+
     def test_a_missing_title_defaults_to_unknown(self, run):
         result, _, _, _ = run([{}])
         assert result["title"] == "Unknown"

@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.65] - 2026-10-18
+
+### Fixed
+- **Finding lyrics online now searches by artist as well as title.** Imports used to leave the artist empty, so the search ran on the title alone and a common title could find another band's song. The artist is now read from the file's tags or from the YouTube video, shown in the lyrics panel next to the title, and can be corrected there. If nothing is found with the artist, the search tries the title alone, and versions by the right artist are listed first. Songs imported earlier keep an empty artist until you set one.
+
 ## [0.0.64] - 2026-10-18
 
 ### Fixed

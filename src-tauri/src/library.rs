@@ -57,6 +57,17 @@ impl Song {
     }
 }
 
+/// The artist the sidecar found for a finished import (file tags, or the
+/// video's metadata), so the first lyrics search already has it. None when it
+/// found none.
+pub fn detected_artist(data: &serde_json::Value) -> Option<String> {
+    data.get("artist")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 /// A region of a song saved under a name, to loop with one click.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -638,6 +649,14 @@ mod tests {
         assert_eq!(s.lookup_identity(), ("Hallelujah".to_string(), Some("Leonard Cohen".to_string())));
         s.official_title = Some("   ".into());
         assert_eq!(s.lookup_identity().0, "Hallelujah (acoustic)");
+    }
+
+    #[test]
+    fn detected_artist_reads_the_sidecars_answer() {
+        assert_eq!(detected_artist(&serde_json::json!({"artist": " Queen "})).as_deref(), Some("Queen"));
+        assert_eq!(detected_artist(&serde_json::json!({"artist": "  "})), None);
+        assert_eq!(detected_artist(&serde_json::json!({"artist": null})), None);
+        assert_eq!(detected_artist(&serde_json::json!({})), None);
     }
 
     #[test]

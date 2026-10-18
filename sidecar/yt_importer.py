@@ -9,6 +9,7 @@ import re
 import sys
 import yt_dlp
 from processor import process
+from mps_core.identity import artist_from_ytdlp
 from mps_core.version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
 
 _BROWSERS = ["chrome", "firefox", "edge", "brave", "opera"]
@@ -128,6 +129,7 @@ def import_yt(
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=True)
                 title = info.get("title", "Unknown")
+                artist = artist_from_ytdlp(info)
             last_error = None
             break
         except Exception as exc:
@@ -177,4 +179,5 @@ def import_yt(
 
     result = process(source_wav, output_dir, stems_to_extract=stems_to_extract, high_quality=high_quality, on_progress=remapped)
     result["title"] = title
+    result["artist"] = artist
     return result
