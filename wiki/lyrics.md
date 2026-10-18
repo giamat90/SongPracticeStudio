@@ -18,7 +18,7 @@ The panel sits **above** the stems list, outside its scroller. Placed below the 
 | | VPS | SPS |
 |---|---|---|
 | Song record | has `artist` and `kind` | neither; only `title`, `duration`, `stems` |
-| Online lookup | `title` + `artist` | `title` only. SPS titles are raw YouTube titles (`Audioslave - Like a stone (HD)`), so LRCLIB's `q=` search relies on `clean_title` stripping decoration; measured below |
+| Online lookup | `title` + `artist` | `officialTitle` + `officialArtist` (no separate `artist` field). SPS titles are raw YouTube titles (`Audioslave - Like a stone (HD)`), so LRCLIB's `q=` search relies on `clean_title` stripping decoration; measured below |
 | Who can have lyrics | non-instrument songs | songs whose `stems` contain `vocals` and whose `vocals.wav` exists; `sync_impl` validates both before touching the sidecar |
 | File location | `storage::song_dir(id)` | the song's own `directory` from `library.json` (as `read_chords` does); `load`/`delete` never create a directory, and a sync that finishes after its song was deleted fails instead of resurrecting the folder |
 | Models dir | `~/.vps/models/` | `~/.songpracticestudio/models/` (a second 360 MB copy if both apps are used; apps are deliberately not coupled) |
@@ -51,7 +51,7 @@ Rust (`src-tauri/src/lyrics.rs`, thin wrappers in `commands.rs`): `load_lyrics`,
 
 A song's `title` is the user's to rename, typically to tell versions apart (studio, live, acoustic), and SPS titles start out as raw YouTube titles. The online search must not follow the display title, so `Song` carries a second pair, `officialTitle` / `officialArtist`, and `Song::lookup_identity()` (`library.rs`) is what `find_lyrics` and `search_lyrics` send:
 
-- imports seed `officialTitle` with the imported title (`officialArtist` stays empty until set);
+- imports seed `officialTitle` with the imported title and `officialArtist` with the artist the sidecar found (`library::detected_artist`: a file's tags, read with mutagen; for YouTube the video's `artist`/`creator` metadata, else the channel name with `- Topic`/`VEVO`/`Official` stripped; see `mps_core.identity`). The guess can be wrong, so the lookup tries `Artist Title` first and the title alone when that finds nothing (LRCLIB wants every word of `q`), and results by the wrong artist rank behind the right one;
 - `rename_song` never changes them; renaming a song that has no `officialTitle` yet first copies the old title into it, so a library written before this existed keeps looking itself up under the name it had;
 - an empty `officialTitle` falls back to `title`;
 - `set_song_identity(songId, officialTitle?, officialArtist?)` sets them (trimmed, blank clears). The lyrics panel's **Change** link is the only UI for it.

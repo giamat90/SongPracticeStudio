@@ -204,7 +204,7 @@ pub(crate) fn song_from_result(
     Song {
         id: song_id.to_string(),
         official_title: Some(title.clone()),
-        official_artist: None,
+        official_artist: library::detected_artist(data),
         title,
         duration: data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0),
         detected_key: data.get("detectedKey").and_then(|v| v.as_str()).map(|s| s.to_string()),

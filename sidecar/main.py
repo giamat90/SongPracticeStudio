@@ -34,6 +34,7 @@ from recording import convert_take_to_wav, mix_export, normalize_take
 from tab_sync import align_tab_file
 from mps_core import lyrics
 from mps_core.app import AppIdentity
+from mps_core.identity import artist_from_file
 from mps_core.version_check import check_yt_dlp_freshness
 
 APP = AppIdentity(
@@ -83,6 +84,7 @@ def main():
                     high_quality=bool(cmd.get("highQuality", False)),
                     on_progress=make_progress_callback("process"),
                 )
+                result["artist"] = artist_from_file(cmd["filePath"])
                 send({"type": "result", "cmd": "process", "data": result})
 
             elif cmd.get("cmd") == "import_yt":
