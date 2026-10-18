@@ -17,7 +17,7 @@ fast-orientation layer for picking up mid-investigation.
   (`tests/test_chord_lab.py` holds them equal). If `_detect_chords_full` changes how it reads the
   audio, change `lab.prepare` with it.
 
-## State (2026-10-17)
+## State (2026-10-18)
 
 - Built on `feat/chord-lab`: `lab.py`, `benchmark.py`, `sweep.py`, `visualize.py`, `sonify.py`,
   `import_set.py`, tests in `sidecar/tests/test_chord_lab.py` (they skip the plot check without matplotlib).
@@ -26,7 +26,22 @@ fast-orientation layer for picking up mid-investigation.
 - Reproduces the earlier harness exactly: `tabs` unaligned 71.4 / 65.1 / 56.3 equals `chord_eval.py`'s
   unaligned columns for the v0.0.63 detector.
 
+- Live tool (branch `feat/chord-live`): `realtime.py` (pure engine: YIN pitch, peak-based chroma, causal
+  Viterbi with the app's templates and switch costs, running tuning, lowest-note bass), `live.py`
+  (`devices`, `listen [--plot]`, `file`, `replay`). Tests in `sidecar/tests/test_chord_live.py` use a fake
+  `sounddevice`, so they need no hardware. The user's interface is a Focusrite (WASAPI device by name:
+  `--device Focusrite`). Held-out result in README: level with the offline detector on root, 4-5 points
+  behind on major-minor and sevenths on `tabs`; the 5-point lead on `isophonics` did not transfer.
+- `CHORD_LAB_DATASETS` overrides where `datasets/` lives (a worktree can point at the main checkout's).
+
 ## Not built yet (ideas, roughly in order)
+
+- Basic Pitch (or another neural note transcriber) as an optional front end for the live engine, scored on
+  both sets next to the current one. Cost to weigh before shipping anything: model file, onnx/tensorflow, latency.
+- Real guitar through the interface has not been measured: no clean DI guitar data exists here yet. Record a
+  few takes with `listen --record --lab` and import them as a third data set.
+- Party in the U.S.A. scored 76% root in the first live replay against 55% offline: the offline pipeline
+  (beat grid? tuning?) fails there for a reason that is not the audio. Worth diagnosing with `visualize.py`.
 
 - A "listen here" list per song: the stretches where the detector's top choices disagree or where it
   is confident and wrong, as start times to feed to `sonify.py --start/--end`.
