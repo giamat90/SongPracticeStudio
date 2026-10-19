@@ -16,7 +16,7 @@ const BLACK = new Set([1, 3, 6, 8, 10]);
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 /** The roll leaves these to the chord detector's own view: drums have no notes. */
 const NOT_NOTES = new Set(["drums"]);
-const LIT = 110;
+const LIT = 120;
 
 function rgba(color: string, alpha: number): string {
   return color.replace(/[\d.]+\)$/, `${alpha})`);
@@ -169,7 +169,7 @@ export default function ChordRoll({ song }: RollProps) {
           const x = xOf(f * 0.125);
           for (let midi = Math.max(SHOWN_LOW, MIDI_LOW); midi <= Math.min(SHOWN_HIGH, MIDI_HIGH); midi++) {
             const v = noteStrength(matrix, f, midi);
-            if (v < 40) continue;
+            if (v < 25) continue;
             ctx.fillStyle = rgba(color, (v / 255) ** 1.6 * 0.95);
             ctx.fillRect(x, yOf(midi), cellW, rowH - 0.5);
           }

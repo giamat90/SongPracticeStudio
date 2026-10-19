@@ -7,8 +7,8 @@ export const NOTE_COUNT = MIDI_HIGH - MIDI_LOW + 1;
 export const ROLL_FFT = 16384;
 /** Seconds between two frames of the matrix. */
 export const ROLL_HOP = 0.125;
-/** A note this far under the stem's strong notes is not drawn. */
-export const ROLL_RANGE_DB = 40;
+/** A note this far above its neighbours is drawn at full strength. */
+export const ROLL_RANGE_DB = 24;
 /** A note's overtones are taken off the notes above it in these shares of its strength (partials 2 to 6). */
 const OVERTONE_SHARE = [0, 0.55, 0.4, 0.3, 0.22, 0.16];
 const BAND_CENTS = 45;
@@ -39,12 +39,33 @@ export function noteBands(sampleRate: number, fftSize: number, cents = 0): Array
   return bands;
 }
 
+/** How far a note must stand above the notes around it, in dB, to be drawn at all. */
+export const MIN_CONTRAST_DB = 5;
+/** Notes within this many semitones either side set the level a note is compared with. */
+const NEIGHBOURS = 6;
+const FLOOR_BELOW_TOP_DB = 30;
+/** A note this far under the stem's loudest is silence, however clearly it stands out. */
+const AUDIBLE_DB = 45;
+
+export interface FrameNotes {
+  /** dB each note stands above the median of the notes around it (0 when it does not). */
+  contrast: Float64Array;
+  /** dB of each note's strength after its lower notes' overtones were taken off. */
+  level: Float64Array;
+}
+
+function median(values: number[]): number {
+  values.sort((x, y) => x - y);
+  return values[values.length >> 1];
+}
+
 /**
- * One frame's note strengths from a magnitude spectrum in dB: the loudest bin in each note's band,
- * then the overtones of each note (from the lowest up) taken off the notes where they land, so a low
- * E does not also read as the B and E above it.
+ * One frame's notes from a magnitude spectrum in dB: the loudest bin in each note's band, the overtones of
+ * each note (from the lowest up) taken off the notes where they land, so a low E does not also read as the B
+ * and E above it, and then each note compared with the median of the notes around it. A distorted guitar
+ * lights every band a little; only a note that stands clear of that level is a note being played.
  */
-export function frameStrengths(db: Float32Array, bands: Array<[number, number]>): Float64Array {
+export function frameStrengths(db: Float32Array, bands: Array<[number, number]>): FrameNotes {
   const mag = new Float64Array(NOTE_COUNT);
   for (let n = 0; n < NOTE_COUNT; n++) {
     let peak = -Infinity;
@@ -59,7 +80,19 @@ export function frameStrengths(db: Float32Array, bands: Array<[number, number]>)
       if (at < NOTE_COUNT) mag[at] = Math.max(0, mag[at] - own * OVERTONE_SHARE[h - 1]);
     }
   }
-  return mag;
+  const level = new Float64Array(NOTE_COUNT);
+  for (let n = 0; n < NOTE_COUNT; n++) level[n] = 20 * Math.log10(mag[n] + 1e-12);
+  const contrast = new Float64Array(NOTE_COUNT);
+  // Against a quiet neighbourhood a leftover of an overtone would look like a strong note, so the level
+  // compared with never falls more than FLOOR_BELOW_TOP_DB under the frame's loudest note.
+  const floorLimit = Math.max(...level) - FLOOR_BELOW_TOP_DB;
+  for (let n = 0; n < NOTE_COUNT; n++) {
+    const around: number[] = [];
+    for (let k = Math.max(0, n - NEIGHBOURS); k <= Math.min(NOTE_COUNT - 1, n + NEIGHBOURS); k++) around.push(level[k]);
+    const c = level[n] - Math.max(median(around), floorLimit);
+    contrast[n] = c >= MIN_CONTRAST_DB ? c : 0;
+  }
+  return { contrast, level };
 }
 
 /** The note matrix of a mono signal. Calls `onProgress(0..1)` and yields to the UI now and then. */
@@ -72,7 +105,8 @@ export async function computeNoteMatrix(
   const hopSamples = Math.round(ROLL_HOP * sampleRate);
   const frames = Math.max(1, Math.floor(samples.length / hopSamples));
   const bands = noteBands(sampleRate, ROLL_FFT, cents);
-  const strengths = new Float64Array(frames * NOTE_COUNT);
+  const contrast = new Float64Array(frames * NOTE_COUNT);
+  const level = new Float64Array(frames * NOTE_COUNT);
   const frame = new Float32Array(ROLL_FFT);
   for (let f = 0; f < frames; f++) {
     const centre = f * hopSamples + hopSamples / 2;
@@ -82,18 +116,20 @@ export async function computeNoteMatrix(
       const at = from + i;
       if (at >= 0 && at < samples.length) frame[i] = samples[at];
     }
-    strengths.set(frameStrengths(computeMagnitudeSpectrumDb(frame, ROLL_FFT), bands), f * NOTE_COUNT);
+    const notes = frameStrengths(computeMagnitudeSpectrumDb(frame, ROLL_FFT), bands);
+    contrast.set(notes.contrast, f * NOTE_COUNT);
+    level.set(notes.level, f * NOTE_COUNT);
     if (f % 64 === 63) {
       onProgress?.(f / frames);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
-  const sorted = Float64Array.from(strengths).sort();
-  const top = sorted[Math.floor(sorted.length * 0.995)] || 1e-9;
-  const data = new Uint8Array(strengths.length);
+  const sorted = Float64Array.from(level).sort();
+  const top = sorted[Math.floor(sorted.length * 0.995)];
+  const data = new Uint8Array(contrast.length);
   for (let i = 0; i < data.length; i++) {
-    const db = 20 * Math.log10(Math.max(strengths[i], 1e-12) / top);
-    data[i] = Math.max(0, Math.min(255, Math.round(255 * (1 + db / ROLL_RANGE_DB))));
+    if (level[i] < top - AUDIBLE_DB) continue;
+    data[i] = Math.min(255, Math.round((255 * contrast[i]) / ROLL_RANGE_DB));
   }
   onProgress?.(1);
   return { hop: ROLL_HOP, frames, data };
