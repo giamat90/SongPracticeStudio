@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ChordSpectrumPanel from "./ChordSpectrumPanel";
 import { readChordTuning, saveChordEdits } from "../../lib/tauri";
 import { setChordStart } from "../../lib/chordEdit";
+import { STRIP_H, classifyPress, type RollBlock } from "../../lib/rollHit";
+import { useChordSelection } from "../../stores/chordSelection";
+import ChordEditorHost from "./ChordEditorHost";
 import { getEngine, usePlayerStore } from "../../stores/player";
 import { STEM_COLORS } from "../../audio/engine";
 import { formatChordName, shiftSegment, useChordSegments } from "../../lib/chords";
@@ -17,13 +20,11 @@ const NOT_NOTES = new Set(["drums"]);
 const LIT = 120;
 /** Energy on a note the chord does not have is drawn this much fainter when the fade is on. */
 const OFF_CHORD_FADE = 0.45;
-/** How close, in pixels, the pointer must be to a chord's left edge to take hold of it. */
-const EDGE_PX = 6;
 /** A press that moves less than this is a click, not a drag. */
 const CLICK_PX = 3;
 
 type Drag =
-  | { kind: "seek"; startX: number; startTime: number; moved: boolean }
+  | { kind: "seek"; startX: number; startTime: number; moved: boolean; pick: number | null }
   | { kind: "edge"; index: number; time: number; startX: number; moved: boolean };
 /** Lowest and highest note the roll can be set to show: bass guitar's low E up to a guitar's top. */
 const LOW_OPTIONS = [28, 36, 48];
@@ -80,10 +81,11 @@ export default function ChordRoll({ song }: RollProps) {
   const [tried, setTried] = useState<{ index: number; chord: string } | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const drag = useRef<Drag | null>(null);
-  /** The left edge of each chord in view, as a segment index and a canvas x, left by the last frame drawn. */
-  const edges = useRef<Array<{ index: number; x: number }>>([]);
-  const live = useRef({ matrices, ticked, stored, transpose, prefs });
-  live.current = { matrices, ticked, stored, transpose, prefs };
+  /** The chords in view and where they span on the canvas, left by the last frame drawn. */
+  const blocks = useRef<RollBlock[]>([]);
+  const selected = useChordSelection((s) => s.index);
+  const live = useRef({ matrices, ticked, stored, transpose, prefs, selected });
+  live.current = { matrices, ticked, stored, transpose, prefs, selected };
 
   useEffect(() => {
     if (!song.hasChords) return;
@@ -102,6 +104,10 @@ export default function ChordRoll({ song }: RollProps) {
   const noteStems = useMemo(() => song.stems.filter((s) => !NOT_NOTES.has(s)), [song.stems]);
 
   useEffect(() => {
+    useChordSelection.getState().clear();
+  }, [song.id]);
+
+  useEffect(() => {
     setMatrices({});
     setTicked(Object.fromEntries(noteStems.map((s) => [s, s !== "vocals"])));
   }, [song.id, noteStems]);
@@ -116,10 +122,9 @@ export default function ChordRoll({ song }: RollProps) {
     }
   };
 
-  const rollGeometry = (el: HTMLCanvasElement) => ({ left: el.getBoundingClientRect().left, rollW: el.offsetWidth - KEYS_W });
+  const rollGeometry = (el: HTMLCanvasElement) => ({ left: el.getBoundingClientRect().left, top: el.getBoundingClientRect().top, rollW: el.offsetWidth - KEYS_W });
   const timeAt = (el: HTMLCanvasElement, x: number) =>
     getEngine().getCurrentTime() - WINDOW_S / 2 + ((x - KEYS_W) / rollGeometry(el).rollW) * WINDOW_S;
-  const edgeAt = (x: number) => edges.current.find((e) => Math.abs(e.x - x) <= EDGE_PX)?.index ?? null;
   const seekTo = (time: number) => usePlayerStore.getState().seek(Math.min(Math.max(time, 0), song.duration));
 
   const commitEdge = async (index: number, time: number) => {
@@ -135,26 +140,29 @@ export default function ChordRoll({ song }: RollProps) {
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const el = e.currentTarget;
-    const x = e.clientX - rollGeometry(el).left;
+    const { left, top } = rollGeometry(el);
+    const x = e.clientX - left;
     if (e.button !== 0 || x < KEYS_W) return;
     el.setPointerCapture(e.pointerId);
-    const edge = edgeAt(x);
-    drag.current = edge !== null
-      ? { kind: "edge", index: edge, time: timeAt(el, x), startX: x, moved: false }
-      : { kind: "seek", startX: x, startTime: getEngine().getCurrentTime(), moved: false };
+    const press = classifyPress(blocks.current, x, e.clientY - top);
+    drag.current = press.kind === "edge"
+      ? { kind: "edge", index: press.index, time: timeAt(el, x), startX: x, moved: false }
+      : { kind: "seek", startX: x, startTime: getEngine().getCurrentTime(), moved: false, pick: press.kind === "strip" ? press.index : null };
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const el = e.currentTarget;
-    const x = e.clientX - rollGeometry(el).left;
+    const { left, top, rollW } = rollGeometry(el);
+    const x = e.clientX - left;
     const held = drag.current;
     if (!held) {
-      el.style.cursor = edgeAt(x) !== null ? "ew-resize" : "";
+      const press = classifyPress(blocks.current, x, e.clientY - top);
+      el.style.cursor = press.kind === "edge" ? "ew-resize" : press.kind === "strip" ? "pointer" : "";
       return;
     }
     if (Math.abs(x - held.startX) > CLICK_PX) held.moved = true;
     if (held.kind === "edge") held.time = timeAt(el, x);
-    else if (held.moved) seekTo(held.startTime - ((x - held.startX) / rollGeometry(el).rollW) * WINDOW_S);
+    else if (held.moved) seekTo(held.startTime - ((x - held.startX) / rollW) * WINDOW_S);
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -162,8 +170,13 @@ export default function ChordRoll({ song }: RollProps) {
     const held = drag.current;
     drag.current = null;
     if (!held) return;
-    if (held.kind === "seek" && !held.moved) seekTo(timeAt(el, e.clientX - rollGeometry(el).left));
-    if (held.kind === "edge" && held.moved) void commitEdge(held.index, held.time);
+    if (held.kind === "edge") {
+      if (held.moved) void commitEdge(held.index, held.time);
+      else useChordSelection.getState().toggle(held.index, "roll");
+    } else if (!held.moved) {
+      if (held.pick !== null) useChordSelection.getState().toggle(held.pick, "roll");
+      else seekTo(timeAt(el, e.clientX - rollGeometry(el).left));
+    }
   };
 
   const compute = async () => {
@@ -199,7 +212,7 @@ export default function ChordRoll({ song }: RollProps) {
         el.width = W;
         el.height = H;
       }
-      const { matrices: m, ticked: on, stored: segs, transpose: tr, prefs: p } = live.current;
+      const { matrices: m, ticked: on, stored: segs, transpose: tr, prefs: p, selected: picked } = live.current;
       const low = p.low;
       const high = p.high;
       const now = getEngine().getCurrentTime();
@@ -223,7 +236,7 @@ export default function ChordRoll({ song }: RollProps) {
         .map((s, index) => ({ seg: shiftSegment(s, tr), index }))
         .filter(({ seg }) => seg.end > t0 && seg.start < t0 + WINDOW_S)
         .map(({ seg, index }) => ({ seg, index, pcs: chordPitchClasses(seg.chord, seg.bass) }));
-      edges.current = chords.map(({ seg, index }) => ({ index, x: xOf(seg.start) }));
+      blocks.current = chords.map(({ seg, index }) => ({ index, x0: xOf(seg.start), x1: xOf(seg.end) }));
       for (const { seg, pcs } of chords) {
         const x0 = Math.max(KEYS_W, xOf(seg.start));
         const x1 = Math.min(W, xOf(seg.end));
@@ -262,8 +275,15 @@ export default function ChordRoll({ song }: RollProps) {
       ctx.globalCompositeOperation = "source-over";
       ctx.font = "11px sans-serif";
       ctx.textBaseline = "top";
-      for (const { seg, pcs } of chords) {
+      ctx.fillStyle = "rgba(10,10,24,0.55)";
+      ctx.fillRect(KEYS_W, 0, rollW, STRIP_H);
+      for (const { seg, pcs, index } of chords) {
         const startX = xOf(seg.start);
+        if (index === picked) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(Math.max(KEYS_W, startX) + 0.75, 0.75, Math.min(W, xOf(seg.end)) - Math.max(KEYS_W, startX) - 1.5, H - 1.5);
+        }
         ctx.fillStyle = "#f5e6c8";
         ctx.fillText(formatChordName(seg.chord, seg.bass), Math.max(KEYS_W + 2, startX + 3), 3);
         ctx.fillStyle = "rgba(245,158,11,0.5)";
@@ -361,9 +381,10 @@ export default function ChordRoll({ song }: RollProps) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={() => { drag.current = null; }}
-            title="Click to go there, drag to scrub, drag the amber tab of a chord to move where it starts"
+            title="Click to go there, drag to scrub. Click a chord name to correct it; drag the amber tab of a chord to move where it starts"
           />
         )}
+        <ChordEditorHost song={song} surface="roll" />
         {prefs.spectrum && here && (
           <div className="chord-roll__spectrum">
             <ChordSpectrumPanel

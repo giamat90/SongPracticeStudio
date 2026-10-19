@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { getEngine, usePlayerStore } from "../../stores/player";
+import { useEffect, useState } from "react";
+import { usePlayerStore } from "../../stores/player";
 import { useChordSegments, findActiveChordIndex, formatChordName, isUnsure } from "../../lib/chords";
-import { transposeChord, transposeNote } from "../../lib/chordNames";
-import {
-  MIN_CHORD_SECONDS, addChordAt, deleteChordAt, joinWithNext, setChordAt, setChordEnd, setChordStart, splitChordAt,
-} from "../../lib/chordEdit";
-import { keyChords } from "../../lib/keyChords";
-import { readChordTuning, saveChordEdits } from "../../lib/tauri";
-import type { ChordSegment, Song } from "../../lib/types";
-import ChordEditor from "./ChordEditor";
+import { addChordAt } from "../../lib/chordEdit";
+import { saveChordEdits } from "../../lib/tauri";
+import { useChordSelection } from "../../stores/chordSelection";
+import type { Song } from "../../lib/types";
+import ChordEditorHost from "./ChordEditorHost";
 
 interface ChordRowProps {
   song: Song;
@@ -24,77 +21,40 @@ export default function ChordRow({ song }: ChordRowProps) {
   const scrollTime  = usePlayerStore((s) => s.scrollTime);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const isPlaying   = usePlayerStore((s) => s.isPlaying);
-  const { segments, display, stored, shift, activeIndex } = useChordSegments(song);
-  const capo = usePlayerStore((s) => s.capo);
-  const revision = usePlayerStore((s) => s.chordsRevision);
-  const [tuningCents, setTuningCents] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { segments, display, stored, activeIndex } = useChordSegments(song);
+  const selected = useChordSelection((s) => s.index);
+  const pickedHere = useChordSelection((s) => s.surface === "row");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSelected(null);
+    useChordSelection.getState().clear();
     setError(null);
   }, [song.id]);
-
-  // Read when a chord is opened for correcting: it is only used to tune what is heard.
-  const editing = selected !== null;
-  useEffect(() => {
-    if (!editing || !song.hasChords) return;
-    let cancelled = false;
-    readChordTuning(song.id)
-      .then((cents) => { if (!cancelled) setTuningCents(cents); })
-      .catch((e: unknown) => console.error("[ChordRow] readChordTuning failed:", e));
-    return () => { cancelled = true; };
-  }, [editing, song.id, song.hasChords, revision]);
-
-  const spectrumSource = useMemo(() => ({
-    stems: song.stems,
-    samples: (names: readonly string[], from: number, to: number) => getEngine().getStemSamples(names, from, to),
-  }), [song.stems]);
 
   if (!song.hasChords || minPxPerSec <= 0) return null;
 
   const picked = selected !== null && selected < segments.length ? selected : null;
-  const shown = picked !== null ? segments[picked] : null;
-
-  // The editor shows chords as played (transpose and capo applied); the file keeps them as detected.
-  const toStored = (chord: string) => (shift === 0 ? chord : transposeChord(chord, -shift));
-  const bassToStored = (note: string) => (shift === 0 ? note : transposeNote(note, -shift));
-
-  const commit = async (next: ChordSegment[] | null, nextSelected: number | null) => {
-    if (next === null) {
-      setError("That does not fit here: a chord needs at least a tenth of a second on each side.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await saveChordEdits(song.id, next);
-      usePlayerStore.getState().bumpChordsRevision();
-      setSelected(nextSelected);
-    } catch (e) {
-      console.error("[ChordRow] saving the chord edit failed:", e);
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const playhead = () => usePlayerStore.getState().currentTime;
 
   const inGap = !isPlaying && currentTime >= 0 && currentTime < song.duration
     && findActiveChordIndex(segments, currentTime) < 0;
   const addX = (currentTime - scrollTime) * minPxPerSec;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const previous = [...stored].reverse().find((s) => s.end <= currentTime);
     const added = addChordAt(stored, currentTime, previous?.chord ?? "C:maj", song.duration);
     if (!added) {
       setError("There is no room for a chord here.");
       return;
     }
-    void commit(added.segments, added.index);
+    setError(null);
+    try {
+      await saveChordEdits(song.id, added.segments);
+      usePlayerStore.getState().bumpChordsRevision();
+      useChordSelection.getState().select(added.index, "row");
+    } catch (e) {
+      console.error("[ChordRow] saving the chord edit failed:", e);
+      setError(String(e));
+    }
   };
 
   return (
@@ -120,10 +80,10 @@ export default function ChordRow({ song }: ChordRowProps) {
                 left: `${(seg.start - scrollTime) * minPxPerSec}px`,
                 width: `${width}px`,
               }}
-              onClick={() => { setSelected(i === picked ? null : i); setError(null); }}
+              onClick={() => { useChordSelection.getState().toggle(i, "row"); setError(null); }}
               title={isUnsure(seg) ? `${name}: not sure about this one, click to correct` : `${name}: click to correct`}
               aria-label={`Chord ${name} at ${seg.start.toFixed(1)} seconds`}
-              aria-pressed={i === picked}
+              aria-pressed={i === picked && pickedHere}
             >
               {showLabel ? name : null}
             </button>
@@ -134,7 +94,7 @@ export default function ChordRow({ song }: ChordRowProps) {
             type="button"
             className="chord-row__add"
             style={{ left: `${addX}px` }}
-            onClick={handleAdd}
+            onClick={() => void handleAdd()}
             title="Add a chord at the playhead"
             aria-label="Add a chord at the playhead"
           >
@@ -142,30 +102,8 @@ export default function ChordRow({ song }: ChordRowProps) {
           </button>
         )}
       </div>
-      {shown && picked !== null && (
-        <ChordEditor
-          segment={shown}
-          soundingOffset={capo}
-          tuningCents={tuningCents}
-          suggestions={shown.alternatives ?? []}
-          keyChordNames={keyChords(song.detectedKey, shift)}
-          spectrumSource={spectrumSource}
-          canSplit={currentTime - shown.start >= MIN_CHORD_SECONDS && shown.end - currentTime >= MIN_CHORD_SECONDS}
-          canJoin={picked < stored.length - 1}
-          busy={busy}
-          error={error}
-          onChord={(chord, bass) =>
-            void commit(setChordAt(stored, picked, toStored(chord), bass ? bassToStored(bass) : null), picked)}
-          onStartHere={() => void commit(setChordStart(stored, picked, playhead()), picked)}
-          onEndHere={() => void commit(setChordEnd(stored, picked, playhead(), song.duration), picked)}
-          onSplit={() => void commit(splitChordAt(stored, picked, playhead()), picked)}
-          onJoin={() => void commit(joinWithNext(stored, picked), picked)}
-          onDelete={() => void commit(deleteChordAt(stored, picked), null)}
-          onGoTo={() => usePlayerStore.getState().seek(shown.start)}
-          onClose={() => { setSelected(null); setError(null); }}
-        />
-      )}
-      {!shown && error && <div className="chord-editor__error" role="alert">{error}</div>}
+      <ChordEditorHost song={song} surface="row" />
+      {error && <div className="chord-editor__error" role="alert">{error}</div>}
     </>
   );
 }
