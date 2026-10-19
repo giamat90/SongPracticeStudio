@@ -7,7 +7,7 @@ import { useChordSelection } from "../../stores/chordSelection";
 import ChordEditorHost from "./ChordEditorHost";
 import { getEngine, usePlayerStore } from "../../stores/player";
 import { STEM_COLORS } from "../../audio/engine";
-import { formatChordName, shiftSegment, useChordSegments } from "../../lib/chords";
+import { formatChordName, isUnsure, shiftSegment, useChordSegments } from "../../lib/chords";
 import { MIDI_HIGH, MIDI_LOW, chordPitchClasses, computeNoteMatrix, noteStrength, type NoteMatrix } from "../../lib/noteRoll";
 import type { Song } from "../../lib/types";
 
@@ -29,6 +29,40 @@ type Drag =
 /** Lowest and highest note the roll can be set to show: bass guitar's low E up to a guitar's top. */
 const LOW_OPTIONS = [28, 36, 48];
 const HIGH_OPTIONS = [60, 72, 84, 88];
+
+interface ChipState {
+  active: boolean;
+  selected: boolean;
+  hover: boolean;
+  unsure: boolean;
+}
+
+/** One chord of the strip as a button: rounded, the name centred in it, brighter when it is the chord playing, hovered or picked. */
+function drawChip(ctx: CanvasRenderingContext2D, x0: number, x1: number, name: string, state: ChipState) {
+  const x = x0 + 2;
+  const w = x1 - x0 - 4;
+  if (w < 6) return;
+  const y = 3;
+  const h = STRIP_H - 6;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 4);
+  ctx.fillStyle = state.selected ? "rgba(245,158,11,0.7)"
+    : state.active ? "rgba(245,158,11,0.45)"
+    : state.hover ? "rgba(245,158,11,0.32)"
+    : "rgba(245,158,11,0.18)";
+  ctx.fill();
+  ctx.strokeStyle = state.selected ? "#ffffff" : "rgba(245,158,11,0.55)";
+  ctx.lineWidth = state.selected ? 1.5 : 1;
+  ctx.stroke();
+  if (w < 22) return;
+  let label = name;
+  while (label.length > 1 && ctx.measureText(label).width > w - 6) label = label.slice(0, -1);
+  ctx.fillStyle = state.unsure ? "rgba(255,247,230,0.6)" : "#fff7e6";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2 + 0.5);
+  ctx.textAlign = "left";
+}
 
 const midiName = (midi: number) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
 
@@ -83,6 +117,7 @@ export default function ChordRoll({ song }: RollProps) {
   const drag = useRef<Drag | null>(null);
   /** The chords in view and where they span on the canvas, left by the last frame drawn. */
   const blocks = useRef<RollBlock[]>([]);
+  const hover = useRef<number | null>(null);
   const selected = useChordSelection((s) => s.index);
   const live = useRef({ matrices, ticked, stored, transpose, prefs, selected });
   live.current = { matrices, ticked, stored, transpose, prefs, selected };
@@ -158,6 +193,7 @@ export default function ChordRoll({ song }: RollProps) {
     if (!held) {
       const press = classifyPress(blocks.current, x, e.clientY - top);
       el.style.cursor = press.kind === "edge" ? "ew-resize" : press.kind === "strip" ? "pointer" : "";
+      hover.current = press.kind === "strip" ? press.index : null;
       return;
     }
     if (Math.abs(x - held.startX) > CLICK_PX) held.moved = true;
@@ -218,7 +254,7 @@ export default function ChordRoll({ song }: RollProps) {
       const now = getEngine().getCurrentTime();
       const t0 = now - WINDOW_S / 2;
       const rows = high - low + 1;
-      const rowH = H / rows;
+      const rowH = (H - STRIP_H) / rows;
       const rollW = W - KEYS_W;
       const xOf = (t: number) => KEYS_W + ((t - t0) / WINDOW_S) * rollW;
       const yOf = (midi: number) => H - (midi - low + 1) * rowH;
@@ -241,7 +277,7 @@ export default function ChordRoll({ song }: RollProps) {
         const x0 = Math.max(KEYS_W, xOf(seg.start));
         const x1 = Math.min(W, xOf(seg.end));
         ctx.fillStyle = "rgba(217,119,6,0.07)";
-        ctx.fillRect(x0, 0, x1 - x0, H);
+        ctx.fillRect(x0, STRIP_H, x1 - x0, H - STRIP_H);
         for (let midi = low; midi <= high; midi++) {
           if (!pcs.has(midi % 12)) continue;
           ctx.fillStyle = "rgba(245,158,11,0.13)";
@@ -273,29 +309,39 @@ export default function ChordRoll({ song }: RollProps) {
       }
 
       ctx.globalCompositeOperation = "source-over";
-      ctx.font = "11px sans-serif";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "rgba(10,10,24,0.55)";
+      // The chord strip: a ruler of its own above the notes, one button per chord.
+      ctx.fillStyle = "#12122a";
       ctx.fillRect(KEYS_W, 0, rollW, STRIP_H);
+      ctx.fillStyle = "rgba(245,158,11,0.25)";
+      ctx.fillRect(KEYS_W, STRIP_H - 1, rollW, 1);
+      ctx.font = "600 12px sans-serif";
       for (const { seg, pcs, index } of chords) {
         const startX = xOf(seg.start);
+        const endX = xOf(seg.end);
+        const left = Math.max(KEYS_W, startX);
+        const right = Math.min(W, endX);
         if (index === picked) {
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 1.5;
-          ctx.strokeRect(Math.max(KEYS_W, startX) + 0.75, 0.75, Math.min(W, xOf(seg.end)) - Math.max(KEYS_W, startX) - 1.5, H - 1.5);
+          ctx.strokeRect(left + 0.75, 0.75, right - left - 1.5, H - 1.5);
         }
-        ctx.fillStyle = "#f5e6c8";
-        ctx.fillText(formatChordName(seg.chord, seg.bass), Math.max(KEYS_W + 2, startX + 3), 3);
+        drawChip(ctx, left, right, formatChordName(seg.chord, seg.bass), {
+          active: now >= seg.start && now < seg.end,
+          selected: index === picked,
+          hover: index === hover.current,
+          unsure: isUnsure(seg),
+        });
         ctx.fillStyle = "rgba(245,158,11,0.5)";
-        ctx.fillRect(startX, 0, 1, H);
+        ctx.fillRect(startX, STRIP_H, 1, H - STRIP_H);
         if (startX < KEYS_W) continue;
-        ctx.fillStyle = "#fbbf24";
-        ctx.fillRect(startX - 3, 0, 7, 9);
         ctx.fillStyle = "rgba(251,191,36,0.95)";
+        ctx.fillRect(startX - 1.5, 7, 3, STRIP_H - 14);
         for (let midi = low; midi <= high; midi++) {
           if (pcs.has(midi % 12)) ctx.fillRect(startX + 1, yOf(midi) + 1, 3, rowH - 2.5);
         }
       }
+      ctx.font = "11px sans-serif";
+      ctx.textBaseline = "top";
 
       const held = drag.current;
       if (held?.kind === "edge" && held.moved) {
@@ -311,6 +357,10 @@ export default function ChordRoll({ song }: RollProps) {
 
       ctx.fillStyle = "#14142a";
       ctx.fillRect(0, 0, KEYS_W, H);
+      ctx.fillStyle = "#a0a0b0";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Chords", 3, STRIP_H / 2);
+      ctx.textBaseline = "top";
       const frame = Math.floor(now / 0.125);
       for (let midi = low; midi <= high; midi++) {
         const pc = midi % 12;
@@ -381,7 +431,8 @@ export default function ChordRoll({ song }: RollProps) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={() => { drag.current = null; }}
-            title="Click to go there, drag to scrub. Click a chord name to correct it; drag the amber tab of a chord to move where it starts"
+            onPointerLeave={() => { hover.current = null; }}
+            title="Click to go there, drag to scrub. Click a chord button to correct it; drag the amber handle at its left to move where it starts"
           />
         )}
         <ChordEditorHost song={song} surface="roll" />

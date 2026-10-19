@@ -7,8 +7,8 @@ export interface RollBlock {
 
 /** How close, in pixels, the pointer must be to a chord's left edge to take hold of it. */
 export const EDGE_PX = 6;
-/** Height of the strip at the top of the roll that carries the chord names and picks a chord when clicked. */
-export const STRIP_H = 18;
+/** Height of the chord strip above the notes: one button per chord, each as wide as the chord is long. */
+export const STRIP_H = 28;
 
 export type Press =
   | { kind: "edge"; index: number }
