@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChordSpectrumPanel from "./ChordSpectrumPanel";
 import { readChordTuning, saveChordEdits } from "../../lib/tauri";
-import { addChordAt, setChordStart } from "../../lib/chordEdit";
+import { addChordAt, setChordAt, setChordStart } from "../../lib/chordEdit";
 import { ADD_HALF_PX, STRIP_H, classifyPress, type RollBlock } from "../../lib/rollHit";
 import { useChordSelection } from "../../stores/chordSelection";
 import ChordEditorHost from "./ChordEditorHost";
 import ChordRollMap from "./ChordRollMap";
 import { useNoteRoll } from "./useNoteRoll";
+import { useChordCommit } from "./useChordCommit";
+import { chordSynth } from "../../audio/chordSynth";
 import { getEngine, usePlayerStore } from "../../stores/player";
 import { STEM_COLORS } from "../../audio/engine";
 import { formatChordName, isUnsure, shiftSegment, useChordSegments } from "../../lib/chords";
@@ -134,7 +136,8 @@ export default function ChordRoll({ song }: RollProps) {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { stored, segments, display, centerIndex } = useChordSegments(song);
   const [tuningCents, setTuningCents] = useState(0);
-  const [tried, setTried] = useState<{ index: number; chord: string } | null>(null);
+  const candidate = useChordSelection((s) => s.candidate);
+  const editing = useChordCommit(song);
   const canvas = useRef<HTMLCanvasElement>(null);
   const drag = useRef<Drag | null>(null);
   /** The chords in view and where they span on the canvas, left by the last frame drawn. */
@@ -412,10 +415,21 @@ export default function ChordRoll({ song }: RollProps) {
   }, [prefs.roll]);
 
   if (!song.hasChords) return null;
-  const here = centerIndex >= 0 ? segments[centerIndex] : null;
-  const candidate = tried && tried.index === centerIndex ? tried.chord : here?.chord ?? "C:maj";
+  // The spectrum looks at the chord being corrected, or at the one under the playhead when none is.
+  const picked = selected !== null && selected < segments.length ? selected : null;
+  const focus = picked ?? centerIndex;
+  const here = focus >= 0 ? segments[focus] : null;
+  const tryingChord = candidate && candidate.index === focus ? candidate.chord : here?.chord ?? "C:maj";
+  const tryChord = (chord: string) => {
+    useChordSelection.getState().setCandidate(focus, chord === here?.chord ? null : chord);
+    chordSynth.play({ chord, bass: null, semitones: capo, cents: tuningCents });
+  };
+  const useChord = (chord: string) => {
+    if (picked === null) return;
+    void editing.commit(setChordAt(editing.stored, picked, editing.toStored(chord), null), picked);
+  };
   const computed = Object.keys(roll.matrices).length > 0;
-  const problem = error ?? roll.error;
+  const problem = error ?? editing.error ?? roll.error;
 
   return (
     <section className="chord-roll">
@@ -482,18 +496,20 @@ export default function ChordRoll({ song }: RollProps) {
         {prefs.spectrum && here && (
           <div className="chord-roll__spectrum">
             <ChordSpectrumPanel
+              key={picked === null ? "playhead" : "stretch"}
               source={spectrumSource}
               start={here.start}
               end={here.end}
               currentTime={currentTime}
               chord={here.chord}
               bass={here.bass ?? null}
-              candidate={candidate}
-              onCandidate={(chord) => setTried({ index: centerIndex, chord })}
+              candidate={tryingChord}
+              onCandidate={tryChord}
+              onUse={picked === null ? undefined : useChord}
               soundingOffset={capo}
               tuningCents={tuningCents}
-              busy={false}
-              defaultLive
+              busy={editing.busy}
+              defaultLive={picked === null}
             />
           </div>
         )}

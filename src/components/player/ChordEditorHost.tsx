@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { getEngine, usePlayerStore } from "../../stores/player";
+import { useEffect, useState } from "react";
+import { usePlayerStore } from "../../stores/player";
 import { useChordSegments } from "../../lib/chords";
-import { transposeChord, transposeNote } from "../../lib/chordNames";
 import {
   MIN_CHORD_SECONDS, deleteChordAt, joinWithNext, setChordAt, setChordEnd, setChordStart, splitChordAt,
 } from "../../lib/chordEdit";
 import { keyChords } from "../../lib/keyChords";
-import { readChordTuning, saveChordEdits } from "../../lib/tauri";
+import { readChordTuning } from "../../lib/tauri";
 import { useChordSelection } from "../../stores/chordSelection";
-import type { ChordSegment, Song } from "../../lib/types";
+import type { Song } from "../../lib/types";
 import ChordEditor from "./ChordEditor";
+import { useChordCommit } from "./useChordCommit";
 
 interface ChordEditorHostProps {
   song: Song;
@@ -17,14 +17,14 @@ interface ChordEditorHostProps {
 
 /** The editor for the chord picked on the chord roll, with the saving that goes with it. Shows nothing when no chord is picked. */
 export default function ChordEditorHost({ song }: ChordEditorHostProps) {
-  const { segments, stored, shift } = useChordSegments(song);
+  const { segments, shift } = useChordSegments(song);
+  const { stored, busy, error, setError, toStored, bassToStored, commit } = useChordCommit(song);
   const capo = usePlayerStore((s) => s.capo);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const revision = usePlayerStore((s) => s.chordsRevision);
   const index = useChordSelection((s) => s.index);
+  const candidate = useChordSelection((s) => s.candidate);
   const [tuningCents, setTuningCents] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const picked = index !== null && index < segments.length ? index : null;
   const editing = picked !== null;
@@ -41,48 +41,19 @@ export default function ChordEditorHost({ song }: ChordEditorHostProps) {
     return () => { cancelled = true; };
   }, [editing, song.id, song.hasChords, revision]);
 
-  const spectrumSource = useMemo(() => ({
-    stems: song.stems,
-    samples: (names: readonly string[], from: number, to: number) => getEngine().getStemSamples(names, from, to),
-  }), [song.stems]);
-
   if (picked === null) return null;
   const shown = segments[picked];
-
-  // The editor shows chords as played (transpose and capo applied); the file keeps them as detected.
-  const toStored = (chord: string) => (shift === 0 ? chord : transposeChord(chord, -shift));
-  const bassToStored = (note: string) => (shift === 0 ? note : transposeNote(note, -shift));
-
-  const commit = async (next: ChordSegment[] | null, nextSelected: number | null) => {
-    if (next === null) {
-      setError("That does not fit here: a chord needs at least a tenth of a second on each side.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await saveChordEdits(song.id, next);
-      usePlayerStore.getState().bumpChordsRevision();
-      if (nextSelected === null) useChordSelection.getState().clear();
-      else useChordSelection.getState().select(nextSelected);
-    } catch (e) {
-      console.error("[ChordEditorHost] saving the chord edit failed:", e);
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const playhead = () => usePlayerStore.getState().currentTime;
 
   return (
     <ChordEditor
       segment={shown}
+      candidate={candidate && candidate.index === picked ? candidate.chord : null}
+      onCandidate={(chord) => useChordSelection.getState().setCandidate(picked, chord)}
       soundingOffset={capo}
       tuningCents={tuningCents}
       suggestions={shown.alternatives ?? []}
       keyChordNames={keyChords(song.detectedKey, shift)}
-      spectrumSource={spectrumSource}
       canSplit={currentTime - shown.start >= MIN_CHORD_SECONDS && shown.end - currentTime >= MIN_CHORD_SECONDS}
       canJoin={picked < stored.length - 1}
       busy={busy}

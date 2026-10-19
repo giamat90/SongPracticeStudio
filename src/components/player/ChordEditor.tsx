@@ -3,7 +3,6 @@ import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNa
 import { chordSynth } from "../../audio/chordSynth";
 import { usePlayerStore } from "../../stores/player";
 import type { ChordAlternative, ChordSegment } from "../../lib/types";
-import ChordSpectrumPanel, { type SpectrumSource } from "./ChordSpectrumPanel";
 
 interface ChordEditorProps {
   /** The chord as it is shown (transpose and capo applied). */
@@ -16,8 +15,9 @@ interface ChordEditorProps {
   suggestions: ChordAlternative[];
   /** The chords of the song's key, as shown. */
   keyChordNames: string[];
-  /** The song's stems, for the spectrum view; without it the view is not offered. */
-  spectrumSource?: SpectrumSource;
+  /** The chord being tried (heard and drawn over the spectrum), if any; null shows the chord itself. */
+  candidate: string | null;
+  onCandidate: (chord: string | null) => void;
   canSplit: boolean;
   canJoin: boolean;
   busy: boolean;
@@ -36,16 +36,14 @@ const seconds = (t: number) => `${t.toFixed(2)} s`;
 
 /** Correct one detected chord: hear it, pick another from a list, move its ends, split, join or delete it. */
 export default function ChordEditor({
-  segment, soundingOffset, tuningCents, suggestions, keyChordNames, spectrumSource, canSplit, canJoin, busy, error,
+  segment, soundingOffset, tuningCents, suggestions, keyChordNames, candidate: preview, onCandidate: setPreview, canSplit, canJoin, busy, error,
   onChord, onStartHere, onEndHere, onSplit, onJoin, onDelete, onGoTo, onClose,
 }: ChordEditorProps) {
   const [root, quality] = segment.chord.split(":");
   const bass = segment.bass ?? "";
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTime = usePlayerStore((s) => s.currentTime);
-  const [preview, setPreview] = useState<string | null>(null);
   const [withSong, setWithSong] = useState(false);
-  const [spectrum, setSpectrum] = useState(false);
   const withSongRef = useRef(false);
   withSongRef.current = withSong;
 
@@ -182,16 +180,6 @@ export default function ChordEditor({
       >
         With song
       </button>
-      {spectrumSource && (
-        <button
-          className={`chord-editor__button${spectrum ? " chord-editor__button--on" : ""}`}
-          onClick={() => setSpectrum((v) => !v)}
-          aria-pressed={spectrum}
-          title="See the spectrum of the song here with the spectrum of a chord you try over it"
-        >
-          Spectrum
-        </button>
-      )}
       <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
       <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
         Go to
@@ -215,23 +203,6 @@ export default function ChordEditor({
         Done
       </button>
       {error && <span className="chord-editor__error" role="alert">{error}</span>}
-
-      {spectrum && spectrumSource && (
-        <ChordSpectrumPanel
-          source={spectrumSource}
-          start={segment.start}
-          end={segment.end}
-          currentTime={currentTime}
-          chord={segment.chord}
-          bass={segment.bass ?? null}
-          candidate={heard}
-          onCandidate={audition}
-          onUse={use}
-          soundingOffset={soundingOffset}
-          tuningCents={tuningCents}
-          busy={busy}
-        />
-      )}
 
       {others.length > 0 && (
         <div className="chord-editor__list" role="group" aria-label="Other chords the detector considered">
