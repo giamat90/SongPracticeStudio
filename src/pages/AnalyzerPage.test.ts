@@ -162,7 +162,7 @@ describe("AnalyzerPage panels", () => {
 
   it("offers the menu every optional panel", async () => {
     const html = await render();
-    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,lyrics,takes");
+    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,roll,lyrics,takes");
   });
 });
 
