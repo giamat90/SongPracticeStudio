@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
 import { chordVoicing } from "../../lib/chordVoicing";
 import {
@@ -28,6 +28,8 @@ interface ChordSpectrumPanelProps {
   onUse?: (chord: string) => void;
   /** Start on the playhead view instead of the chord's stretch. */
   defaultLive?: boolean;
+  /** Editing controls for the chord being looked at, shown between the Try row and the plot. */
+  editor?: ReactNode;
   soundingOffset: number;
   tuningCents: number;
   busy: boolean;
@@ -121,7 +123,7 @@ function drawMarkers(ctx: CanvasRenderingContext2D, freqs: number[], tuning: num
  * over it, to judge by eye whether the song has the notes of that chord (C minor or C minor 7, sus2 or minor).
  */
 export default function ChordSpectrumPanel({
-  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, soundingOffset, tuningCents, busy,
+  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, editor, soundingOffset, tuningCents, busy,
 }: ChordSpectrumPanelProps) {
   const [stems, setStems] = useState<string[]>(() => source.stems.filter((s) => !DEFAULT_OFF.has(s)));
   const [live, setLive] = useState(defaultLive);
@@ -244,6 +246,8 @@ export default function ChordSpectrumPanel({
           <option value="pure">Candidate like the Hear button</option>
         </select>
       </div>
+
+      {editor}
 
       <canvas ref={canvas} className="chord-spectrum__canvas" aria-label="Spectrum of the song and of the candidate chord" />
 

@@ -1050,6 +1050,12 @@ body,
   border-color: var(--accent);
 }
 
+.chord-spectrum__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .chord-editor {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
+import { CHORD_NOTES, formatChordName } from "../../lib/chordNames";
 import { chordSynth } from "../../audio/chordSynth";
 import { usePlayerStore } from "../../stores/player";
 import type { ChordAlternative, ChordSegment } from "../../lib/types";
@@ -34,12 +34,14 @@ interface ChordEditorProps {
 
 const seconds = (t: number) => `${t.toFixed(2)} s`;
 
-/** Correct one detected chord: hear it, pick another from a list, move its ends, split, join or delete it. */
+/**
+ * The controls for correcting one chord, drawn as rows of the spectrum panel they sit in: hear it, set a slash bass,
+ * move its ends, split, join or delete it, and try another chord from the detector's guesses or the key's chords.
+ */
 export default function ChordEditor({
   segment, soundingOffset, tuningCents, suggestions, keyChordNames, candidate: preview, onCandidate: setPreview, canSplit, canJoin, busy, error,
   onChord, onStartHere, onEndHere, onSplit, onJoin, onDelete, onGoTo, onClose,
 }: ChordEditorProps) {
-  const [root, quality] = segment.chord.split(":");
   const bass = segment.bass ?? "";
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTime = usePlayerStore((s) => s.currentTime);
@@ -134,75 +136,59 @@ export default function ChordEditor({
   );
 
   return (
-    <div className="chord-editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
-      <span className="chord-editor__name">{formatChordName(segment.chord, segment.bass)}</span>
-      <select
-        className="chord-editor__select"
-        value={root}
-        disabled={busy}
-        onChange={(e) => choose(`${e.target.value}:${quality}`, segment.bass ?? null)}
-        aria-label="Chord root"
-      >
-        {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
-      </select>
-      <select
-        className="chord-editor__select"
-        value={quality}
-        disabled={busy}
-        onChange={(e) => choose(`${root}:${e.target.value}`, segment.bass ?? null)}
-        aria-label="Chord quality"
-      >
-        {CHORD_QUALITIES.map((q) => <option key={q.value} value={q.value}>{q.label}</option>)}
-      </select>
-      <select
-        className="chord-editor__select"
-        value={bass}
-        disabled={busy}
-        onChange={(e) => choose(segment.chord, e.target.value || null)}
-        aria-label="Bass note"
-        title="The bass note, when it is not the root (a slash chord)"
-      >
-        <option value="">no slash bass</option>
-        {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
-      </select>
-      <button
-        className="chord-editor__button"
-        onClick={() => hear(heard, heardBass)}
-        title="Play this chord on a synthesiser, tuned to the recording"
-      >
-        Hear
-      </button>
-      <button
-        className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
-        onClick={toggleWithSong}
-        aria-pressed={withSong}
-        title="Loop this part of the song with the chord sounding under it, to compare them"
-      >
-        With song
-      </button>
-      <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
-      <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
-        Go to
-      </button>
-      <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
-        Start here
-      </button>
-      <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
-        End here
-      </button>
-      <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
-        Split here
-      </button>
-      <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
-        Join next
-      </button>
-      <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
-        Delete
-      </button>
-      <button className="chord-editor__button" onClick={onClose} aria-label="Close the chord editor">
-        Done
-      </button>
-      {error && <span className="chord-editor__error" role="alert">{error}</span>}
+    <div className="chord-spectrum__editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
+      <div className="chord-spectrum__row">
+        <span className="chord-spectrum__label">Chord</span>
+        <select
+          className="chord-editor__select"
+          value={bass}
+          disabled={busy}
+          onChange={(e) => choose(segment.chord, e.target.value || null)}
+          aria-label="Bass note"
+          title="The bass note, when it is not the root (a slash chord)"
+        >
+          <option value="">no slash bass</option>
+          {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
+        </select>
+        <button
+          className="chord-editor__button"
+          onClick={() => hear(heard, heardBass)}
+          title="Play this chord on a synthesiser, tuned to the recording"
+        >
+          Hear
+        </button>
+        <button
+          className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
+          onClick={toggleWithSong}
+          aria-pressed={withSong}
+          title="Loop this part of the song with the chord sounding under it, to compare them"
+        >
+          With song
+        </button>
+        <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
+        <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
+          Go to
+        </button>
+        <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
+          Start here
+        </button>
+        <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
+          End here
+        </button>
+        <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
+          Split here
+        </button>
+        <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
+          Join next
+        </button>
+        <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
+          Delete
+        </button>
+        <button className="chord-editor__button" onClick={onClose} aria-label="Close the chord editor">
+          Done
+        </button>
+        {error && <span className="chord-editor__error" role="alert">{error}</span>}
+      </div>
 
       {others.length > 0 && (
         <div className="chord-editor__list" role="group" aria-label="Other chords the detector considered">
@@ -214,18 +200,6 @@ export default function ChordEditor({
         <div className="chord-editor__list" role="group" aria-label="Chords of the song's key">
           <span className="chord-editor__list-label">In this key</span>
           {inKey.map((c) => chip(c))}
-        </div>
-      )}
-      {preview && (
-        <div className="chord-editor__list">
-          <button
-            className="chord-editor__button chord-editor__button--primary"
-            onClick={() => use(preview)}
-            disabled={busy}
-          >
-            Use {formatChordName(preview)}
-          </button>
-          <button className="chord-editor__button" onClick={() => setPreview(null)}>Keep {formatChordName(segment.chord, segment.bass)}</button>
         </div>
       )}
     </div>

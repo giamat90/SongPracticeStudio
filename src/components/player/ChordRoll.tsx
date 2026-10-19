@@ -486,7 +486,6 @@ export default function ChordRoll({ song }: RollProps) {
         )}
         {prefs.spectrum && here ? (
           <div className="chord-roll__spectrum">
-            <ChordEditorHost song={song} />
             <ChordSpectrumPanel
               key={picked === null ? "playhead" : "stretch"}
               source={spectrumSource}
@@ -502,10 +501,13 @@ export default function ChordRoll({ song }: RollProps) {
               tuningCents={tuningCents}
               busy={editing.busy}
               defaultLive={picked === null}
+              editor={<ChordEditorHost song={song} />}
             />
           </div>
         ) : (
-          <ChordEditorHost song={song} />
+          <div className="chord-roll__spectrum chord-spectrum">
+            <ChordEditorHost song={song} />
+          </div>
         )}
       </div>
     </section>
