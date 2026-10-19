@@ -57,7 +57,6 @@ interface RollProps {
 }
 
 export default function ChordRoll({ song }: RollProps) {
-  const [open, setOpen] = useState(false);
   const [matrices, setMatrices] = useState<Record<string, NoteMatrix>>({});
   const [progress, setProgress] = useState<number | null>(null);
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
@@ -75,13 +74,13 @@ export default function ChordRoll({ song }: RollProps) {
   live.current = { matrices, ticked, stored, transpose, prefs };
 
   useEffect(() => {
-    if (!open || !song.hasChords) return;
+    if (!song.hasChords) return;
     let cancelled = false;
     readChordTuning(song.id)
       .then((cents) => { if (!cancelled) setTuningCents(cents); })
       .catch((e: unknown) => console.error("[ChordRoll] readChordTuning failed:", e));
     return () => { cancelled = true; };
-  }, [open, song.id, song.hasChords, revision]);
+  }, [song.id, song.hasChords, revision]);
 
   const spectrumSource = useMemo(() => ({
     stems: song.stems,
@@ -125,7 +124,7 @@ export default function ChordRoll({ song }: RollProps) {
   };
 
   useEffect(() => {
-    if (!open || !prefs.roll) return;
+    if (!prefs.roll) return;
     let raf = 0;
     const draw = () => {
       raf = requestAnimationFrame(draw);
@@ -232,7 +231,7 @@ export default function ChordRoll({ song }: RollProps) {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [open, prefs.roll]);
+  }, [prefs.roll]);
 
   if (!song.hasChords) return null;
   const here = centerIndex >= 0 ? segments[centerIndex] : null;
@@ -242,14 +241,12 @@ export default function ChordRoll({ song }: RollProps) {
   return (
     <section className="chord-roll">
       <header className="chord-roll__head">
-        <button type="button" onClick={() => setOpen((v) => !v)}>{open ? "▾" : "▸"} Chord roll</button>
-        {open && (
-          <span className="chord-roll__views" role="group" aria-label="Views">
-            <label><input type="checkbox" checked={prefs.roll} onChange={() => setPref("roll", !prefs.roll)} /> Notes</label>
-            <label><input type="checkbox" checked={prefs.spectrum} onChange={() => setPref("spectrum", !prefs.spectrum)} /> Spectrum</label>
-          </span>
-        )}
-        {open && prefs.roll && (
+        <h2 className="chord-roll__title">Chord roll</h2>
+        <span className="chord-roll__views" role="group" aria-label="Views">
+          <label><input type="checkbox" checked={prefs.roll} onChange={() => setPref("roll", !prefs.roll)} /> Notes</label>
+          <label><input type="checkbox" checked={prefs.spectrum} onChange={() => setPref("spectrum", !prefs.spectrum)} /> Spectrum</label>
+        </span>
+        {prefs.roll && (
           <span className="chord-roll__views" role="group" aria-label="Notes range">
             <label>
               From{" "}
@@ -268,9 +265,9 @@ export default function ChordRoll({ song }: RollProps) {
             </label>
           </span>
         )}
-        {open && prefs.roll && !computed && progress === null && <button type="button" onClick={compute}>Analyse notes</button>}
+        {prefs.roll && !computed && progress === null && <button type="button" onClick={compute}>Analyse notes</button>}
         {progress !== null && <span className="chord-roll__progress">{Math.round(progress * 100)}%</span>}
-        {open && prefs.roll && noteStems.map((s) => (
+        {prefs.roll && noteStems.map((s) => (
           <label key={s} className="chord-roll__stem" style={{ borderColor: STEM_COLORS[s] }}>
             <input type="checkbox" checked={!!ticked[s]} onChange={() => setTicked({ ...ticked, [s]: !ticked[s] })} />
             {s}
@@ -278,29 +275,27 @@ export default function ChordRoll({ song }: RollProps) {
         ))}
         {error && <span className="chord-roll__error">{error}</span>}
       </header>
-      {open && (
-        <div className="chord-roll__body">
-          {prefs.roll && <canvas ref={canvas} className="chord-roll__canvas" />}
-          {prefs.spectrum && here && (
-            <div className="chord-roll__spectrum">
-              <ChordSpectrumPanel
-                source={spectrumSource}
-                start={here.start}
-                end={here.end}
-                currentTime={currentTime}
-                chord={here.chord}
-                bass={here.bass ?? null}
-                candidate={candidate}
-                onCandidate={(chord) => setTried({ index: centerIndex, chord })}
-                soundingOffset={capo}
-                tuningCents={tuningCents}
-                busy={false}
-                defaultLive
-              />
-            </div>
-          )}
-        </div>
-      )}
+      <div className="chord-roll__body">
+        {prefs.roll && <canvas ref={canvas} className="chord-roll__canvas" />}
+        {prefs.spectrum && here && (
+          <div className="chord-roll__spectrum">
+            <ChordSpectrumPanel
+              source={spectrumSource}
+              start={here.start}
+              end={here.end}
+              currentTime={currentTime}
+              chord={here.chord}
+              bass={here.bass ?? null}
+              candidate={candidate}
+              onCandidate={(chord) => setTried({ index: centerIndex, chord })}
+              soundingOffset={capo}
+              tuningCents={tuningCents}
+              busy={false}
+              defaultLive
+            />
+          </div>
+        )}
+      </div>
     </section>
   );
 }
