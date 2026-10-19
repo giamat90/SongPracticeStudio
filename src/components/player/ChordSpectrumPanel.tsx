@@ -215,18 +215,15 @@ export default function ChordSpectrumPanel({
         <select className="chord-editor__select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
           {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        {CHORD_QUALITIES.map((q) => (
-          <button
-            key={q.value}
-            type="button"
-            className={`chord-editor__chip${candQuality === q.value ? " chord-editor__chip--previewed" : ""}`}
-            onClick={() => onCandidate(`${candRoot}:${q.value}`)}
-            aria-pressed={candQuality === q.value}
-            title={q.label}
-          >
-            {formatChordName(`${candRoot}:${q.value}`)}
-          </button>
-        ))}
+        <select
+          className="chord-editor__select"
+          value={candQuality}
+          disabled={busy}
+          onChange={(e) => onCandidate(`${candRoot}:${e.target.value}`)}
+          aria-label="Candidate quality"
+        >
+          {CHORD_QUALITIES.map((q) => <option key={q.value} value={q.value}>{q.label}</option>)}
+        </select>
         {onBass && (
           <select
             className="chord-editor__select"
