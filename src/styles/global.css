@@ -4691,3 +4691,21 @@ button.stem-track__take-name {
   background: var(--accent-soft);
   border-color: rgba(245, 158, 11, 0.55);
 }
+
+/* The two lists about harmony side by side: what else the detector heard, and the chords of the key */
+.chord-editor__harmony {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1.5rem;
+}
+
+.chord-editor__harmony .chord-editor__list {
+  flex: none;
+  align-content: flex-start;
+}
+
+@media (max-width: 45rem) {
+  .chord-editor__harmony {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

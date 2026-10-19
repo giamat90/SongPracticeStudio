@@ -131,6 +131,23 @@ export default function ChordEditor({
 
   return (
     <div className="chord-spectrum__editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
+      {(others.length > 0 || inKey.length > 0) && (
+        <div className="chord-editor__harmony">
+          {others.length > 0 && (
+            <div className="chord-editor__list" role="group" aria-label="Other chords the detector considered">
+              <span className="chord-editor__list-label">Also heard</span>
+              {others.map((s) => chip(s.chord, `${Math.round(s.fit * 100)}%`))}
+            </div>
+          )}
+          {inKey.length > 0 && (
+            <div className="chord-editor__list" role="group" aria-label="Chords of the song's key">
+              <span className="chord-editor__list-label">In this key</span>
+              {inKey.map((c) => chip(c))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="chord-spectrum__row">
         <span className="chord-spectrum__label">Edit</span>
         <div className="chord-editor__group" role="group" aria-label="Listen">
@@ -179,18 +196,6 @@ export default function ChordEditor({
         {error && <span className="chord-editor__error" role="alert">{error}</span>}
       </div>
 
-      {others.length > 0 && (
-        <div className="chord-editor__list" role="group" aria-label="Other chords the detector considered">
-          <span className="chord-editor__list-label">Also heard</span>
-          {others.map((s) => chip(s.chord, `${Math.round(s.fit * 100)}%`))}
-        </div>
-      )}
-      {inKey.length > 0 && (
-        <div className="chord-editor__list" role="group" aria-label="Chords of the song's key">
-          <span className="chord-editor__list-label">In this key</span>
-          {inKey.map((c) => chip(c))}
-        </div>
-      )}
     </div>
   );
 }
