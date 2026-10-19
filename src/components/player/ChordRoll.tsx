@@ -11,7 +11,7 @@ import type { Song } from "../../lib/types";
 const WINDOW_S = 10;
 const KEYS_W = 34;
 const SHOWN_LOW = 31;
-const SHOWN_HIGH = 84;
+const SHOWN_HIGH = 72;
 const BLACK = new Set([1, 3, 6, 8, 10]);
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 /** The roll leaves these to the chord detector's own view: drums have no notes. */
