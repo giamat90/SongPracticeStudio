@@ -523,30 +523,42 @@ export default function ChordRoll({ song }: RollProps) {
         )}
         {prefs.spectrum && here ? (
           <div className="chord-roll__spectrum">
-            <ChordSpectrumPanel
-              key={picked === null ? "playhead" : "stretch"}
-              source={spectrumSource}
-              start={here.start}
-              end={here.end}
-              currentTime={currentTime}
-              chord={here.chord}
-              bass={here.bass ?? null}
-              candidate={tryingChord}
-              onCandidate={tryChord}
-              onUse={picked === null ? undefined : useChord}
-              bassNote={picked === null ? null : here.bass ?? null}
-              onBass={picked === null ? undefined : useBass}
-              soundingOffset={capo}
-              tuningCents={tuningCents}
-              busy={editing.busy}
-              defaultLive={picked === null}
-              editor={<ChordEditorHost song={song} />}
-            />
+            <ChordEditorHost song={song}>
+              {(parts) => (
+                <ChordSpectrumPanel
+                  key={picked === null ? "playhead" : "stretch"}
+                  source={spectrumSource}
+                  start={here.start}
+                  end={here.end}
+                  currentTime={currentTime}
+                  chord={here.chord}
+                  bass={here.bass ?? null}
+                  candidate={tryingChord}
+                  onCandidate={tryChord}
+                  onUse={picked === null ? undefined : useChord}
+                  bassNote={picked === null ? null : here.bass ?? null}
+                  onBass={picked === null ? undefined : useBass}
+                  soundingOffset={capo}
+                  tuningCents={tuningCents}
+                  busy={editing.busy}
+                  defaultLive={picked === null}
+                  stemsExtra={parts?.actions}
+                  chordExtra={parts?.guesses}
+                />
+              )}
+            </ChordEditorHost>
           </div>
         ) : (
-          <div className="chord-roll__spectrum chord-spectrum">
-            <ChordEditorHost song={song} />
-          </div>
+          <ChordEditorHost song={song}>
+            {(parts) => parts && (
+              <div className="chord-roll__spectrum chord-spectrum">
+                <div className="chord-spectrum__row">
+                  {parts.actions}
+                  {parts.guesses}
+                </div>
+              </div>
+            )}
+          </ChordEditorHost>
         )}
       </div>
     </section>

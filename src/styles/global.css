@@ -998,49 +998,6 @@ body,
   min-width: 0;
 }
 
-/* The lists of other chords in the editor: hear one, double-click to use it. */
-.chord-editor__list {
-  flex: 1 1 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.chord-editor__list-label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-right: 0.2rem;
-}
-
-.chord-editor__chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.15rem 0.5rem;
-  font-family: inherit;
-  font-size: 0.75rem;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.8rem;
-  cursor: pointer;
-}
-
-.chord-editor__chip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.chord-editor__chip--previewed {
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.chord-editor__fit {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
-
 .chord-editor__button--on {
   background: var(--accent);
   color: #fff;
@@ -1048,41 +1005,6 @@ body,
 
 .chord-editor__button--primary {
   border-color: var(--accent);
-}
-
-.chord-spectrum__editor {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.chord-editor {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
-  margin-bottom: 0.25rem;
-  font-size: 0.78rem;
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border-radius: 0.25rem;
-}
-
-.chord-editor__name {
-  min-width: 2.5rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.chord-editor__select {
-  padding: 0.2rem 0.3rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--bg-surface);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.75rem;
 }
 
 .chord-editor__time {
@@ -4335,13 +4257,6 @@ button.stem-track__take-name {
   color: var(--text-secondary);
 }
 
-.chord-spectrum__check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--text-primary);
-}
-
 .chord-spectrum__canvas {
   width: 100%;
   height: 12rem;
@@ -4607,8 +4522,7 @@ button.stem-track__take-name {
   gap: 0.45rem 0.6rem;
 }
 
-.chord-spectrum__label,
-.chord-editor__list-label {
+.chord-spectrum__label {
   min-width: 3.6rem;
   font-size: 0.7rem;
   letter-spacing: 0.04em;
@@ -4682,30 +4596,13 @@ button.stem-track__take-name {
   border-color: #b91c1c;
 }
 
-.chord-editor__chip {
-  padding: 0.12rem 0.55rem;
-  border-color: var(--border);
-}
-
-.chord-editor__chip--previewed {
-  background: var(--accent-soft);
-  border-color: rgba(245, 158, 11, 0.55);
-}
-
-/* The two lists about harmony side by side: what else the detector heard, and the chords of the key */
-.chord-editor__harmony {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem 1.5rem;
-}
-
-.chord-editor__harmony .chord-editor__list {
-  flex: none;
-  align-content: flex-start;
-}
-
-@media (max-width: 45rem) {
-  .chord-editor__harmony {
-    grid-template-columns: minmax(0, 1fr);
-  }
+/* The editing buttons, at the end of the Stems row */
+.chord-editor__actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--border);
 }

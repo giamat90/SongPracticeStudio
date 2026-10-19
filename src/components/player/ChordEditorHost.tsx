@@ -1,24 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePlayerStore } from "../../stores/player";
 import { useChordSegments } from "../../lib/chords";
 import {
-  MIN_CHORD_SECONDS, deleteChordAt, joinWithNext, setChordAt, setChordEnd, setChordStart, splitChordAt,
+  MIN_CHORD_SECONDS, deleteChordAt, joinWithNext, setChordEnd, setChordStart, splitChordAt,
 } from "../../lib/chordEdit";
 import { keyChords } from "../../lib/keyChords";
 import { readChordTuning } from "../../lib/tauri";
 import { useChordSelection } from "../../stores/chordSelection";
 import type { Song } from "../../lib/types";
-import ChordEditor from "./ChordEditor";
+import ChordEditor, { type EditorParts } from "./ChordEditor";
 import { useChordCommit } from "./useChordCommit";
 
 interface ChordEditorHostProps {
   song: Song;
+  /** Draws what the roll shows around the editor; `parts` is null while no chord is picked. */
+  children: (parts: EditorParts | null) => ReactNode;
 }
 
-/** The editor for the chord picked on the chord roll, with the saving that goes with it. Shows nothing when no chord is picked. */
-export default function ChordEditorHost({ song }: ChordEditorHostProps) {
+/** The editor for the chord picked on the chord roll, with the saving that goes with it; hands its parts to `children`, or null when no chord is picked. */
+export default function ChordEditorHost({ song, children }: ChordEditorHostProps) {
   const { segments, shift } = useChordSegments(song);
-  const { stored, busy, error, setError, toStored, bassToStored, commit } = useChordCommit(song);
+  const { stored, busy, error, setError, commit } = useChordCommit(song);
   const capo = usePlayerStore((s) => s.capo);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const revision = usePlayerStore((s) => s.chordsRevision);
@@ -41,7 +43,7 @@ export default function ChordEditorHost({ song }: ChordEditorHostProps) {
     return () => { cancelled = true; };
   }, [editing, song.id, song.hasChords, revision]);
 
-  if (picked === null) return null;
+  if (picked === null) return <>{children(null)}</>;
   const shown = segments[picked];
   const playhead = () => usePlayerStore.getState().currentTime;
 
@@ -58,8 +60,6 @@ export default function ChordEditorHost({ song }: ChordEditorHostProps) {
       canJoin={picked < stored.length - 1}
       busy={busy}
       error={error}
-      onChord={(chord, bass) =>
-        void commit(setChordAt(stored, picked, toStored(chord), bass ? bassToStored(bass) : null), picked)}
       onStartHere={() => void commit(setChordStart(stored, picked, playhead()), picked)}
       onEndHere={() => void commit(setChordEnd(stored, picked, playhead(), song.duration), picked)}
       onSplit={() => void commit(splitChordAt(stored, picked, playhead()), picked)}
@@ -67,6 +67,8 @@ export default function ChordEditorHost({ song }: ChordEditorHostProps) {
       onDelete={() => void commit(deleteChordAt(stored, picked), null)}
       onGoTo={() => usePlayerStore.getState().seek(shown.start)}
       onClose={() => useChordSelection.getState().clear()}
-    />
+    >
+      {children}
+    </ChordEditor>
   );
 }

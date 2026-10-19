@@ -32,8 +32,10 @@ interface ChordSpectrumPanelProps {
   /** The slash bass of the chord being looked at and how to change it; without `onBass` there is no bass choice. */
   bassNote?: string | null;
   onBass?: (note: string | null) => void;
-  /** Editing controls for the chord being looked at, shown between the Try row and the plot. */
-  editor?: ReactNode;
+  /** Editing buttons for the chord being looked at, at the end of the Stems row. */
+  stemsExtra?: ReactNode;
+  /** Drop-downs of other chords to try, at the end of the Chord row. */
+  chordExtra?: ReactNode;
   soundingOffset: number;
   tuningCents: number;
   busy: boolean;
@@ -127,7 +129,7 @@ function drawMarkers(ctx: CanvasRenderingContext2D, freqs: number[], tuning: num
  * over it, to judge by eye whether the song has the notes of that chord (C minor or C minor 7, sus2 or minor).
  */
 export default function ChordSpectrumPanel({
-  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, bassNote = null, onBass, editor, soundingOffset, tuningCents, busy,
+  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, bassNote = null, onBass, stemsExtra, chordExtra, soundingOffset, tuningCents, busy,
 }: ChordSpectrumPanelProps) {
   const [stems, setStems] = useState<string[]>(() => source.stems.filter((s) => !DEFAULT_OFF.has(s)));
   const [live, setLive] = useState(defaultLive);
@@ -217,6 +219,7 @@ export default function ChordSpectrumPanel({
           <option value="stretch">This chord's stretch</option>
           <option value="live">Playhead</option>
         </select>
+        {stemsExtra}
       </div>
 
       <div className="chord-spectrum__row">
@@ -267,9 +270,8 @@ export default function ChordSpectrumPanel({
           <option value="rich">Candidate like an instrument</option>
           <option value="pure">Candidate like the Hear button</option>
         </select>
+        {chordExtra}
       </div>
-
-      {editor}
 
       <canvas ref={canvas} className="chord-spectrum__canvas" aria-label="Spectrum of the song and of the candidate chord" />
 
