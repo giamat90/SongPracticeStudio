@@ -6,6 +6,18 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.67] - 2026-10-20
+
+### Added
+- **Chord roll: the place to study and correct a song's harmony.** A new panel under the stems (Panels menu, *Chord roll*, on by default). It shows the notes each stem plays over ten seconds around the playhead, in the stem's colour, with the chords on a strip above them. The chord that is playing is lit, notes the chord does not have can be faded, and a piano on the left lights the notes sounding now. Choose which stems to show and the range of notes (default E1 to C5). The first time you open a song the notes are analysed (about 12 seconds for a four-minute song) and saved with it, so the next visit opens ready.
+- **Correct chords on the roll.** Click a chord's button to pick it; drag its amber handle to move where it starts; press the dashed **+** at the playhead to add a chord where there is none; click anywhere else to go there, drag to scrub.
+- **One spectrum, with the editing in it.** The short-term spectrum of the picked chord (or of the playhead) sits in the same panel, with a synthetic chord drawn over it to compare. Choose a root and a quality from two drop-downs, add a slash bass, press *Use* to make it the chord, or try a chord from the **In this key** and **Also heard** drop-downs. Hear, With song, Go to, Start here, End here, Split here, Join next, Delete and Done sit beside the stems.
+- **More chord kinds.** The quality menu now offers 22 kinds: the power chord (5), add9, minor 6, 9, minor 7♭5, diminished 7, 7sus4, minor/major 7, major 9, minor 9, 11 and 13 join the ones that were there. The detector still finds only major, minor, sevenths and sus; the others are for chords you set yourself.
+
+### Changed
+- **The chord row above the time ruler is gone.** Every chord is now shown and edited on the chord roll; the chord display in the top bar stays. If you hide the chord roll in the Panels menu you cannot correct chords until you show it again.
+- The chord editor no longer has its own *Spectrum* button; the roll's spectrum replaces it.
+
 ## [0.0.66] - 2026-10-18
 
 ### Added
