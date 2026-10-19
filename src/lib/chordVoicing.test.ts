@@ -26,6 +26,18 @@ describe("chordVoicing", () => {
     expect(semis("C:aug")).toEqual([0, 4, 8]);
     expect(semis("C:6")).toEqual([0, 4, 7, 9]);
     expect(semis("E:5")).toEqual([0, 7]);
+    expect(semis("C:add9")).toEqual([0, 4, 7, 14]);
+    expect(semis("C:min6")).toEqual([0, 3, 7, 9]);
+    expect(semis("C:9")).toEqual([0, 4, 7, 10, 14]);
+    expect(semis("C:min7b5")).toEqual([0, 3, 6, 10]);
+    expect(semis("C:dim7")).toEqual([0, 3, 6, 9]);
+    expect(semis("C:7sus4")).toEqual([0, 5, 7, 10]);
+    expect(semis("C:minmaj7")).toEqual([0, 3, 7, 11]);
+    expect(semis("C:maj9")).toEqual([0, 4, 7, 11, 14]);
+    expect(semis("C:min9")).toEqual([0, 3, 7, 10, 14]);
+    expect(semis("C:11")).toEqual([0, 4, 7, 10, 14, 17]);
+    expect(semis("C:13")).toEqual([0, 4, 7, 10, 14, 21]);
+
   });
 
   it("keeps every root in the same register so roots can be compared by ear", () => {

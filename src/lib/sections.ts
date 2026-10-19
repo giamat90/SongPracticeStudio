@@ -24,12 +24,15 @@ const MIN_BAR_COVERAGE = 0.25;
 /** Two stretches play the same progression when this share of their chord steps agree (cosine). */
 const SAME_PROGRESSION = 0.6;
 
+/** The qualities whose third is minor, for telling a chord's two kinds apart. */
+const MINOR_QUALITIES = new Set(["min", "min7", "min6", "min9", "minmaj7"]);
+
 /** A chord collapsed to 24 kinds (root and major / minor), or -1 for no chord. */
 function chordKind(chord: string): number {
   const [root, quality] = chord.split(":");
   const i = NOTES.indexOf(root);
   if (i < 0) return -1;
-  return i * 2 + (quality === "min" || quality === "min7" ? 1 : 0);
+  return i * 2 + (MINOR_QUALITIES.has(quality) ? 1 : 0);
 }
 
 function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {

@@ -49,3 +49,21 @@ describe("chord qualities", () => {
     expect(simplifyChord("E:5", "B", "medium")).toEqual({ chord: "E:5", bass: null });
   });
 });
+
+describe("every chord quality the editor offers", () => {
+  it("is named, plays, and shows as a triad at the Easy level", async () => {
+    const { chordVoicing } = await import("./chordVoicing");
+    for (const q of CHORD_QUALITIES) {
+      expect(formatChordName(`C:${q.value}`)).toBe(`C${q.suffix}`);
+      expect(chordVoicing(`C:${q.value}`, null), q.value).not.toBeNull();
+    }
+    expect(simplifyChord("C:min7b5", null, "easy").chord).toBe("C:dim");
+    expect(simplifyChord("C:add9", null, "easy").chord).toBe("C:maj");
+    expect(simplifyChord("C:minmaj7", null, "easy").chord).toBe("C:min");
+  });
+
+  it("has no quality twice", () => {
+    const values = CHORD_QUALITIES.map((q) => q.value);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});

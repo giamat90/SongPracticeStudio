@@ -320,7 +320,7 @@ const CHORD_EDITS_FILE: &str = "chords_edited.json";
 const NOTE_ROLL_FILE: &str = "note_roll.json";
 const CHORD_NOTES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 /// The detector writes the first five; the editor offers all of them.
-const CHORD_QUALITIES: [&str; 11] = ["maj", "min", "7", "maj7", "min7", "sus2", "sus4", "dim", "aug", "6", "5"];
+const CHORD_QUALITIES: [&str; 22] = ["maj", "min", "7", "maj7", "min7", "sus2", "sus4", "dim", "aug", "6", "5", "add9", "min6", "9", "min7b5", "dim7", "7sus4", "minmaj7", "maj9", "min9", "11", "13"];
 const MIN_CHORD_SECONDS: f64 = 0.05;
 const MAX_CHORD_SEGMENTS: usize = 5000;
 
@@ -1232,6 +1232,10 @@ mod tests {
         save_chord_edits("a", vec![seg(0.0, 8.0, "E:min")]).unwrap();
         assert!(save_chord_edits("a", vec![seg(0.0, 4.0, "Q:maj")]).is_err());
         assert!(save_chord_edits("a", vec![seg(0.0, 4.0, "E:5")]).is_ok(), "a power chord is a chord");
+        for quality in ["add9", "min6", "9", "min7b5", "dim7", "7sus4", "minmaj7", "maj9", "min9", "11", "13"] {
+            let chord = format!("C:{quality}");
+            assert!(save_chord_edits("a", vec![seg(0.0, 4.0, &chord)]).is_ok(), "{chord} is a chord");
+        }
         assert_eq!(read_chords("a").unwrap()[0].chord, "E:min");
     }
 
