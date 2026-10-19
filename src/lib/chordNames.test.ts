@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isChordDetail, simplifyChord } from "./chordNames";
+import { CHORD_QUALITIES, formatChordName, isChordDetail, simplifyChord } from "./chordNames";
 
 describe("simplifyChord", () => {
   it("leaves everything alone at the advanced level", () => {
@@ -34,5 +34,18 @@ describe("isChordDetail", () => {
     expect(["easy", "medium", "advanced"].every(isChordDetail)).toBe(true);
     expect(isChordDetail("hard")).toBe(false);
     expect(isChordDetail(null)).toBe(false);
+  });
+});
+
+describe("chord qualities", () => {
+  it("offer the power chord, written E5", () => {
+    expect(CHORD_QUALITIES.map((q) => q.value)).toContain("5");
+    expect(formatChordName("E:5")).toBe("E5");
+    expect(formatChordName("E:5", "B")).toBe("E5/B");
+  });
+
+  it("keep a power chord as it is at every level of detail", () => {
+    expect(simplifyChord("E:5", "B", "easy")).toEqual({ chord: "E:5", bass: null });
+    expect(simplifyChord("E:5", "B", "medium")).toEqual({ chord: "E:5", bass: null });
   });
 });

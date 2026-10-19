@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CHORD_NOTES, formatChordName } from "../../lib/chordNames";
+import { formatChordName } from "../../lib/chordNames";
 import { chordSynth } from "../../audio/chordSynth";
 import { usePlayerStore } from "../../stores/player";
 import type { ChordAlternative, ChordSegment } from "../../lib/types";
@@ -35,14 +35,13 @@ interface ChordEditorProps {
 const seconds = (t: number) => `${t.toFixed(2)} s`;
 
 /**
- * The controls for correcting one chord, drawn as rows of the spectrum panel they sit in: hear it, set a slash bass,
+ * The controls for correcting one chord, drawn as rows of the spectrum panel they sit in: hear it,
  * move its ends, split, join or delete it, and try another chord from the detector's guesses or the key's chords.
  */
 export default function ChordEditor({
   segment, soundingOffset, tuningCents, suggestions, keyChordNames, candidate: preview, onCandidate: setPreview, canSplit, canJoin, busy, error,
   onChord, onStartHere, onEndHere, onSplit, onJoin, onDelete, onGoTo, onClose,
 }: ChordEditorProps) {
-  const bass = segment.bass ?? "";
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const [withSong, setWithSong] = useState(false);
@@ -100,11 +99,6 @@ export default function ChordEditor({
     }
   };
 
-  const choose = (chord: string, bassNote: string | null) => {
-    hear(chord, bassNote);
-    onChord(chord, bassNote);
-  };
-
   const audition = (chord: string) => {
     setPreview(chord === segment.chord ? null : chord);
     hear(chord, null);
@@ -138,18 +132,6 @@ export default function ChordEditor({
   return (
     <div className="chord-spectrum__editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
       <div className="chord-spectrum__row">
-        <span className="chord-spectrum__label">Chord</span>
-        <select
-          className="chord-editor__select"
-          value={bass}
-          disabled={busy}
-          onChange={(e) => choose(segment.chord, e.target.value || null)}
-          aria-label="Bass note"
-          title="The bass note, when it is not the root (a slash chord)"
-        >
-          <option value="">no slash bass</option>
-          {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
-        </select>
         <button
           className="chord-editor__button"
           onClick={() => hear(heard, heardBass)}

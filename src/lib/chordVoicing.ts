@@ -12,6 +12,7 @@ const INTERVALS: Record<string, readonly number[]> = {
   dim: [0, 3, 6],
   aug: [0, 4, 8],
   "6": [0, 4, 7, 9],
+  "5": [0, 7],
 };
 
 export interface ChordVoicing {

@@ -423,6 +423,13 @@ export default function ChordRoll({ song }: RollProps) {
     useChordSelection.getState().setCandidate(focus, chord === here?.chord ? null : chord);
     chordSynth.play({ chord, bass: null, semitones: capo, cents: tuningCents });
   };
+  const useBass = (note: string | null) => {
+    if (picked === null || !here) return;
+    void editing.commit(
+      setChordAt(editing.stored, picked, editing.toStored(here.chord), note ? editing.bassToStored(note) : null),
+      picked,
+    );
+  };
   const useChord = (chord: string) => {
     if (picked === null) return;
     void editing.commit(setChordAt(editing.stored, picked, editing.toStored(chord), null), picked);
@@ -497,6 +504,8 @@ export default function ChordRoll({ song }: RollProps) {
               candidate={tryingChord}
               onCandidate={tryChord}
               onUse={picked === null ? undefined : useChord}
+              bassNote={picked === null ? null : here.bass ?? null}
+              onBass={picked === null ? undefined : useBass}
               soundingOffset={capo}
               tuningCents={tuningCents}
               busy={editing.busy}

@@ -28,6 +28,9 @@ interface ChordSpectrumPanelProps {
   onUse?: (chord: string) => void;
   /** Start on the playhead view instead of the chord's stretch. */
   defaultLive?: boolean;
+  /** The slash bass of the chord being looked at and how to change it; without `onBass` there is no bass choice. */
+  bassNote?: string | null;
+  onBass?: (note: string | null) => void;
   /** Editing controls for the chord being looked at, shown between the Try row and the plot. */
   editor?: ReactNode;
   soundingOffset: number;
@@ -123,7 +126,7 @@ function drawMarkers(ctx: CanvasRenderingContext2D, freqs: number[], tuning: num
  * over it, to judge by eye whether the song has the notes of that chord (C minor or C minor 7, sus2 or minor).
  */
 export default function ChordSpectrumPanel({
-  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, editor, soundingOffset, tuningCents, busy,
+  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, bassNote = null, onBass, editor, soundingOffset, tuningCents, busy,
 }: ChordSpectrumPanelProps) {
   const [stems, setStems] = useState<string[]>(() => source.stems.filter((s) => !DEFAULT_OFF.has(s)));
   const [live, setLive] = useState(defaultLive);
@@ -208,7 +211,7 @@ export default function ChordSpectrumPanel({
       </div>
 
       <div className="chord-spectrum__row">
-        <span className="chord-spectrum__label">Try</span>
+        <span className="chord-spectrum__label">Chord</span>
         <select className="chord-editor__select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
           {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
@@ -224,6 +227,19 @@ export default function ChordSpectrumPanel({
             {formatChordName(`${candRoot}:${q.value}`)}
           </button>
         ))}
+        {onBass && (
+          <select
+            className="chord-editor__select"
+            value={bassNote ?? ""}
+            disabled={busy}
+            onChange={(e) => onBass(e.target.value || null)}
+            aria-label="Bass note"
+            title="The bass note, when it is not the root (a slash chord)"
+          >
+            <option value="">no slash bass</option>
+            {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
+          </select>
+        )}
         {onUse && (
           <button
             type="button"

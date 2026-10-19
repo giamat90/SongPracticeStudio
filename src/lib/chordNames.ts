@@ -38,6 +38,7 @@ export const CHORD_QUALITIES: { value: string; label: string; suffix: string }[]
   { value: "dim", label: "diminished", suffix: "dim" },
   { value: "aug", label: "augmented", suffix: "aug" },
   { value: "6", label: "sixth", suffix: "6" },
+  { value: "5", label: "power chord (5)", suffix: "5" },
 ];
 
 /** The twelve root / bass note names, sharp-spelled like the detector writes them. */

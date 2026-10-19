@@ -25,6 +25,7 @@ describe("chordVoicing", () => {
     expect(semis("B:dim")).toEqual([0, 3, 6]);
     expect(semis("C:aug")).toEqual([0, 4, 8]);
     expect(semis("C:6")).toEqual([0, 4, 7, 9]);
+    expect(semis("E:5")).toEqual([0, 7]);
   });
 
   it("keeps every root in the same register so roots can be compared by ear", () => {
