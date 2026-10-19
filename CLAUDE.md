@@ -154,9 +154,12 @@ SongPracticeStudio/
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
-│   │   │   ├── ChordRow.tsx       ← chord segments as timeline chips (inside StemView); click one to correct it
-│   │   │   ├── ChordEditor.tsx    ← root / quality / bass, start / end at playhead, split, join, delete; Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), lists of the detector's other guesses and of the key's chords; Spectrum opens ChordSpectrumPanel
-│   │   │   ├── ChordSpectrumPanel.tsx ← spectrum of the ticked stems over a chord's stretch plus the spectrum of a synthetic candidate chord, per-note readings (lib/chordSpectrum.ts)
+│   │   │   ├── ChordRoll.tsx      ← the chord panel under the stems (Panels menu "Chord roll"): notes of each stem over time, a strip of chord buttons (click to correct, drag a handle to move a start, + to add), the spectrum section; not detachable (needs decoded audio)
+│   │   │   ├── useNoteRoll.ts     ← loads the saved note strengths (`note_roll.json`) or analyses the decoded stems and saves them
+│   │   │   ├── useChordCommit.ts  ← saving a chord correction (stored vs shown chords, `save_chord_edits`, refresh)
+│   │   │   ├── ChordEditorHost.tsx ← the editor of the picked chord with its saving; hands its parts to the spectrum panel
+│   │   │   ├── ChordEditor.tsx    ← Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), Go to / Start here / End here / Split / Join / Delete / Done, and drop-downs of the key's chords and of the detector's other guesses
+│   │   │   ├── ChordSpectrumPanel.tsx ← the chord roll's spectrum: ticked stems over a chord's stretch or the playhead plus the spectrum of a synthetic candidate chord (root / quality / slash bass, Use), per-note readings (lib/chordSpectrum.ts)
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region

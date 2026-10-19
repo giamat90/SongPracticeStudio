@@ -51,7 +51,7 @@ SPS/
 │   ├── pages/                    # LibraryPage, AnalyzerPage
 │   ├── components/
 │   │   ├── player/                # StemView, StemTrack, TakeTrack, TempoControl,
-│   │   │                          # TimeRuler, TransportControls, ChordCarousel/ChordRow, …
+│   │   │                          # TimeRuler, TransportControls, ChordCarousel/ChordRoll, …
 │   │   ├── recording/             # RecordButton, MicSelector, RecordingOffsetControl, TakeList
 │   │   ├── upload/                # DropZone, YouTubeImport, StemPicker (stem selection + high-quality toggle)
 │   │   └── updater/               # UpdateDialog

@@ -148,4 +148,4 @@ Behaviour: clicking a take in the list shows it (and selects it), clicking a sho
 
 ## Reading samples (chord spectrum)
 
-`getStemSamples(names, start, end)` returns the mono sum (channels averaged) of the named stems' decoded audio between two song times, with its sample rate, or `null` when none of them is decoded. It reads `WaveSurfer.getDecodedData()`, so it follows a transposed song (the reloaded stems) and costs nothing while idle. `ChordSpectrumPanel` is its only caller.
+`getStemSamples(names, start, end)` returns the mono sum (channels averaged) of the named stems' decoded audio between two song times, with its sample rate, or `null` when none of them is decoded. It reads `WaveSurfer.getDecodedData()`, so it follows a transposed song (the reloaded stems) and costs nothing while idle. `ChordSpectrumPanel` (the spectrum) and `useNoteRoll` (the chord roll's note analysis, one stem at a time) are its callers.
