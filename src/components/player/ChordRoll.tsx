@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ChordSpectrumPanel from "./ChordSpectrumPanel";
+import { readChordTuning } from "../../lib/tauri";
 import { getEngine, usePlayerStore } from "../../stores/player";
 import { STEM_COLORS } from "../../audio/engine";
 import { formatChordName, shiftSegment, useChordSegments } from "../../lib/chords";
@@ -26,6 +28,19 @@ function chordMidis(chord: string, bass: string | undefined, shift: number): num
   return [voicing.bass, ...voicing.upper].map((f) => Math.round(69 + 12 * Math.log2(f / 440)));
 }
 
+const VIEWS_KEY = "sps_chord_roll_views";
+type Views = { roll: boolean; spectrum: boolean };
+
+function loadViews(): Views {
+  try {
+    const raw = JSON.parse(localStorage.getItem(VIEWS_KEY) ?? "null") as Partial<Views> | null;
+    return { roll: raw?.roll !== false, spectrum: raw?.spectrum !== false };
+  } catch (e) {
+    console.warn("[ChordRoll] could not read the saved views:", e);
+    return { roll: true, spectrum: true };
+  }
+}
+
 interface RollProps {
   song: Song;
 }
@@ -35,12 +50,32 @@ export default function ChordRoll({ song }: RollProps) {
   const [matrices, setMatrices] = useState<Record<string, NoteMatrix>>({});
   const [progress, setProgress] = useState<number | null>(null);
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  const [views, setViews] = useState<Views>(loadViews);
   const [error, setError] = useState<string | null>(null);
   const transpose = usePlayerStore((s) => s.transpose);
-  const { stored } = useChordSegments(song);
+  const capo = usePlayerStore((s) => s.capo);
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const revision = usePlayerStore((s) => s.chordsRevision);
+  const { stored, segments, centerIndex } = useChordSegments(song);
+  const [tuningCents, setTuningCents] = useState(0);
+  const [tried, setTried] = useState<{ index: number; chord: string } | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const live = useRef({ matrices, ticked, stored, transpose });
   live.current = { matrices, ticked, stored, transpose };
+
+  useEffect(() => {
+    if (!open || !song.hasChords) return;
+    let cancelled = false;
+    readChordTuning(song.id)
+      .then((cents) => { if (!cancelled) setTuningCents(cents); })
+      .catch((e: unknown) => console.error("[ChordRoll] readChordTuning failed:", e));
+    return () => { cancelled = true; };
+  }, [open, song.id, song.hasChords, revision]);
+
+  const spectrumSource = useMemo(() => ({
+    stems: song.stems,
+    samples: (names: readonly string[], from: number, to: number) => getEngine().getStemSamples(names, from, to),
+  }), [song.stems]);
 
   const noteStems = useMemo(() => song.stems.filter((s) => !NOT_NOTES.has(s)), [song.stems]);
 
@@ -48,6 +83,16 @@ export default function ChordRoll({ song }: RollProps) {
     setMatrices({});
     setTicked(Object.fromEntries(noteStems.map((s) => [s, s !== "vocals"])));
   }, [song.id, noteStems]);
+
+  const toggleView = (key: keyof Views) => {
+    const next = { ...views, [key]: !views[key] };
+    setViews(next);
+    try {
+      localStorage.setItem(VIEWS_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.warn("[ChordRoll] could not save the views:", e);
+    }
+  };
 
   const compute = async () => {
     setError(null);
@@ -69,7 +114,7 @@ export default function ChordRoll({ song }: RollProps) {
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !views.roll) return;
     let raf = 0;
     const draw = () => {
       raf = requestAnimationFrame(draw);
@@ -161,9 +206,11 @@ export default function ChordRoll({ song }: RollProps) {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [open]);
+  }, [open, views.roll]);
 
   if (!song.hasChords) return null;
+  const here = centerIndex >= 0 ? segments[centerIndex] : null;
+  const candidate = tried && tried.index === centerIndex ? tried.chord : here?.chord ?? "C:maj";
   const computed = Object.keys(matrices).length > 0;
   void NOTE_NAMES;
 
@@ -171,9 +218,15 @@ export default function ChordRoll({ song }: RollProps) {
     <section className="chord-roll">
       <header className="chord-roll__head">
         <button type="button" onClick={() => setOpen((v) => !v)}>{open ? "▾" : "▸"} Chord roll</button>
-        {open && !computed && progress === null && <button type="button" onClick={compute}>Analyse notes</button>}
+        {open && (
+          <span className="chord-roll__views" role="group" aria-label="Views">
+            <label><input type="checkbox" checked={views.roll} onChange={() => toggleView("roll")} /> Notes</label>
+            <label><input type="checkbox" checked={views.spectrum} onChange={() => toggleView("spectrum")} /> Spectrum</label>
+          </span>
+        )}
+        {open && views.roll && !computed && progress === null && <button type="button" onClick={compute}>Analyse notes</button>}
         {progress !== null && <span className="chord-roll__progress">{Math.round(progress * 100)}%</span>}
-        {open && noteStems.map((s) => (
+        {open && views.roll && noteStems.map((s) => (
           <label key={s} className="chord-roll__stem" style={{ borderColor: STEM_COLORS[s] }}>
             <input type="checkbox" checked={!!ticked[s]} onChange={() => setTicked({ ...ticked, [s]: !ticked[s] })} />
             {s}
@@ -181,7 +234,29 @@ export default function ChordRoll({ song }: RollProps) {
         ))}
         {error && <span className="chord-roll__error">{error}</span>}
       </header>
-      {open && <canvas ref={canvas} className="chord-roll__canvas" />}
+      {open && (
+        <div className="chord-roll__body">
+          {views.roll && <canvas ref={canvas} className="chord-roll__canvas" />}
+          {views.spectrum && here && (
+            <div className="chord-roll__spectrum">
+              <ChordSpectrumPanel
+                source={spectrumSource}
+                start={here.start}
+                end={here.end}
+                currentTime={currentTime}
+                chord={here.chord}
+                bass={here.bass ?? null}
+                candidate={candidate}
+                onCandidate={(chord) => setTried({ index: centerIndex, chord })}
+                soundingOffset={capo}
+                tuningCents={tuningCents}
+                busy={false}
+                defaultLive
+              />
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

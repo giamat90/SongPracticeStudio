@@ -24,7 +24,10 @@ interface ChordSpectrumPanelProps {
   bass: string | null;
   candidate: string;
   onCandidate: (chord: string) => void;
-  onUse: (chord: string) => void;
+  /** Makes the candidate the chord of the stretch; without it the panel only looks. */
+  onUse?: (chord: string) => void;
+  /** Start on the playhead view instead of the chord's stretch. */
+  defaultLive?: boolean;
   soundingOffset: number;
   tuningCents: number;
   busy: boolean;
@@ -118,10 +121,10 @@ function drawMarkers(ctx: CanvasRenderingContext2D, freqs: number[], tuning: num
  * over it, to judge by eye whether the song has the notes of that chord (C minor or C minor 7, sus2 or minor).
  */
 export default function ChordSpectrumPanel({
-  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, soundingOffset, tuningCents, busy,
+  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, soundingOffset, tuningCents, busy,
 }: ChordSpectrumPanelProps) {
   const [stems, setStems] = useState<string[]>(() => source.stems.filter((s) => !DEFAULT_OFF.has(s)));
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(defaultLive);
   const [overtones, setOvertones] = useState<Overtones>("rich");
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
@@ -219,15 +222,17 @@ export default function ChordSpectrumPanel({
             {formatChordName(`${candRoot}:${q.value}`)}
           </button>
         ))}
-        <button
-          type="button"
-          className="chord-editor__button chord-editor__button--primary"
-          disabled={busy || candidate === chord}
-          onClick={() => onUse(candidate)}
-          title="Make this the chord of the stretch"
-        >
-          Use {formatChordName(candidate)}
-        </button>
+        {onUse && (
+          <button
+            type="button"
+            className="chord-editor__button chord-editor__button--primary"
+            disabled={busy || candidate === chord}
+            onClick={() => onUse(candidate)}
+            title="Make this the chord of the stretch"
+          >
+            Use {formatChordName(candidate)}
+          </button>
+        )}
         <select
           className="chord-editor__select"
           value={overtones}
