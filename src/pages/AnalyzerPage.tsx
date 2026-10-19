@@ -7,6 +7,8 @@ import CapoSelect from "../components/player/CapoSelect";
 import ChordDetailSelect from "../components/player/ChordDetailSelect";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
+import ChordRoll from "../components/player/ChordRoll";
+import { MoveGrip } from "../components/panels/SortablePanels";
 import TabPanel from "../components/tab/TabPanel";
 import TransportControls from "../components/player/TransportControls";
 import LoopButton from "../components/player/LoopButton";
@@ -29,7 +31,7 @@ import { hiddenStemTags, useWaveformPanels, waveformMenuItems } from "../stores/
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
 import { installPlayerShortcuts } from "@giamat90/mps-core/hooks";
-import type { DetachablePanel } from "../windows/protocol";
+import { isDetachablePanel, type DetachablePanel } from "../windows/protocol";
 import { useMainBridge } from "../windows/useMainBridge";
 
 /** A panel with the corner handle that moves it into a window of its own. */
@@ -43,9 +45,10 @@ function Detachable({ panel, inline, children }: { panel: DetachablePanel; inlin
 }
 
 // The chord carousel lives in the topbar; these are the panels stacked under the tracks.
-const BODY_PANELS: readonly AnalyzerPanelId[] = ["lyrics", "takes"];
+const BODY_PANELS: readonly AnalyzerPanelId[] = ["roll", "lyrics", "takes"];
 
-const slotClass = (id: AnalyzerPanelId) => (id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined);
+const slotClass = (id: AnalyzerPanelId) =>
+  id === "roll" ? "analyzer-page__roll" : id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined;
 
 interface AnalyzerPageProps {
   songId: string;
@@ -67,7 +70,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   useMainBridge();
 
   // On screen in this window: wanted, and not living in a window of its own.
-  const docked = (id: DetachablePanel) => visible[id] && !detached[id];
+  const docked = (id: AnalyzerPanelId) => visible[id] && !(isDetachablePanel(id) && detached[id]);
   const onScreen = order.filter((id) => BODY_PANELS.includes(id) && docked(id));
 
   // The stem area is collapsed, not removed: it owns what the audio engine draws into.
@@ -148,7 +151,12 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
         </div>
 
         <SortablePanels store={useAnalyzerPanels} ids={onScreen} className={slotClass}>
-          {(id) => (
+          {(id) => id === "roll" ? (
+            <div className="detachable">
+              <div className="detach-handle"><MoveGrip /></div>
+              <ChordRoll song={song} />
+            </div>
+          ) : (
             <Detachable panel={id}>
               {id === "lyrics" ? <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} /> : <TakeList />}
             </Detachable>

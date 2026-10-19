@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { STEM_COLORS } from "../../audio/engine";
 import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
 import { chordVoicing } from "../../lib/chordVoicing";
 import {
@@ -24,7 +25,17 @@ interface ChordSpectrumPanelProps {
   bass: string | null;
   candidate: string;
   onCandidate: (chord: string) => void;
-  onUse: (chord: string) => void;
+  /** Makes the candidate the chord of the stretch; without it the panel only looks. */
+  onUse?: (chord: string) => void;
+  /** Start on the playhead view instead of the chord's stretch. */
+  defaultLive?: boolean;
+  /** The slash bass of the chord being looked at and how to change it; without `onBass` there is no bass choice. */
+  bassNote?: string | null;
+  onBass?: (note: string | null) => void;
+  /** Editing buttons for the chord being looked at, at the end of the Stems row. */
+  stemsExtra?: ReactNode;
+  /** Drop-downs of other chords to try, at the end of the Chord row. */
+  chordExtra?: ReactNode;
   soundingOffset: number;
   tuningCents: number;
   busy: boolean;
@@ -118,10 +129,10 @@ function drawMarkers(ctx: CanvasRenderingContext2D, freqs: number[], tuning: num
  * over it, to judge by eye whether the song has the notes of that chord (C minor or C minor 7, sus2 or minor).
  */
 export default function ChordSpectrumPanel({
-  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, soundingOffset, tuningCents, busy,
+  source, start, end, currentTime, chord, bass, candidate, onCandidate, onUse, defaultLive = false, bassNote = null, onBass, stemsExtra, chordExtra, soundingOffset, tuningCents, busy,
 }: ChordSpectrumPanelProps) {
   const [stems, setStems] = useState<string[]>(() => source.stems.filter((s) => !DEFAULT_OFF.has(s)));
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(defaultLive);
   const [overtones, setOvertones] = useState<Overtones>("rich");
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
@@ -190,46 +201,67 @@ export default function ChordSpectrumPanel({
     <div className="chord-spectrum" role="group" aria-label="Chord spectrum">
       <div className="chord-spectrum__row">
         <span className="chord-spectrum__label">Stems</span>
-        {source.stems.map((name) => (
-          <label key={name} className="chord-spectrum__check">
-            <input type="checkbox" checked={stems.includes(name)} onChange={() => toggleStem(name)} />
-            {name}
-          </label>
-        ))}
-        <select className="chord-editor__select" value={live ? "live" : "stretch"} onChange={(e) => setLive(e.target.value === "live")} aria-label="What to measure">
+        <div className="roll-chips" role="group" aria-label="Stems in the spectrum">
+          {source.stems.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="roll-chip"
+              style={{ "--dot": STEM_COLORS[name] } as CSSProperties}
+              aria-pressed={stems.includes(name)}
+              onClick={() => toggleStem(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        <select className="roll-select" value={live ? "live" : "stretch"} onChange={(e) => setLive(e.target.value === "live")} aria-label="What to measure">
           <option value="stretch">This chord's stretch</option>
           <option value="live">Playhead</option>
         </select>
+        {stemsExtra}
       </div>
 
       <div className="chord-spectrum__row">
-        <span className="chord-spectrum__label">Try</span>
-        <select className="chord-editor__select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
+        <span className="chord-spectrum__label">Chord</span>
+        <select className="roll-select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
           {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
-        {CHORD_QUALITIES.map((q) => (
-          <button
-            key={q.value}
-            type="button"
-            className={`chord-editor__chip${candQuality === q.value ? " chord-editor__chip--previewed" : ""}`}
-            onClick={() => onCandidate(`${candRoot}:${q.value}`)}
-            aria-pressed={candQuality === q.value}
-            title={q.label}
-          >
-            {formatChordName(`${candRoot}:${q.value}`)}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="chord-editor__button chord-editor__button--primary"
-          disabled={busy || candidate === chord}
-          onClick={() => onUse(candidate)}
-          title="Make this the chord of the stretch"
-        >
-          Use {formatChordName(candidate)}
-        </button>
         <select
-          className="chord-editor__select"
+          className="roll-select"
+          value={candQuality}
+          disabled={busy}
+          onChange={(e) => onCandidate(`${candRoot}:${e.target.value}`)}
+          aria-label="Candidate quality"
+        >
+          {CHORD_QUALITIES.map((q) => <option key={q.value} value={q.value}>{q.label}</option>)}
+        </select>
+        {onBass && (
+          <select
+            className="roll-select"
+            value={bassNote ?? ""}
+            disabled={busy}
+            onChange={(e) => onBass(e.target.value || null)}
+            aria-label="Bass note"
+            title="The bass note, when it is not the root (a slash chord)"
+          >
+            <option value="">no slash bass</option>
+            {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
+          </select>
+        )}
+        {onUse && (
+          <button
+            type="button"
+            className="chord-editor__button chord-editor__button--primary"
+            disabled={busy || candidate === chord}
+            onClick={() => onUse(candidate)}
+            title="Make this the chord of the stretch"
+          >
+            Use {formatChordName(candidate)}
+          </button>
+        )}
+        <select
+          className="roll-select"
           value={overtones}
           onChange={(e) => setOvertones(e.target.value === "pure" ? "pure" : "rich")}
           aria-label="Candidate overtones"
@@ -238,6 +270,7 @@ export default function ChordSpectrumPanel({
           <option value="rich">Candidate like an instrument</option>
           <option value="pure">Candidate like the Hear button</option>
         </select>
+        {chordExtra}
       </div>
 
       <canvas ref={canvas} className="chord-spectrum__canvas" aria-label="Spectrum of the song and of the candidate chord" />

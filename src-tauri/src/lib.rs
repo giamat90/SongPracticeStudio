@@ -48,6 +48,8 @@ pub fn run() {
         commands::clear_chord_edits,
         commands::has_chord_edits,
         commands::read_bass_tab,
+        commands::read_note_roll,
+        commands::save_note_roll,
         commands::export_file,
         commands::pitch_shift_song,
         commands::load_lyrics,

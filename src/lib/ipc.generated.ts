@@ -121,6 +121,16 @@ export async function readBassTab(songId: string): Promise<BassTabData | null> {
   return invoke<BassTabData | null>("read_bass_tab", { songId });
 }
 
+/** The chord roll's analysed notes for a song (the JSON text the frontend saved); null before the first analysis */
+export async function readNoteRoll(songId: string): Promise<string | null> {
+  return invoke<string | null>("read_note_roll", { songId });
+}
+
+/** Keep the chord roll's analysed notes (JSON text) with the song so the roll opens ready next time */
+export async function saveNoteRoll(songId: string, body: string): Promise<void> {
+  return invoke<void>("save_note_roll", { songId, body });
+}
+
 /** Offer a file the app built (a .txt or .mid) through a Save As dialog */
 export async function exportFile(data: number[], suggestedName: string): Promise<void> {
   return invoke<void>("export_file", { data, suggestedName });

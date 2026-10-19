@@ -1,9 +1,16 @@
-import { useEffect, useRef, useState } from "react";
-import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { formatChordName } from "../../lib/chordNames";
 import { chordSynth } from "../../audio/chordSynth";
 import { usePlayerStore } from "../../stores/player";
 import type { ChordAlternative, ChordSegment } from "../../lib/types";
-import ChordSpectrumPanel, { type SpectrumSource } from "./ChordSpectrumPanel";
+
+/** The two pieces of the editor, for the spectrum panel to place in its own rows. */
+export interface EditorParts {
+  /** Hear, With song, where the chord is, Go to, Start here, End here, Split, Join, Delete, Done. */
+  actions: ReactNode;
+  /** Drop-downs of the key's chords and of the chords the detector also heard; choosing one tries it. */
+  guesses: ReactNode;
+}
 
 interface ChordEditorProps {
   /** The chord as it is shown (transpose and capo applied). */
@@ -16,13 +23,13 @@ interface ChordEditorProps {
   suggestions: ChordAlternative[];
   /** The chords of the song's key, as shown. */
   keyChordNames: string[];
-  /** The song's stems, for the spectrum view; without it the view is not offered. */
-  spectrumSource?: SpectrumSource;
+  /** The chord being tried (heard and drawn over the spectrum), if any; null shows the chord itself. */
+  candidate: string | null;
+  onCandidate: (chord: string | null) => void;
   canSplit: boolean;
   canJoin: boolean;
   busy: boolean;
   error: string | null;
-  onChord: (chord: string, bass: string | null) => void;
   onStartHere: () => void;
   onEndHere: () => void;
   onSplit: () => void;
@@ -30,22 +37,23 @@ interface ChordEditorProps {
   onDelete: () => void;
   onGoTo: () => void;
   onClose: () => void;
+  /** Draws what the editor offers; the spectrum panel puts the two parts in its rows. */
+  children: (parts: EditorParts) => ReactNode;
 }
 
 const seconds = (t: number) => `${t.toFixed(2)} s`;
 
-/** Correct one detected chord: hear it, pick another from a list, move its ends, split, join or delete it. */
+/**
+ * The controls for correcting one chord: hear it, move its ends, split, join or delete it, and try another chord
+ * from the detector's guesses or the key's chords. It draws nothing of its own; it hands its parts to `children`.
+ */
 export default function ChordEditor({
-  segment, soundingOffset, tuningCents, suggestions, keyChordNames, spectrumSource, canSplit, canJoin, busy, error,
-  onChord, onStartHere, onEndHere, onSplit, onJoin, onDelete, onGoTo, onClose,
+  segment, soundingOffset, tuningCents, suggestions, keyChordNames, candidate: preview, onCandidate: setPreview, canSplit, canJoin, busy, error,
+  onStartHere, onEndHere, onSplit, onJoin, onDelete, onGoTo, onClose, children,
 }: ChordEditorProps) {
-  const [root, quality] = segment.chord.split(":");
-  const bass = segment.bass ?? "";
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTime = usePlayerStore((s) => s.currentTime);
-  const [preview, setPreview] = useState<string | null>(null);
   const [withSong, setWithSong] = useState(false);
-  const [spectrum, setSpectrum] = useState(false);
   const withSongRef = useRef(false);
   withSongRef.current = withSong;
 
@@ -100,163 +108,93 @@ export default function ChordEditor({
     }
   };
 
-  const choose = (chord: string, bassNote: string | null) => {
-    hear(chord, bassNote);
-    onChord(chord, bassNote);
-  };
-
   const audition = (chord: string) => {
     setPreview(chord === segment.chord ? null : chord);
     hear(chord, null);
   };
 
-  const use = (chord: string) => {
-    setPreview(null);
-    onChord(chord, null);
-  };
-
   const others = suggestions.filter((s) => s.chord !== segment.chord);
   const inKey = keyChordNames.filter((c) => c !== segment.chord);
 
-  const chip = (chord: string, detail?: string) => (
-    <button
-      key={chord}
-      type="button"
-      className={`chord-editor__chip${preview === chord ? " chord-editor__chip--previewed" : ""}`}
-      disabled={busy}
-      onClick={() => audition(chord)}
-      onDoubleClick={() => use(chord)}
-      title={`Hear ${formatChordName(chord)} (double-click to use it)`}
-      aria-label={`Hear ${formatChordName(chord)}${detail ? `, ${detail}` : ""}`}
-      aria-pressed={preview === chord}
-    >
-      {formatChordName(chord)}
-      {detail && <span className="chord-editor__fit">{detail}</span>}
-    </button>
-  );
-
-  return (
-    <div className="chord-editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
-      <span className="chord-editor__name">{formatChordName(segment.chord, segment.bass)}</span>
-      <select
-        className="chord-editor__select"
-        value={root}
-        disabled={busy}
-        onChange={(e) => choose(`${e.target.value}:${quality}`, segment.bass ?? null)}
-        aria-label="Chord root"
-      >
-        {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
-      </select>
-      <select
-        className="chord-editor__select"
-        value={quality}
-        disabled={busy}
-        onChange={(e) => choose(`${root}:${e.target.value}`, segment.bass ?? null)}
-        aria-label="Chord quality"
-      >
-        {CHORD_QUALITIES.map((q) => <option key={q.value} value={q.value}>{q.label}</option>)}
-      </select>
-      <select
-        className="chord-editor__select"
-        value={bass}
-        disabled={busy}
-        onChange={(e) => choose(segment.chord, e.target.value || null)}
-        aria-label="Bass note"
-        title="The bass note, when it is not the root (a slash chord)"
-      >
-        <option value="">no slash bass</option>
-        {CHORD_NOTES.map((n) => <option key={n} value={n}>/{n}</option>)}
-      </select>
-      <button
-        className="chord-editor__button"
-        onClick={() => hear(heard, heardBass)}
-        title="Play this chord on a synthesiser, tuned to the recording"
-      >
-        Hear
-      </button>
-      <button
-        className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
-        onClick={toggleWithSong}
-        aria-pressed={withSong}
-        title="Loop this part of the song with the chord sounding under it, to compare them"
-      >
-        With song
-      </button>
-      {spectrumSource && (
+  const actions = (
+    <div className="chord-editor__actions" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
+      <div className="chord-editor__group" role="group" aria-label="Listen">
         <button
-          className={`chord-editor__button${spectrum ? " chord-editor__button--on" : ""}`}
-          onClick={() => setSpectrum((v) => !v)}
-          aria-pressed={spectrum}
-          title="See the spectrum of the song here with the spectrum of a chord you try over it"
+          className="chord-editor__button"
+          onClick={() => hear(heard, heardBass)}
+          title="Play this chord on a synthesiser, tuned to the recording"
         >
-          Spectrum
+          Hear
         </button>
-      )}
-      <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
-      <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
-        Go to
-      </button>
-      <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
-        Start here
-      </button>
-      <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
-        End here
-      </button>
-      <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
-        Split here
-      </button>
-      <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
-        Join next
-      </button>
-      <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
-        Delete
-      </button>
-      <button className="chord-editor__button" onClick={onClose} aria-label="Close the chord editor">
+        <button
+          className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
+          onClick={toggleWithSong}
+          aria-pressed={withSong}
+          title="Loop this part of the song with the chord sounding under it, to compare them"
+        >
+          With song
+        </button>
+      </div>
+      <div className="chord-editor__group" role="group" aria-label="Where the chord is">
+        <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
+        <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
+          Go to
+        </button>
+        <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
+          Start here
+        </button>
+        <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
+          End here
+        </button>
+      </div>
+      <div className="chord-editor__group" role="group" aria-label="Change the chord's length">
+        <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
+          Split here
+        </button>
+        <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
+          Join next
+        </button>
+        <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
+          Delete
+        </button>
+      </div>
+      <button className="chord-editor__button chord-editor__done" onClick={onClose} aria-label="Close the chord editor">
         Done
       </button>
       {error && <span className="chord-editor__error" role="alert">{error}</span>}
-
-      {spectrum && spectrumSource && (
-        <ChordSpectrumPanel
-          source={spectrumSource}
-          start={segment.start}
-          end={segment.end}
-          currentTime={currentTime}
-          chord={segment.chord}
-          bass={segment.bass ?? null}
-          candidate={heard}
-          onCandidate={audition}
-          onUse={use}
-          soundingOffset={soundingOffset}
-          tuningCents={tuningCents}
-          busy={busy}
-        />
-      )}
-
-      {others.length > 0 && (
-        <div className="chord-editor__list" role="group" aria-label="Other chords the detector considered">
-          <span className="chord-editor__list-label">Also heard</span>
-          {others.map((s) => chip(s.chord, `${Math.round(s.fit * 100)}%`))}
-        </div>
-      )}
-      {inKey.length > 0 && (
-        <div className="chord-editor__list" role="group" aria-label="Chords of the song's key">
-          <span className="chord-editor__list-label">In this key</span>
-          {inKey.map((c) => chip(c))}
-        </div>
-      )}
-      {preview && (
-        <div className="chord-editor__list">
-          <button
-            className="chord-editor__button chord-editor__button--primary"
-            onClick={() => use(preview)}
-            disabled={busy}
-          >
-            Use {formatChordName(preview)}
-          </button>
-          <button className="chord-editor__button" onClick={() => setPreview(null)}>Keep {formatChordName(segment.chord, segment.bass)}</button>
-        </div>
-      )}
     </div>
   );
+
+  const guesses = (
+    <>
+      {inKey.length > 0 && (
+        <select
+          className="roll-select"
+          value={preview !== null && inKey.includes(preview) ? preview : ""}
+          disabled={busy}
+          onChange={(e) => e.target.value && audition(e.target.value)}
+          aria-label="Chords of the song's key"
+          title="Hear one of the song's key chords and see it over the spectrum; Use makes it the chord"
+        >
+          <option value="">In this key</option>
+          {inKey.map((c) => <option key={c} value={c}>{formatChordName(c)}</option>)}
+        </select>
+      )}
+      {others.length > 0 && (
+        <select
+          className="roll-select"
+          value={preview !== null && others.some((o) => o.chord === preview) ? preview : ""}
+          disabled={busy}
+          onChange={(e) => e.target.value && audition(e.target.value)}
+          aria-label="Other chords the detector considered"
+          title="Hear a chord the detector also considered and see it over the spectrum; Use makes it the chord"
+        >
+          <option value="">Also heard</option>
+          {others.map((o) => <option key={o.chord} value={o.chord}>{formatChordName(o.chord)} · {Math.round(o.fit * 100)}%</option>)}
+        </select>
+      )}
+    </>
+  );
+
+  return <>{children({ actions, guesses })}</>;
 }

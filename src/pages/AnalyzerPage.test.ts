@@ -42,6 +42,7 @@ vi.mock("../components/player/CapoSelect", h.stub("capo"));
 vi.mock("../components/player/ExportChartButton", h.stub("exportChart"));
 vi.mock("../components/player/LoopsMenu", h.stub("loops"));
 vi.mock("../components/player/BassTabPanel", h.stub("bassTab"));
+vi.mock("../components/player/ChordRoll", h.stub("roll"));
 vi.mock("../components/tab/TabPanel", h.stub("songTab"));
 vi.mock("../components/player/OutputSelector", h.stub("output"));
 vi.mock("../components/recording/MicSelector", h.stub("mic"));
@@ -156,13 +157,13 @@ describe("AnalyzerPage panels", () => {
     expect(html.indexOf('data-c="chords"')).toBeLessThan(html.indexOf("analyzer-page__body"));
   });
 
-  it("gives only lyrics and takes a movable slot", async () => {
-    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(2);
+  it("gives the roll, lyrics and takes a movable slot", async () => {
+    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(3);
   });
 
   it("offers the menu every optional panel", async () => {
     const html = await render();
-    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,lyrics,takes");
+    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,roll,lyrics,takes");
   });
 });
 

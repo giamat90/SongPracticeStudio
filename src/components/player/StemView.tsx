@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlayerStore, getEngine, takesSilenced } from "../../stores/player";
-import { useAnalyzerPanels } from "../../stores/panels";
 import TimeRuler from "./TimeRuler";
-import ChordRow from "./ChordRow";
 import StemTrack from "./StemTrack";
 import TakeTrack from "./TakeTrack";
 import TakesBar from "./TakesBar";
@@ -25,7 +23,6 @@ function StemView({ song }: StemViewProps) {
   const soloedTakeId  = usePlayerStore((s) => s.soloedTakeId);
   const takeChannelSilent = usePlayerStore((s) => takesSilenced(s));
   const takes         = usePlayerStore((s) => s.takes);
-  const showChords    = useAnalyzerPanels((s) => s.visible.chords);
   const setTakeVolume = usePlayerStore((s) => s.setTakeVolume);
   const timelineRef   = useRef<HTMLDivElement>(null);
   const stemRefs      = useRef<Record<string, HTMLDivElement | null>>({});
@@ -158,7 +155,6 @@ function StemView({ song }: StemViewProps) {
     <div className="stem-view">
       {loadError && <div className="stem-view__error">{loadError}</div>}
       <div className="stem-view__timeline" ref={timelineRef}>
-        {showChords && <ChordRow song={song} />}
         <TimeRuler />
         {song.stems.map((name) => (
           <StemTrack

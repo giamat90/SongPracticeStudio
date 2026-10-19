@@ -478,6 +478,18 @@ pub async fn read_bass_tab(song_id: String) -> Result<Option<library::BassTab>, 
     library::read_bass_tab(&song_id)
 }
 
+/// The chord roll's analysed notes for a song (the JSON text the frontend saved); null before the first analysis
+#[tauri::command]
+pub async fn read_note_roll(song_id: String) -> Result<Option<String>, String> {
+    library::read_note_roll(&song_id)
+}
+
+/// Keep the chord roll's analysed notes (JSON text) with the song so the roll opens ready next time
+#[tauri::command]
+pub async fn save_note_roll(song_id: String, body: String) -> Result<(), String> {
+    library::save_note_roll(&song_id, &body)
+}
+
 /// The Save As filter for a file this app builds itself, from its extension.
 pub(crate) fn export_filter_for(name: &str) -> Result<(&'static str, &'static [&'static str]), String> {
     let ext = Path::new(name)
