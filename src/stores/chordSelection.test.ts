@@ -5,29 +5,29 @@ beforeEach(() => useChordSelection.getState().clear());
 
 describe("chord selection", () => {
   it("starts with nothing picked", () => {
-    expect(useChordSelection.getState()).toMatchObject({ index: null, surface: null });
+    expect(useChordSelection.getState().index).toBeNull();
   });
 
-  it("remembers where a chord was picked", () => {
-    useChordSelection.getState().toggle(2, "roll");
-    expect(useChordSelection.getState()).toMatchObject({ index: 2, surface: "roll" });
+  it("picks a chord", () => {
+    useChordSelection.getState().toggle(2);
+    expect(useChordSelection.getState().index).toBe(2);
   });
 
-  it("puts the chord away when it is clicked again in the same place", () => {
-    useChordSelection.getState().toggle(2, "roll");
-    useChordSelection.getState().toggle(2, "roll");
-    expect(useChordSelection.getState()).toMatchObject({ index: null, surface: null });
-  });
-
-  it("moves the editor to the other place when the same chord is clicked there", () => {
-    useChordSelection.getState().toggle(2, "roll");
-    useChordSelection.getState().toggle(2, "row");
-    expect(useChordSelection.getState()).toMatchObject({ index: 2, surface: "row" });
+  it("puts the chord away when it is clicked again", () => {
+    useChordSelection.getState().toggle(2);
+    useChordSelection.getState().toggle(2);
+    expect(useChordSelection.getState().index).toBeNull();
   });
 
   it("picking another chord replaces the first", () => {
-    useChordSelection.getState().select(1, "row");
-    useChordSelection.getState().toggle(5, "row");
+    useChordSelection.getState().select(1);
+    useChordSelection.getState().toggle(5);
     expect(useChordSelection.getState().index).toBe(5);
+  });
+
+  it("clears", () => {
+    useChordSelection.getState().select(3);
+    useChordSelection.getState().clear();
+    expect(useChordSelection.getState().index).toBeNull();
   });
 });

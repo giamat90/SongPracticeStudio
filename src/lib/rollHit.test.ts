@@ -17,6 +17,14 @@ describe("classifyPress", () => {
     expect(classifyPress(blocks, 400, 4)).toEqual({ kind: "strip", index: 4 });
   });
 
+  it("offers the add button over the strip where there is room for one, ahead of everything else", () => {
+    expect(classifyPress([], 500, 5, 500)).toEqual({ kind: "add" });
+    expect(classifyPress(blocks, 505, 5, 500)).toEqual({ kind: "add" });
+    expect(classifyPress([], 500, STRIP_H + 2, 500)).toEqual({ kind: "seek" });
+    expect(classifyPress([], 540, 5, 500)).toEqual({ kind: "seek" });
+    expect(classifyPress([], 500, 5)).toEqual({ kind: "seek" });
+  });
+
   it("seeks everywhere else", () => {
     expect(classifyPress(blocks, 200, STRIP_H + 1)).toEqual({ kind: "seek" });
     expect(classifyPress(blocks, 700, 4)).toEqual({ kind: "seek" });

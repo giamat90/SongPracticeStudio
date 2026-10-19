@@ -147,3 +147,55 @@ export function chordPitchClasses(chord: string, bass: string | null | undefined
   if (!voicing) return new Set();
   return new Set([voicing.bass, ...voicing.upper].map((f) => (((Math.round(69 + 12 * Math.log2(f / 440))) % 12) + 12) % 12));
 }
+
+/** Bumped whenever the analysis changes, so a saved one from the older analysis is made again. */
+export const NOTE_ROLL_VERSION = 1;
+
+function toBase64(bytes: Uint8Array): string {
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(text);
+}
+
+function fromBase64(text: string): Uint8Array {
+  const raw = atob(text);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+export interface SavedRoll {
+  /** Semitones the stems were shifted by when they were analysed; the roll moves its notes by the difference to the shift now. */
+  transpose: number;
+  matrices: Record<string, NoteMatrix>;
+}
+
+/** The analysed notes of every stem as the JSON text kept with the song. */
+export function encodeRoll(matrices: Record<string, NoteMatrix>, transpose: number): string {
+  const stems: Record<string, { frames: number; data: string }> = {};
+  for (const [name, matrix] of Object.entries(matrices)) stems[name] = { frames: matrix.frames, data: toBase64(matrix.data) };
+  return JSON.stringify({ version: NOTE_ROLL_VERSION, hop: ROLL_HOP, notes: NOTE_COUNT, transpose, stems });
+}
+
+/** The notes saved with a song, or null when the text is not a roll of this analysis (another version, hop or range, or damaged). */
+export function decodeRoll(text: string): SavedRoll | null {
+  try {
+    const doc = JSON.parse(text) as {
+      version?: number; hop?: number; notes?: number; transpose?: number;
+      stems?: Record<string, { frames?: number; data?: string }>;
+    };
+    if (doc.version !== NOTE_ROLL_VERSION || doc.hop !== ROLL_HOP || doc.notes !== NOTE_COUNT) return null;
+    if (typeof doc.transpose !== "number" || !doc.stems) return null;
+    const matrices: Record<string, NoteMatrix> = {};
+    for (const [name, stem] of Object.entries(doc.stems)) {
+      if (typeof stem.frames !== "number" || typeof stem.data !== "string") return null;
+      const data = fromBase64(stem.data);
+      if (data.length !== stem.frames * NOTE_COUNT) return null;
+      matrices[name] = { hop: ROLL_HOP, frames: stem.frames, data };
+    }
+    return Object.keys(matrices).length > 0 ? { transpose: doc.transpose, matrices } : null;
+  } catch (e) {
+    console.warn("[noteRoll] the saved notes could not be read:", e);
+    return null;
+  }
+}

@@ -31,7 +31,6 @@ vi.mock("../../stores/player", () => ({
   takesSilenced: () => false,
 }));
 vi.mock("./TimeRuler", h.stub("ruler"));
-vi.mock("./ChordRow", h.stub("chordRow"));
 vi.mock("./StemTrack", h.stub("stemTrack"));
 vi.mock("./TakeTrack", h.stub("takeTrack"));
 vi.mock("./TakesBar", h.stub("takesBar"));
@@ -58,15 +57,9 @@ beforeEach(() => {
   h.state.takes = [];
 });
 
-describe("StemView chord row", () => {
-  it("shows the chord row above the ruler by default", async () => {
+describe("StemView chords", () => {
+  it("has no chord row above the ruler: the chords are on the chord roll", async () => {
     const ids = shown(await render());
-    expect(ids.indexOf("chordRow")).toBeGreaterThanOrEqual(0);
-    expect(ids.indexOf("chordRow")).toBeLessThan(ids.indexOf("ruler"));
-  });
-
-  it("drops only the chord row when the chords panel is off", async () => {
-    const ids = shown(await render({ chords: false }));
     expect(ids).not.toContain("chordRow");
     expect(ids).toEqual(expect.arrayContaining(["ruler", "stemTrack"]));
     expect(ids.filter((c) => c === "stemTrack")).toHaveLength(2);

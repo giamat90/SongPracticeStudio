@@ -7,23 +7,21 @@ import {
 } from "../../lib/chordEdit";
 import { keyChords } from "../../lib/keyChords";
 import { readChordTuning, saveChordEdits } from "../../lib/tauri";
-import { useChordSelection, type ChordSurface } from "../../stores/chordSelection";
+import { useChordSelection } from "../../stores/chordSelection";
 import type { ChordSegment, Song } from "../../lib/types";
 import ChordEditor from "./ChordEditor";
 
 interface ChordEditorHostProps {
   song: Song;
-  /** The editor shows here only when the chord was picked here. */
-  surface: ChordSurface;
 }
 
-/** The editor for the chord picked on `surface`, with the saving that goes with it. Shows nothing when no chord is picked there. */
-export default function ChordEditorHost({ song, surface }: ChordEditorHostProps) {
+/** The editor for the chord picked on the chord roll, with the saving that goes with it. Shows nothing when no chord is picked. */
+export default function ChordEditorHost({ song }: ChordEditorHostProps) {
   const { segments, stored, shift } = useChordSegments(song);
   const capo = usePlayerStore((s) => s.capo);
   const currentTime = usePlayerStore((s) => s.currentTime);
   const revision = usePlayerStore((s) => s.chordsRevision);
-  const index = useChordSelection((s) => (s.surface === surface ? s.index : null));
+  const index = useChordSelection((s) => s.index);
   const [tuningCents, setTuningCents] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +64,7 @@ export default function ChordEditorHost({ song, surface }: ChordEditorHostProps)
       await saveChordEdits(song.id, next);
       usePlayerStore.getState().bumpChordsRevision();
       if (nextSelected === null) useChordSelection.getState().clear();
-      else useChordSelection.getState().select(nextSelected, surface);
+      else useChordSelection.getState().select(nextSelected);
     } catch (e) {
       console.error("[ChordEditorHost] saving the chord edit failed:", e);
       setError(String(e));

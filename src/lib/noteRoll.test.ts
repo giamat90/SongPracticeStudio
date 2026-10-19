@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chordVoicing } from "./chordVoicing";
 import { renderChord } from "./chordSpectrum";
-import { chordPitchClasses, computeNoteMatrix, noteStrength } from "./noteRoll";
+import { NOTE_COUNT, NOTE_ROLL_VERSION, chordPitchClasses, computeNoteMatrix, decodeRoll, encodeRoll, noteStrength } from "./noteRoll";
 
 const RATE = 22050;
 
@@ -45,5 +45,35 @@ describe("chordPitchClasses", () => {
 
   it("is empty for a chord it does not know", () => {
     expect(chordPitchClasses("N", null).size).toBe(0);
+  });
+});
+
+describe("saved roll", () => {
+  const sample = () => ({ hop: 0.125, frames: 3, data: Uint8Array.from({ length: 3 * NOTE_COUNT }, (_, i) => i % 256) });
+
+  it("comes back as it went in", () => {
+    const back = decodeRoll(encodeRoll({ guitar: sample() }, 2));
+    expect(back?.transpose).toBe(2);
+    expect(back?.matrices.guitar.frames).toBe(3);
+    expect([...back!.matrices.guitar.data]).toEqual([...sample().data]);
+  });
+
+  it("is refused when it is from another version of the analysis", () => {
+    const doc = JSON.parse(encodeRoll({ guitar: sample() }, 0));
+    expect(decodeRoll(JSON.stringify({ ...doc, version: NOTE_ROLL_VERSION + 1 }))).toBeNull();
+  });
+
+  it("is refused when it is damaged or empty", () => {
+    expect(decodeRoll("{{")).toBeNull();
+    expect(decodeRoll("{}")).toBeNull();
+    const doc = JSON.parse(encodeRoll({ guitar: sample() }, 0));
+    doc.stems.guitar.frames = 4;
+    expect(decodeRoll(JSON.stringify(doc))).toBeNull();
+    expect(decodeRoll(encodeRoll({}, 0))).toBeNull();
+  });
+
+  it("holds the matrices of a whole song without a stack overflow", () => {
+    const long = { hop: 0.125, frames: 4000, data: new Uint8Array(4000 * NOTE_COUNT).fill(7) };
+    expect(decodeRoll(encodeRoll({ bass: long }, 0))?.matrices.bass.frames).toBe(4000);
   });
 });

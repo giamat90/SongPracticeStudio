@@ -317,6 +317,7 @@ pub fn mark_chords_detected(song_id: &str) -> Result<Song, String> {
 
 /// The user's corrections, kept apart from `chords.json` so detecting again never mixes with them.
 const CHORD_EDITS_FILE: &str = "chords_edited.json";
+const NOTE_ROLL_FILE: &str = "note_roll.json";
 const CHORD_NOTES: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 /// The detector writes the first five; the editor offers all of them.
 const CHORD_QUALITIES: [&str; 10] = ["maj", "min", "7", "maj7", "min7", "sus2", "sus4", "dim", "aug", "6"];
@@ -442,6 +443,25 @@ pub fn save_chord_edits(song_id: &str, segments: Vec<ChordSegment>) -> Result<Ve
     fs::write(&tmp, body.to_string()).map_err(|e| format!("Write chord edits: {e}"))?;
     fs::rename(&tmp, &path).map_err(|e| format!("Write chord edits: {e}"))?;
     Ok(cleaned)
+}
+
+/// The chord roll's analysed notes, as the frontend wrote them (opaque here); `None` before the first analysis.
+pub fn read_note_roll(song_id: &str) -> Result<Option<String>, String> {
+    let path = song_directory(song_id)?.join(NOTE_ROLL_FILE);
+    if !path.exists() {
+        return Ok(None);
+    }
+    fs::read_to_string(&path).map(Some).map_err(|e| format!("Read note roll: {e}"))
+}
+
+/// Keep the chord roll's analysed notes with the song, so the next visit does not analyse again.
+pub fn save_note_roll(song_id: &str, body: &str) -> Result<(), String> {
+    let dir = song_directory(song_id)?;
+    serde_json::from_str::<serde_json::Value>(body).map_err(|e| format!("Note roll is not valid JSON: {e}"))?;
+    let path = dir.join(NOTE_ROLL_FILE);
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, body).map_err(|e| format!("Write note roll: {e}"))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("Write note roll: {e}"))
 }
 
 /// One transcribed bass note, as written by the sidecar's `_transcribe_bass`.
@@ -1004,6 +1024,36 @@ mod tests {
 
         fs::write(dir.join("bass_tab.json"), "{{").unwrap();
         assert!(read_bass_tab("a").unwrap_err().contains("Parse bass tab"));
+    }
+
+    #[test]
+    fn the_note_roll_round_trips_and_is_none_until_saved() {
+        let home = TestHome::new();
+        let dir = home.path().join("library").join("a");
+        fs::create_dir_all(&dir).unwrap();
+        let mut a = song("a", "A");
+        a.directory = dir.to_string_lossy().to_string();
+        add(a).unwrap();
+
+        assert!(read_note_roll("a").unwrap().is_none());
+        save_note_roll("a", r#"{"version":1,"stems":{}}"#).unwrap();
+        assert_eq!(read_note_roll("a").unwrap().unwrap(), r#"{"version":1,"stems":{}}"#);
+        assert!(!dir.join("note_roll.json.tmp").exists(), "the temporary file is renamed away");
+    }
+
+    #[test]
+    fn the_note_roll_rejects_text_that_is_not_json_and_unknown_songs() {
+        let home = TestHome::new();
+        let dir = home.path().join("library").join("a");
+        fs::create_dir_all(&dir).unwrap();
+        let mut a = song("a", "A");
+        a.directory = dir.to_string_lossy().to_string();
+        add(a).unwrap();
+
+        assert!(save_note_roll("a", "{{").unwrap_err().contains("not valid JSON"));
+        assert!(read_note_roll("a").unwrap().is_none(), "a rejected save leaves nothing behind");
+        assert!(save_note_roll("ghost", "{}").unwrap_err().contains("ghost"));
+        assert!(read_note_roll("ghost").unwrap_err().contains("ghost"));
     }
 
     #[test]

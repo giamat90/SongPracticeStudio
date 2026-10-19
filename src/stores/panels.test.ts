@@ -15,9 +15,9 @@ describe("analyzer panels", () => {
     expect(ANALYZER_PANELS.map((p) => p.id)).toEqual(["chords", "roll", "lyrics", "takes"]);
   });
 
-  it("shows everything by default but the chord roll, as before the menu existed", async () => {
+  it("shows everything by default", async () => {
     const { useAnalyzerPanels } = await fresh();
-    expect(useAnalyzerPanels.getState().visible).toEqual({ chords: true, roll: false, lyrics: true, takes: true });
+    expect(useAnalyzerPanels.getState().visible).toEqual({ chords: true, roll: true, lyrics: true, takes: true });
   });
 
   it("remembers the user's choices under sps_panels", async () => {
