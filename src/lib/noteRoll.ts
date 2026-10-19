@@ -1,4 +1,5 @@
 import { computeMagnitudeSpectrumDb } from "@giamat90/mps-core/spectrum";
+import { chordVoicing } from "./chordVoicing";
 
 /** The notes the roll covers: E1 to E6, bass guitar to the top of a guitar. */
 export const MIDI_LOW = 28;
@@ -138,4 +139,11 @@ export async function computeNoteMatrix(
 export function noteStrength(matrix: NoteMatrix, frame: number, midi: number): number {
   if (frame < 0 || frame >= matrix.frames || midi < MIDI_LOW || midi > MIDI_HIGH) return 0;
   return matrix.data[frame * NOTE_COUNT + (midi - MIDI_LOW)];
+}
+
+/** The pitch classes (0 = C) of a chord's notes and its slash bass, as they sound `shift` semitones higher; empty for a chord the synth does not know. */
+export function chordPitchClasses(chord: string, bass: string | null | undefined, shift = 0): Set<number> {
+  const voicing = chordVoicing(chord, bass, shift);
+  if (!voicing) return new Set();
+  return new Set([voicing.bass, ...voicing.upper].map((f) => (((Math.round(69 + 12 * Math.log2(f / 440))) % 12) + 12) % 12));
 }

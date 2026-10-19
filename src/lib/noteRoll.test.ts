@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chordVoicing } from "./chordVoicing";
 import { renderChord } from "./chordSpectrum";
-import { computeNoteMatrix, noteStrength } from "./noteRoll";
+import { chordPitchClasses, computeNoteMatrix, noteStrength } from "./noteRoll";
 
 const RATE = 22050;
 
@@ -29,5 +29,21 @@ describe("computeNoteMatrix", () => {
     const m = await roll("C:maj");
     expect(noteStrength(m, 10, 20)).toBe(0);
     expect(noteStrength(m, 999, 60)).toBe(0);
+  });
+});
+
+describe("chordPitchClasses", () => {
+  it("lists the notes of the chord as pitch classes", () => {
+    expect([...chordPitchClasses("C:maj", null)].sort((a, b) => a - b)).toEqual([0, 4, 7]);
+    expect([...chordPitchClasses("A:min7", null)].sort((a, b) => a - b)).toEqual([0, 4, 7, 9]);
+  });
+
+  it("adds a slash bass that is not in the voicing and follows the shift", () => {
+    expect(chordPitchClasses("C:maj", "D", 0).has(2)).toBe(true);
+    expect([...chordPitchClasses("C:maj", null, 2)].sort((a, b) => a - b)).toEqual([2, 6, 9]);
+  });
+
+  it("is empty for a chord it does not know", () => {
+    expect(chordPitchClasses("N", null).size).toBe(0);
   });
 });
