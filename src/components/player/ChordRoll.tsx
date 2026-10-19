@@ -5,7 +5,6 @@ import { addChordAt, setChordAt, setChordStart } from "../../lib/chordEdit";
 import { ADD_HALF_PX, STRIP_H, classifyPress, type RollBlock } from "../../lib/rollHit";
 import { useChordSelection } from "../../stores/chordSelection";
 import ChordEditorHost from "./ChordEditorHost";
-import ChordRollMap from "./ChordRollMap";
 import { useNoteRoll } from "./useNoteRoll";
 import { useChordCommit } from "./useChordCommit";
 import { chordSynth } from "../../audio/chordSynth";
@@ -473,13 +472,6 @@ export default function ChordRoll({ song }: RollProps) {
         {problem && <span className="chord-roll__error">{problem}</span>}
       </header>
       <div className="chord-roll__body">
-        <ChordRollMap
-          chords={segments.map((segment, i) => ({ segment, chord: display[i].chord, bass: display[i].bass }))}
-          duration={song.duration}
-          currentTime={currentTime}
-          selected={selected}
-          onSeek={(time) => usePlayerStore.getState().seek(time)}
-        />
         {prefs.roll && (
           <canvas
             ref={canvas}
@@ -492,9 +484,9 @@ export default function ChordRoll({ song }: RollProps) {
             title="Click to go there, drag to scrub. Click a chord button to correct it; drag the amber handle at its left to move where it starts"
           />
         )}
-        <ChordEditorHost song={song} />
-        {prefs.spectrum && here && (
+        {prefs.spectrum && here ? (
           <div className="chord-roll__spectrum">
+            <ChordEditorHost song={song} />
             <ChordSpectrumPanel
               key={picked === null ? "playhead" : "stretch"}
               source={spectrumSource}
@@ -512,6 +504,8 @@ export default function ChordRoll({ song }: RollProps) {
               defaultLive={picked === null}
             />
           </div>
+        ) : (
+          <ChordEditorHost song={song} />
         )}
       </div>
     </section>
