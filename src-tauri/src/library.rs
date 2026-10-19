@@ -1231,12 +1231,20 @@ mod tests {
         song_with_detected_chords(&home);
         save_chord_edits("a", vec![seg(0.0, 8.0, "E:min")]).unwrap();
         assert!(save_chord_edits("a", vec![seg(0.0, 4.0, "Q:maj")]).is_err());
-        assert!(save_chord_edits("a", vec![seg(0.0, 4.0, "E:5")]).is_ok(), "a power chord is a chord");
-        for quality in ["add9", "min6", "9", "min7b5", "dim7", "7sus4", "minmaj7", "maj9", "min9", "11", "13"] {
+        assert_eq!(read_chords("a").unwrap()[0].chord, "E:min");
+    }
+
+    #[test]
+    fn every_quality_the_editor_offers_can_be_saved() {
+        let home = TestHome::new();
+        song_with_detected_chords(&home);
+        for quality in [
+            "maj", "min", "7", "maj7", "min7", "sus2", "sus4", "dim", "aug", "6", "5",
+            "add9", "min6", "9", "min7b5", "dim7", "7sus4", "minmaj7", "maj9", "min9", "11", "13",
+        ] {
             let chord = format!("C:{quality}");
             assert!(save_chord_edits("a", vec![seg(0.0, 4.0, &chord)]).is_ok(), "{chord} is a chord");
         }
-        assert_eq!(read_chords("a").unwrap()[0].chord, "E:min");
     }
 
     #[test]
