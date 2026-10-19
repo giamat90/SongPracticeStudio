@@ -14,6 +14,8 @@ export interface NoteRollState {
   analysedAt: number;
   /** What the analysis is doing, for the header; null when it is idle. */
   status: string | null;
+  /** How far the analysis is, 0 to 1; null when it is not analysing. */
+  progress: number | null;
   error: string | null;
   /** Throw the saved notes away and analyse again. */
   reanalyse: () => void;
@@ -33,12 +35,14 @@ export function useNoteRoll(song: Song, stems: readonly string[], enabled: boole
   const [matrices, setMatrices] = useState<Record<string, NoteMatrix>>({});
   const [analysedAt, setAnalysedAt] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [force, setForce] = useState(0);
 
   useEffect(() => {
     setMatrices({});
     setStatus(null);
+    setProgress(null);
     setError(null);
     if (!enabled || !song.hasChords || stems.length === 0) return;
     let cancelled = false;
@@ -56,7 +60,9 @@ export function useNoteRoll(song: Song, stems: readonly string[], enabled: boole
         const got = getEngine().getStemSamples([stems[i]], 0, song.duration);
         if (!got) continue;
         out[stems[i]] = await computeNoteMatrix(got.samples, got.sampleRate, (done) => {
-          if (!cancelled) setStatus(`Analysing notes ${Math.round(((i + done) / stems.length) * 100)}%`);
+          if (cancelled) return;
+          setProgress((i + done) / stems.length);
+          setStatus(`Analysing notes ${Math.round(((i + done) / stems.length) * 100)}%`);
         });
         if (cancelled) return;
         setAnalysedAt(at);
@@ -64,6 +70,7 @@ export function useNoteRoll(song: Song, stems: readonly string[], enabled: boole
       }
       if (cancelled) return;
       setStatus(null);
+      setProgress(null);
       if (Object.keys(out).length === 0) {
         setError("No audio to analyse yet.");
         return;
@@ -98,5 +105,5 @@ export function useNoteRoll(song: Song, stems: readonly string[], enabled: boole
     return () => { cancelled = true; };
   }, [song.id, song.hasChords, song.duration, stems, enabled, force]);
 
-  return { matrices, analysedAt, status, error, reanalyse: () => setForce((n) => n + 1) };
+  return { matrices, analysedAt, status, progress, error, reanalyse: () => setForce((n) => n + 1) };
 }

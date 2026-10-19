@@ -132,41 +132,48 @@ export default function ChordEditor({
   return (
     <div className="chord-spectrum__editor" role="group" aria-label={`Edit chord ${formatChordName(segment.chord, segment.bass)}`}>
       <div className="chord-spectrum__row">
-        <button
-          className="chord-editor__button"
-          onClick={() => hear(heard, heardBass)}
-          title="Play this chord on a synthesiser, tuned to the recording"
-        >
-          Hear
-        </button>
-        <button
-          className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
-          onClick={toggleWithSong}
-          aria-pressed={withSong}
-          title="Loop this part of the song with the chord sounding under it, to compare them"
-        >
-          With song
-        </button>
-        <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
-        <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
-          Go to
-        </button>
-        <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
-          Start here
-        </button>
-        <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
-          End here
-        </button>
-        <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
-          Split here
-        </button>
-        <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
-          Join next
-        </button>
-        <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
-          Delete
-        </button>
-        <button className="chord-editor__button" onClick={onClose} aria-label="Close the chord editor">
+        <span className="chord-spectrum__label">Edit</span>
+        <div className="chord-editor__group" role="group" aria-label="Listen">
+          <button
+            className="chord-editor__button"
+            onClick={() => hear(heard, heardBass)}
+            title="Play this chord on a synthesiser, tuned to the recording"
+          >
+            Hear
+          </button>
+          <button
+            className={`chord-editor__button${withSong ? " chord-editor__button--on" : ""}`}
+            onClick={toggleWithSong}
+            aria-pressed={withSong}
+            title="Loop this part of the song with the chord sounding under it, to compare them"
+          >
+            With song
+          </button>
+        </div>
+        <div className="chord-editor__group" role="group" aria-label="Where the chord is">
+          <span className="chord-editor__time">{seconds(segment.start)} – {seconds(segment.end)}</span>
+          <button className="chord-editor__button" onClick={onGoTo} disabled={busy} title="Move the playhead to the start of this chord">
+            Go to
+          </button>
+          <button className="chord-editor__button" onClick={onStartHere} disabled={busy} title="Make this chord start at the playhead">
+            Start here
+          </button>
+          <button className="chord-editor__button" onClick={onEndHere} disabled={busy} title="Make this chord end at the playhead">
+            End here
+          </button>
+        </div>
+        <div className="chord-editor__group" role="group" aria-label="Change the chord's length">
+          <button className="chord-editor__button" onClick={onSplit} disabled={busy || !canSplit} title="Cut this chord in two at the playhead">
+            Split here
+          </button>
+          <button className="chord-editor__button" onClick={onJoin} disabled={busy || !canJoin} title="Merge the next chord into this one">
+            Join next
+          </button>
+          <button className="chord-editor__button chord-editor__button--danger" onClick={onDelete} disabled={busy} title="Remove this chord">
+            Delete
+          </button>
+        </div>
+        <button className="chord-editor__button chord-editor__done" onClick={onClose} aria-label="Close the chord editor">
           Done
         </button>
         {error && <span className="chord-editor__error" role="alert">{error}</span>}

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { STEM_COLORS } from "../../audio/engine";
 import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
 import { chordVoicing } from "../../lib/chordVoicing";
 import {
@@ -198,13 +199,21 @@ export default function ChordSpectrumPanel({
     <div className="chord-spectrum" role="group" aria-label="Chord spectrum">
       <div className="chord-spectrum__row">
         <span className="chord-spectrum__label">Stems</span>
-        {source.stems.map((name) => (
-          <label key={name} className="chord-spectrum__check">
-            <input type="checkbox" checked={stems.includes(name)} onChange={() => toggleStem(name)} />
-            {name}
-          </label>
-        ))}
-        <select className="chord-editor__select" value={live ? "live" : "stretch"} onChange={(e) => setLive(e.target.value === "live")} aria-label="What to measure">
+        <div className="roll-chips" role="group" aria-label="Stems in the spectrum">
+          {source.stems.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="roll-chip"
+              style={{ "--dot": STEM_COLORS[name] } as CSSProperties}
+              aria-pressed={stems.includes(name)}
+              onClick={() => toggleStem(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        <select className="roll-select" value={live ? "live" : "stretch"} onChange={(e) => setLive(e.target.value === "live")} aria-label="What to measure">
           <option value="stretch">This chord's stretch</option>
           <option value="live">Playhead</option>
         </select>
@@ -212,11 +221,11 @@ export default function ChordSpectrumPanel({
 
       <div className="chord-spectrum__row">
         <span className="chord-spectrum__label">Chord</span>
-        <select className="chord-editor__select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
+        <select className="roll-select" value={candRoot} disabled={busy} onChange={(e) => onCandidate(`${e.target.value}:${candQuality}`)} aria-label="Candidate root">
           {CHORD_NOTES.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
         <select
-          className="chord-editor__select"
+          className="roll-select"
           value={candQuality}
           disabled={busy}
           onChange={(e) => onCandidate(`${candRoot}:${e.target.value}`)}
@@ -226,7 +235,7 @@ export default function ChordSpectrumPanel({
         </select>
         {onBass && (
           <select
-            className="chord-editor__select"
+            className="roll-select"
             value={bassNote ?? ""}
             disabled={busy}
             onChange={(e) => onBass(e.target.value || null)}
@@ -249,7 +258,7 @@ export default function ChordSpectrumPanel({
           </button>
         )}
         <select
-          className="chord-editor__select"
+          className="roll-select"
           value={overtones}
           onChange={(e) => setOvertones(e.target.value === "pure" ? "pure" : "rich")}
           aria-label="Candidate overtones"
