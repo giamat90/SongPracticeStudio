@@ -76,7 +76,8 @@ flowchart TB
     subgraph ap["AnalyzerPage"]
         direction TB
         TOP["Topbar: TransportControls, TempoControl, KeyTranspose,<br/>CapoSelect, ChordDetailSelect, LoopButton, LoopsMenu,<br/>OutputSelector, Export buttons"]
-        SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>ChordRow (click a chip: ChordEditor)<br/>(collapsible waveform area)"]
+        SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>(collapsible waveform area)"]
+        CR["ChordRoll panel: notes per stem, chord strip,<br/>spectrum, chord editor (note_roll.json cache)"]
         BT["BassTabPanel (bass stem only)"]
         TB["TabPanel + TabScoreView (alphaTab)"]
         REC["Recording: RecordButton, MicSelector, RecordingOffsetControl"]
@@ -343,7 +344,7 @@ flowchart LR
         S1 --> S2 --> S3 --> S4
     end
     S4 --> CJ["chords.json v6<br/>segments + confidence + alternatives + tuning"]
-    UE["user corrections<br/>(ChordEditor)"] --> CEJ["chords_edited.json (wins when present)"]
+    UE["user corrections<br/>(ChordRoll: strip, handles, +, editor)"] --> CEJ["chords_edited.json (wins when present)"]
     CJ --> RS["read_song_chords"]
     CEJ --> RS
     RS --> FE["lib/chords.ts useChordSegments"]
@@ -358,7 +359,7 @@ flowchart LR
         CC["chordChart: text chart export"]
     end
     FE --> pure
-    pure --> UI["ChordCarousel, ChordRow, ChordEditor,<br/>ExportChartButton, LoopsMenu sections"]
+    pure --> UI["ChordCarousel, ChordRoll (strip, editor, spectrum),<br/>ExportChartButton, LoopsMenu sections"]
     UI --> SY["chordSynth (audition tone)"]
     UE -. "save_chord_edits" .-> CEJ
     RD["redetect_song_chords"] -. "detect_chords, deletes edits" .-> sidecar
