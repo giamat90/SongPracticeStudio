@@ -4447,3 +4447,11 @@ button.stem-track__take-name {
 .chord-spectrum__note {
   color: var(--text-secondary);
 }
+
+/* Chord roll (spike) */
+.chord-roll { background: #0f0f1e; border-radius: 0.5rem; margin-top: 0.5rem; }
+.chord-roll__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; }
+.chord-roll__stem { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.75rem; border-left: 0.2rem solid; padding-left: 0.3rem; }
+.chord-roll__progress { font-size: 0.75rem; opacity: 0.8; }
+.chord-roll__error { color: #ef4444; font-size: 0.75rem; }
+.chord-roll__canvas { display: block; width: 100%; height: 18rem; }

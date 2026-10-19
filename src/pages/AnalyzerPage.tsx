@@ -7,6 +7,7 @@ import CapoSelect from "../components/player/CapoSelect";
 import ChordDetailSelect from "../components/player/ChordDetailSelect";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
+import ChordRoll from "../components/player/ChordRoll";
 import TabPanel from "../components/tab/TabPanel";
 import TransportControls from "../components/player/TransportControls";
 import LoopButton from "../components/player/LoopButton";
@@ -143,6 +144,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <div className={`analyzer-page__waveforms${waveformsShown ? "" : " analyzer-page__waveforms--collapsed"}`}>
             <StemView song={song} />
           </div>
+          <ChordRoll song={song} />
           {waveformVisible.bassTab && <BassTabPanel song={song} />}
           {waveformVisible.songTab && <TabPanel song={song} />}
         </div>
