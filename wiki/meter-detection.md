@@ -126,3 +126,23 @@ What the numbers say:
 - **Confidence is informative about the length, not the downbeat.** AUC 0.86 against "the length is right" (small set, wide uncertainty: 10 and 7 songs), but Beat It scores 0.84 with the downbeat on the wrong beat.
 
 Not yet done: P4 (the four-beat baseline), a downbeat rule tuned on the `constant` set and confirmed on the `odd` set, and the ear check of the bar-beep files that decides which references count for P3.
+
+## Downbeat rule sweep (not adopted)
+
+`meter_lab/phase_sweep.py` on the cached frame features, 2026-10-20: nine ways of choosing the first beat, each with the onset windows running from a beat to the next (as shipped) and centred on the beat. Mean F1 on the `constant` set (13 songs, the tuning set) and the `odd` set (4, held out):
+
+| Rule | Forward windows (shipped) | Centred windows |
+|---|---|---|
+| kick + bass + harmony + 0.4 hats (shipped) | 0.48 / 0.16 | 0.48 / 0.19 |
+| kick only | 0.11 / 0.09 | 0.32 / 0.13 |
+| bass only | 0.17 / 0.15 | 0.23 / 0.19 |
+| harmony change only | 0.48 / 0.19 | 0.48 / 0.19 |
+| bass + harmony | 0.48 / 0.15 | 0.55 / 0.19 |
+| backbeat (first-beat evidence, hats between the beats) | 0.46 / 0.16 | **0.60** / 0.15 |
+
+What it shows, and why nothing was changed:
+
+- **A real defect in the shipped features.** Taking each beat's onset strength from the beat to the next beat credits a hit that lands a little before the tracked beat to the beat before. Centring the windows lifts kick-only from 0.11 to 0.32, which a defect like that explains and noise does not.
+- **The gain from the best rule is two songs.** Per song, with centred windows the shipped rule gets Beat It right (0.00 to 0.91) and loses You Oughta Know (0.81 to 0.00); the backbeat rule gets Party in the U.S.A. (0.00 to 0.87) and You Oughta Know back (0.81), and loses a little on War Pigs (0.21 to 0.02). Chop Suey stays at 0.00 under every rule, which may be the detector or the reference.
+- **It is the best of nine on the songs it was chosen on, and the held-out set cannot confirm it**: the four `odd` songs fail for another reason (one meter per song), so 0.16 against 0.15 says nothing about phase. The protocol asks for a gain that holds on songs it was not tuned on, so the detector stays as benchmarked and the Meter panel's *first beat a pulse earlier or later* stays the answer to a wrong downbeat.
+- **To adopt it properly:** a third set of songs with references (Smooth Criminal has a `.mid` in the tab folder and no reference yet; more tabs would help), the centred windows as a defect fix, and the backbeat rule only if it holds there.
