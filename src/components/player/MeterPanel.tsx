@@ -71,6 +71,7 @@ export default function MeterPanel({ song }: { song: Song }) {
   const dismiss = usePlayerStore((s) => s.clearMeterError);
 
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [replacing, setReplacing] = useState(false);
   const envelope = useHitEnvelope(song, prefs.envelope && map !== null);
 
   const setPref = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
@@ -97,9 +98,24 @@ export default function MeterPanel({ song }: { song: Song }) {
           <Readout />
         </div>
         <div className="meter-panel__actions">
-          <button type="button" className="meter-btn" onClick={() => void detect()} disabled={busy || tapping} title="Listen to the song's beat and work out where the bars fall and how long they are">
-            {busy ? "Finding bars…" : map ? "Find bars again" : "Find bars"}
-          </button>
+          {replacing ? (
+            <>
+              <button type="button" className="meter-btn meter-btn--primary" onClick={() => { setReplacing(false); void detect(); }} title="Finding the bars again throws your bars away (Undo brings them back until you leave the song)">
+                Replace my bars
+              </button>
+              <button type="button" className="meter-btn" onClick={() => setReplacing(false)}>Keep them</button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="meter-btn"
+              onClick={() => (edited ? setReplacing(true) : void detect())}
+              disabled={busy || tapping}
+              title="Listen to the song's beat and work out where the bars fall and how long they are"
+            >
+              {busy ? "Finding bars…" : map ? "Find bars again" : "Find bars"}
+            </button>
+          )}
           <button type="button" className="meter-btn" onClick={() => void fromTempo()} disabled={busy || tapping} title="Start from the song's tempo with four beats to a bar, then correct it">
             {map ? "Start over from the tempo" : "Start from the tempo"}
           </button>

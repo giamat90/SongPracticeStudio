@@ -12,6 +12,7 @@ import {
   rescalePulse,
   setBarStart,
   shiftBars,
+  shiftDownbeat,
   splitBar,
   unitBpm,
   type BarMap,
@@ -246,7 +247,13 @@ export default function MeterEditor({ song, map, selected }: Props) {
         </p>
       )}
 
+      {map && (
       <div className="meter-editor__group" role="group" aria-label="Whole song">
+        <div className="meter-row">
+          <span className="roll-field__label">First beat of every bar</span>
+          <button type="button" className="meter-btn" disabled={!map} onClick={() => map && void apply(shiftDownbeat(map, -1))} title="The beat before is the first beat: every bar line moves back one pulse">&larr; a pulse earlier</button>
+          <button type="button" className="meter-btn" disabled={!map} onClick={() => map && void apply(shiftDownbeat(map, 1))} title="The beat after is the first beat: every bar line moves on one pulse">a pulse later &rarr;</button>
+        </div>
         <div className="meter-row">
           <span className="roll-field__label">Shift every bar</span>
           {NUDGES_MS.map((ms) => (
@@ -256,6 +263,7 @@ export default function MeterEditor({ song, map, selected }: Props) {
           ))}
         </div>
       </div>
+      )}
 
       <div className="meter-editor__group" role="group" aria-label="Tap the bars in">
         {tapSession ? (

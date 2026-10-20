@@ -27,7 +27,7 @@ function TempoControl({ detectedBpm }: Props) {
         <button
           className={`metronome-btn${tempo.metronomeEnabled ? " metronome-btn--active" : ""}`}
           onClick={tempo.toggleMetronome}
-          title={tempo.metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
+          title={tempo.metronomeEnabled ? "Disable metronome" : meterMap ? "Enable metronome (clicks the song's bars while playing)" : "Enable metronome (clicks while playing)"}
           aria-label={tempo.metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
         >
           🥁

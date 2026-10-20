@@ -110,8 +110,8 @@ export default function MeterLane({ map, duration, windowSeconds, envelope, sele
         const w = Math.max(1, (W / win) / ENVELOPE_FPS);
         for (let f = f0; f <= f1; f++) {
           const v = env[f];
-          if (v < 0.04) continue;
-          const h = v * bodyH * 0.92;
+          if (v < 0.01) continue;
+          const h = Math.sqrt(v) * bodyH * 0.92;
           ctx.fillRect(xOf(f / ENVELOPE_FPS), H - h, w, h);
         }
       }

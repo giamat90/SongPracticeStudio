@@ -1,6 +1,6 @@
 # Meter detection ("tick-tack"): design record and measurement protocol
 
-Status 2026-10-20: **protocol written before any detector result exists.** Nothing here ships yet. The point of this page is that the pass/fail thresholds below were fixed first, so a result cannot move them.
+Status 2026-10-20: the protocol below was written before any detector result existed, and the first detector has since been measured against it: [it does not meet the thresholds](#results-of-the-first-detector). The Meter feature ships anyway, with the detector as a labelled first guess and the tools to correct it, on the user's decision ([Meter](meter.md)). The thresholds below were fixed first so a result could not move them, and they have not been moved.
 
 ## Why
 
@@ -80,3 +80,49 @@ Share of bars by meter in the reference maps:
 - **P1 and P2 for compound meters.** A pulse ratio of 3 to the denominator note (the dotted quarter in 6/8, 9/8, 12/8) counts as level-correct for those songs, and the bar length is then counted in those pulses (6/8 is 2). Without this a tracker that follows the dotted quarter would score as wrong on The Kill, which is the natural way to count it. The rule is stated before any detector ran.
 - **The `constant` set is not all 4/4.** It holds four meters (4/4, 6/8, 7/4 and a 4/4 and 7/4 mix). "Dominant meter" in P2 means the most common one by bar count.
 - **Ear checks are still pending.** `ear_checked` in each reference file is `null` until the user has listened to the bar-beep file. P3 only uses songs set to true.
+
+## Results of the first detector
+
+`meter.py` (`stems-accent-v0`, [how it works](meter.md#finding-the-bars-sidecar)) scored with `meter_lab/benchmark.py` on the 17 reference songs, 2026-10-20. No constant was tuned on these songs: the detector was written from the spike, and the only change after seeing a result was the shorter-divisor rule, made on a synthetic test before the benchmark ran.
+
+| Song | Set | Tab says | Found | Pulse | Length | F1 at 70 ms | Confidence |
+|---|---|---|---|---|---|---|---|
+| Beat It | constant | 4/4 | 4 beats | ok | ok | 0.00 | 0.84 |
+| Chop Suey | constant | 4/4 | 4 beats | ok | ok | 0.00 | 1.00 |
+| Immigrant Song | constant | 4/4 | 4 beats | miss | miss | 0.24 | 0.33 |
+| Like a Stone | constant | 4/4 | 4 beats | ok | ok | 0.93 | 1.00 |
+| Mercy | constant | 4/4 | 4 beats | ok | ok | 0.88 | 1.00 |
+| Money | constant | 4/4 (61%), 7/4 (35%) | 7 beats | miss | miss | 0.17 | 0.86 |
+| Party in the U.S.A. | constant | 4/4 | 4 beats | ok | ok | 0.00 | 1.00 |
+| Solsbury Hill | constant | 7/4 | 7 beats | ok | ok | 0.14 | 0.33 |
+| Starlight | constant | 4/4 | 4 beats | ok | ok | 0.99 | 1.00 |
+| The Kill | constant | 6/8 | 4 beats | miss | miss | 0.87 | 0.88 |
+| War Pigs | constant | 4/4 | 2 beats | ok | miss | 0.21 | 0.04 |
+| What I've Done | constant | 4/4 | 4 beats | ok | ok | 0.94 | 1.00 |
+| You Oughta Know | constant | 4/4 | 4 beats | ok | ok | 0.81 | 0.55 |
+| 7empest | odd | 4/4 (30%) | 2 beats | ok | miss | 0.16 | 0.00 |
+| Lateralus | odd | 6/8 (59%) | 4 beats | miss | miss | 0.06 | 0.00 |
+| Pneuma | odd | 4/4 (48%) | 4 beats | ok | ok | 0.29 | 0.06 |
+| Schism | odd | 6/8 (27%) | 2 beats | ok | miss | 0.10 | 0.00 |
+
+Against the thresholds:
+
+| Metric | `constant` (13) | Threshold | `odd` (4) | Threshold | Verdict |
+|---|---|---|---|---|---|
+| P1 pulse level | 10 of 13 (77%) | 85% | 3 of 4 | 3 of 4 | constant **fails**, odd passes |
+| P2 bar length | 9 of 13 (69%), Money missed | 85% and both 7/4 songs | 1 of 4 | not scored | **fails** |
+| P3 downbeat F1 | mean 0.48 | 0.75 | mean 0.15 | 0.50 | **fails** both |
+| P4 against the four-beat baseline | not run | | not run | | open |
+| P5 confidence | AUC 0.86 for "the length it found is right", over all 17 | 0.70 | | | **passes** |
+
+Decision rule 3 applies: the detector fails P2 and P3 on the `constant` set. What it says is not to ship detection by itself; the user chose (2026-10-20) to ship the tools and keep detection as a clearly labelled first guess, since the point of the feature is that a person can study and fit the meter whatever the detector does. The panel therefore shows where the bars came from and the detector's confidence, never replaces the user's own bars without asking, and has an undo.
+
+What the numbers say:
+
+- **The downbeat is the weak part.** Beat It, Chop Suey and Party in the U.S.A. have the right bar length at confidence 0.84 to 1.00 and an F1 of exactly 0.00: the bar lines sit on beats, one or two beats from the first. Among the ten songs with the right length, six have a good downbeat. This is why the panel has *First beat of every bar, a pulse earlier or later* as a one-click tool. (Beat It and Chop Suey are two of the three tabs that have bar-beep files from the tab-sync work; the other references have not been ear-checked, and F1 is only as good as their alignment.)
+- **Counting is not the same as placing.** The Kill is 6/8 in its tab and the detector counts four beats, so it scores as wrong on P1 and P2, yet its bar lines are right (F1 0.87): the tracker counts the two dotted-quarter beats of a 6/8 bar as four beats at its preferred tempo. *Count finer / coarser* and the pulse editor exist for this.
+- **Money is a fair miss.** The tab is 4/4 for 61% of the time and 7/4 for 35%; the detector found the 7/4 riff. A reference with one dominant meter per song is too crude for it.
+- **The changing-meter songs are out of reach of one meter per song.** Schism, Lateralus and 7empest score near zero by construction. They are the reason for the repeat-a-pattern and tap tools.
+- **Confidence is informative about the length, not the downbeat.** AUC 0.86 against "the length is right" (small set, wide uncertainty: 10 and 7 songs), but Beat It scores 0.84 with the downbeat on the wrong beat.
+
+Not yet done: P4 (the four-beat baseline), a downbeat rule tuned on the `constant` set and confirmed on the `odd` set, and the ear check of the bar-beep files that decides which references count for P3.
