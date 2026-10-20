@@ -54,20 +54,31 @@ def _load(paths: list) -> np.ndarray | None:
     return mix
 
 
-def _sync(feature: np.ndarray, beats: np.ndarray, how=np.mean) -> np.ndarray:
-    """One value per beat from the frames between it and the next beat."""
-    edges = np.concatenate([beats, [feature.shape[-1]]]).astype(int)
+def _sync(feature: np.ndarray, beats: np.ndarray, how=np.mean, centred: bool = False) -> np.ndarray:
+    """
+    One value per beat from the frames around it. `centred` takes the frames halfway to the neighbouring beats on each
+    side, so a hit that lands a little before the tracked beat is still that beat's; otherwise the frames from the beat
+    to the next one (right for a harmony that changes on the beat).
+    """
+    n = feature.shape[-1]
+    beats = np.asarray(beats, dtype=float)
+    if centred:
+        mids = (beats[:-1] + beats[1:]) / 2
+        edges = np.concatenate([[max(0.0, 2 * beats[0] - mids[0])], mids, [min(float(n), 2 * beats[-1] - mids[-1])]])
+    else:
+        edges = np.concatenate([beats, [float(n)]])
+    edges = np.rint(edges).astype(int)
     out = np.zeros(feature.shape[:-1] + (len(beats),))
     for k in range(len(beats)):
         a, b = edges[k], max(edges[k] + 1, edges[k + 1])
-        out[..., k] = how(feature[..., a:min(b, feature.shape[-1])], axis=-1) if a < feature.shape[-1] else 0
+        out[..., k] = how(feature[..., a:min(b, n)], axis=-1) if a < n else 0
     return out
 
 
-def beat_features(stem_paths: dict) -> dict | None:
+def frame_features(stem_paths: dict) -> dict | None:
     """
-    {"times": beat times (s), "low", "high", "bass", "novelty": one value per beat}, or None when the song has no
-    usable pulse. `low` and `high` are the kick and the rest of the drums, `novelty` is how much the harmony changes.
+    What the beat features are made of, per audio frame: the tracked beats (frame indices), the strength of the
+    kick, of the rest of the drums and of the bass, and the chroma of the harmony. None without a usable pulse.
     """
     rhythm_names = [n for n in ("drums", "bass") if n in stem_paths]
     rhythm = _load([stem_paths[n] for n in rhythm_names] if rhythm_names else list(stem_paths.values()))
@@ -87,22 +98,35 @@ def beat_features(stem_paths: dict) -> dict | None:
     high = librosa.onset.onset_strength(S=librosa.amplitude_to_db(spectrum[KICK_BINS:], ref=np.max), sr=SAMPLE_RATE)
     bass_audio = _load([stem_paths["bass"]]) if "bass" in stem_paths else rhythm
     bass = librosa.onset.onset_strength(y=bass_audio, sr=SAMPLE_RATE, hop_length=HOP)
-
     harmonic = [p for n, p in stem_paths.items() if n not in ("drums", "vocals")]
     chroma = librosa.feature.chroma_cqt(y=_load(harmonic) if harmonic else rhythm, sr=SAMPLE_RATE, hop_length=HOP)
 
     n_frames = min(chroma.shape[1], len(low), len(bass))
-    beats = frames[frames < n_frames]
-    chords = _sync(chroma[:, :n_frames], beats)
+    return {
+        "beats": frames[frames < n_frames],
+        "low": low[:n_frames], "high": high[:n_frames], "bass": bass[:n_frames], "chroma": chroma[:, :n_frames],
+    }
+
+
+def beat_features_from(frames: dict, centred: bool = False) -> dict:
+    """{"times": beat times (s), "low", "high", "bass": one value per beat, "novelty": how much the harmony changes}."""
+    beats = frames["beats"]
+    chords = _sync(frames["chroma"], beats)
     chords = chords / (np.linalg.norm(chords, axis=0, keepdims=True) + 1e-9)
     novelty = np.concatenate([[0.0], 1 - np.sum(chords[:, 1:] * chords[:, :-1], axis=0)])
     return {
         "times": librosa.frames_to_time(beats, sr=SAMPLE_RATE, hop_length=HOP),
-        "low": _sync(low[None, :n_frames], beats, np.max)[0],
-        "high": _sync(high[None, :n_frames], beats, np.max)[0],
-        "bass": _sync(bass[None, :n_frames], beats, np.max)[0],
+        "low": _sync(frames["low"][None], beats, np.max, centred)[0],
+        "high": _sync(frames["high"][None], beats, np.max, centred)[0],
+        "bass": _sync(frames["bass"][None], beats, np.max, centred)[0],
         "novelty": novelty,
     }
+
+
+def beat_features(stem_paths: dict) -> dict | None:
+    """The per-beat description of a song, or None when it has no usable pulse."""
+    frames = frame_features(stem_paths)
+    return None if frames is None else beat_features_from(frames)
 
 
 def _z(x: np.ndarray) -> np.ndarray:
