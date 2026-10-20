@@ -9,6 +9,7 @@ SPS counts every bar as four beats: `BEATS_PER_BAR = 4` in mps-core's `audio/met
 ## What was learned before this page
 
 - Picking the bar length by periodicity alone returns multiples of the true length (8 for 4/4). Restricting candidates to 2 to 7 beats fixed that: 20 of 21 presumed-4/4 library songs picked 4. A fixed score ratio did not separate 4 from 8.
+- Correction (same day): the sentence above rested on an assumption that was wrong for one song. The Kill is 6/8 in its tab, and the spike called it 4, so it was 19 of 20 of the *presumed* 4/4 songs, not 20 of 21 confirmed. See the amendment below.
 - Two songs gave no usable signal at all (best score about zero). Confidence has to say so.
 - 3 Libras (6/8, confirmed by the user) came out as 3 beats per bar: the right family, the wrong beat level. The pulse level (which note the tempo counts) has to be settled before bar length means anything.
 - The reference tabs show that odd-meter songs are not one meter. Schism alternates 5/8 and 7/8; Lateralus cycles 9/8, 8/8, 7/8; 7empest is 5/8 three times then 6/8; Pneuma mixes 4/4, 5/4, 6/8 and 5/8. Money and Solsbury Hill are 7/4 with short 4/4 or 6/4 bars. A single "beats per bar" number cannot describe the first group. The model that does is a **constant pulse plus a repeating cycle of bar lengths** (Schism [5,7] eighths, Lateralus [9,8,7]).
@@ -23,7 +24,7 @@ Bar maps `[{index, time, num, den}]` on the real recordings, from the user's Gui
 
 | Set | Songs | Role |
 |---|---|---|
-| `constant` | the 11 tab songs (4/4 by their tabs) + Money + Solsbury Hill (7/4 with short 4/4 bars) | tuning |
+| `constant` | the 11 older tab songs + Money + Solsbury Hill: one dominant meter each (see the amendment) | tuning |
 | `odd` | Schism, Lateralus, Pneuma, 7empest | held out: never used to choose a constant |
 
 Four held-out songs is a small set. A song count that low means a pass is evidence, not proof, and every number gets its count next to it.
@@ -57,3 +58,25 @@ Decision rule:
 ## Open
 
 Whether a learned downbeat tracker beats a stems-based classical one is not decided; its weights' licence is unchecked and it would be a comparison arm, not an assumption.
+
+## Amendment 2026-10-20 (reference data read; still no detector result)
+
+Building the reference maps showed the song descriptions above were partly wrong. The thresholds are unchanged; what changes is how two metrics treat compound meters.
+
+Share of bars by meter in the reference maps:
+
+| Song | Set | Meter (share of bars) |
+|---|---|---|
+| Beat It, Chop Suey, Immigrant Song, Like a Stone, Party in the U.S.A., Starlight, What I've Done, You Oughta Know | `constant` | 4/4 (100%) |
+| Mercy, War Pigs | `constant` | 4/4 (96%, 95%), a few 2/4, 3/4 or 12/8 bars |
+| **The Kill** | `constant` | **6/8 (100%)** |
+| Money | `constant` | 4/4 61%, 7/4 35%, 6/4 2% |
+| Solsbury Hill | `constant` | 7/4 91%, 4/4 8% |
+| Schism | `odd` | 6/8 27%, 7/8 24%, 5/8 21% (plus 5/4, 4/4, 3/8 and others) |
+| Lateralus | `odd` | 6/8 59%, 5/8 23%, 9/8 6% |
+| Pneuma | `odd` | 4/4 48%, 6/8 23%, 5/8 23% |
+| 7empest | `odd` | 4/4 30%, 7/8 28%, 5/8 17% |
+
+- **P1 and P2 for compound meters.** A pulse ratio of 3 to the denominator note (the dotted quarter in 6/8, 9/8, 12/8) counts as level-correct for those songs, and the bar length is then counted in those pulses (6/8 is 2). Without this a tracker that follows the dotted quarter would score as wrong on The Kill, which is the natural way to count it. The rule is stated before any detector ran.
+- **The `constant` set is not all 4/4.** It holds four meters (4/4, 6/8, 7/4 and a 4/4 and 7/4 mix). "Dominant meter" in P2 means the most common one by bar count.
+- **Ear checks are still pending.** `ear_checked` in each reference file is `null` until the user has listened to the bar-beep file. P3 only uses songs set to true.
