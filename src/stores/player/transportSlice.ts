@@ -1,6 +1,7 @@
 import type { AudioEngine } from "../../audio/engine";
 import { clampCapo, readCapos } from "./prefs";
 import { disposeRecorder, getEngine } from "./singletons";
+import { meterReset } from "./meterSlice";
 import { mixerReset } from "./mixerSlice";
 import { punchReset } from "./timelineSlice";
 import { recordingReset } from "./recordingSlice";
@@ -68,12 +69,14 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
       ...punchReset(),
       ...takesReset(),
       ...recordingReset(),
+      ...meterReset(),
       minPxPerSec: baselinePxPerSec,
       scrollTime: 0,
       metronomeOffset: Math.max(0, Math.min(eng.getDuration(), song.metronomeOffset ?? 0)),
       capo: clampCapo(Number(readCapos()[song.id]) || 0),
     });
     get().fetchTakes();
+    get().loadMeter(song.id).catch((e: unknown) => console.error("[player] loading the bars failed:", e));
   },
 
   play: () => {
@@ -134,6 +137,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
       ...mixerReset({}),
       ...recordingReset(),
       ...takesReset(),
+      ...meterReset(),
     });
   },
 });

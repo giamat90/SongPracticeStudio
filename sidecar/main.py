@@ -137,6 +137,11 @@ def main():
                 result = detect_chords_from_stems(cmd["stemPaths"], cmd["outputPath"])
                 send({"type": "result", "cmd": "detect_chords", "data": result})
 
+            elif cmd.get("cmd") == "detect_meter":
+                from meter import detect_meter_from_stems
+                result = detect_meter_from_stems(cmd["stemPaths"], cmd["outputPath"])
+                send({"type": "result", "cmd": "detect_meter", "data": result})
+
             elif cmd.get("cmd") == "align_tab":
                 result = align_tab_file(
                     cmd["scorePath"],

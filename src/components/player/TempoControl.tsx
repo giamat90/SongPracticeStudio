@@ -6,7 +6,14 @@ interface Props {
 }
 
 function TempoControl({ detectedBpm }: Props) {
-  const tempo = useTempoControl(usePlayerStore, { detectedBpm, getCurrentTime: () => getEngine().getCurrentTime() });
+  const meterMap = usePlayerStore((s) => s.meterMap);
+  const clickDensity = usePlayerStore((s) => s.clickDensity);
+  const tempo = useTempoControl(usePlayerStore, {
+    detectedBpm,
+    getCurrentTime: () => getEngine().getCurrentTime(),
+    meterMap,
+    clickDensity,
+  });
 
   return (
     <div className="tempo-control">
@@ -59,7 +66,7 @@ function TempoControl({ detectedBpm }: Props) {
           />
           <span className="tempo-control__bpm-unit">×</span>
         </div>
-        {tempo.metronomeEnabled && (
+        {tempo.metronomeEnabled && !meterMap && (
           <div className="tempo-control__bpm-row">
             <span
               className="tempo-control__bpm-unit"

@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Song, Take, Folder, NamedLoop, ChordSegment, StemName, TabBar, TabRecord, TabSync } from "./types";
 import type { BassTabData } from "./bassTab";
+import type { BarMap } from "@giamat90/mps-core/meter";
 import type { MixSource, ZipExportEntry } from "./ipcTypes";
 
 /** Process a song file through the Python sidecar */
@@ -198,6 +199,31 @@ export async function pitchShiftSong(
 /** Detect the song's chords again from its stems (sevenths, slash chords); resolves to the updated song */
 export async function redetectSongChords(songId: string): Promise<Song> {
   return invoke<Song>("redetect_song_chords", { songId });
+}
+
+/** A song's bars: the user's when there are any, otherwise what was detected; null for a song never analysed */
+export async function readSongMeter(songId: string): Promise<BarMap | null> {
+  return invoke<BarMap | null>("read_song_meter", { songId });
+}
+
+/** Whether a song's bars carry the user's corrections */
+export async function hasMeterEdits(songId: string): Promise<boolean> {
+  return invoke<boolean>("has_meter_edits", { songId });
+}
+
+/** Store the user's bar map; `read_song_meter` returns it from then on. */
+export async function saveMeterEdits(songId: string, doc: BarMap): Promise<BarMap> {
+  return invoke<BarMap>("save_meter_edits", { songId, doc });
+}
+
+/** Drop the user's bar map; the detected bars show again. */
+export async function clearMeterEdits(songId: string): Promise<void> {
+  return invoke<void>("clear_meter_edits", { songId });
+}
+
+/** Find the song's bars again from its stems (beats, bar lines, time signature); resolves to the bar map, replacing any corrections */
+export async function redetectSongMeter(songId: string): Promise<BarMap | null> {
+  return invoke<BarMap | null>("redetect_song_meter", { songId });
 }
 
 /**

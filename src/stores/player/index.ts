@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { pushTakeAudio, takeAudioInputsChanged } from "./audioMix";
 import { createChordsSlice } from "./chordsSlice";
 import { createDevicesSlice } from "./devicesSlice";
+import { createMeterSlice } from "./meterSlice";
 import { createMixerSlice } from "./mixerSlice";
 import { createRecordingSlice } from "./recordingSlice";
 import { createTakesSlice } from "./takesSlice";
@@ -22,6 +23,7 @@ export const usePlayerStore = create<PlayerStore>()((...a) => ({
   ...createRecordingSlice(...a),
   ...createTakesSlice(...a),
   ...createChordsSlice(...a),
+  ...createMeterSlice(...a),
 }));
 
 usePlayerStore.subscribe((state, prev) => {

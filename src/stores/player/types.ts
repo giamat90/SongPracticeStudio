@@ -2,6 +2,7 @@ import type { StateCreator, StoreApi } from "zustand";
 import type { Song, StemName, Take } from "../../lib/types";
 import type { ChordDetail } from "../../lib/chordNames";
 import type { TakePlayback } from "@giamat90/mps-core/takes";
+import type { BarMap, ClickDensity } from "@giamat90/mps-core/meter";
 
 export interface CalibrationEntry {
   offset: number; // ms
@@ -151,13 +152,58 @@ export interface ChordsSlice {
   setChordDetail: (detail: ChordDetail) => void;
 }
 
+/** A run of taps being recorded: on the first beat of each bar, or on every beat. */
+export interface TapSession {
+  kind: "bars" | "beats";
+  den: number;
+  /** Beats per bar, for taps on every beat. */
+  perBar: number;
+  /** Seconds per pulse, for taps on the first beat of each bar: how many pulses fit between two taps. */
+  pulse: number;
+  taps: number[];
+}
+
+/** A state the bars can be put back to: what was shown, and whether it was the user's own. */
+export interface MeterEntry {
+  map: BarMap | null;
+  edited: boolean;
+}
+
+export interface MeterSlice {
+  // The song's bars: the user's own when there are any, otherwise what the detector found; null when never analysed
+  meterMap: BarMap | null;
+  meterEdited: boolean;
+  meterHistory: MeterEntry[];
+  meterSelected: number | null;
+  meterBusy: boolean;
+  meterError: string | null;
+  // Which pulses of the bars click (a preference, kept for every song)
+  clickDensity: ClickDensity;
+  tapSession: TapSession | null;
+  loadMeter: (songId: string) => Promise<void>;
+  // Stores a new bar map as the user's own; null (an edit that did not fit) only reports the problem
+  applyMeter: (next: BarMap | null, select?: number | null) => Promise<void>;
+  undoMeter: () => Promise<void>;
+  resetMeter: () => Promise<void>;
+  detectMeter: () => Promise<void>;
+  startMeterFromGrid: () => Promise<void>;
+  selectBar: (index: number | null) => void;
+  setClickDensity: (density: ClickDensity) => void;
+  startTapping: (session: Omit<TapSession, "taps">) => void;
+  tapNow: () => void;
+  finishTapping: () => Promise<void>;
+  cancelTapping: () => void;
+  clearMeterError: () => void;
+}
+
 export type PlayerStore = TransportSlice &
   MixerSlice &
   TimelineSlice &
   DevicesSlice &
   RecordingSlice &
   TakesSlice &
-  ChordsSlice;
+  ChordsSlice &
+  MeterSlice;
 
 export type Slice<T> = StateCreator<PlayerStore, [], [], T>;
 export type Setter = StoreApi<PlayerStore>["setState"];

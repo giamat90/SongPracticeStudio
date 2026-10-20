@@ -813,9 +813,22 @@ def process(
     on_progress(0.96, "chord-detection")
 
     # ===================================================================
-    # Stage 5: Bass tab transcription (0.96 – 1.00)
+    # Stage 5: Bar finding (0.96 – 0.98)
     # ===================================================================
-    on_progress(0.96, "bass-tab")
+    on_progress(0.96, "meter")
+    _log("Finding the bars...")
+    try:
+        from meter import detect_meter_from_stems
+        found = detect_meter_from_stems(stem_paths, os.path.join(output_dir, "meter.json"))
+        _log(f"Bars written: {found['bars']} bars of {found['perBar']} → meter.json")
+    except Exception as e:
+        _log(f"Bar finding error (non-fatal): {e}\n{traceback.format_exc()}")
+    on_progress(0.98, "meter")
+
+    # ===================================================================
+    # Stage 6: Bass tab transcription (0.98 – 1.00)
+    # ===================================================================
+    on_progress(0.98, "bass-tab")
     bass_tab_written = False
     if "bass" in stem_paths:
         _log("Transcribing bass tab...")

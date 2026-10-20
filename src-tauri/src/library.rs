@@ -324,7 +324,7 @@ const CHORD_QUALITIES: [&str; 22] = ["maj", "min", "7", "maj7", "min7", "sus2", 
 const MIN_CHORD_SECONDS: f64 = 0.05;
 const MAX_CHORD_SEGMENTS: usize = 5000;
 
-fn song_directory(song_id: &str) -> Result<std::path::PathBuf, String> {
+pub(crate) fn song_directory(song_id: &str) -> Result<std::path::PathBuf, String> {
     let lib = load()?;
     let song = lib
         .songs
