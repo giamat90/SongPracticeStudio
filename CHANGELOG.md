@@ -6,6 +6,20 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.68] - 2026-10-21
+
+### Added
+- **Monitor: see what you play against the song.** A new **Monitor** switch in the chord roll's header listens to the input chosen in the mic menu (a guitar or keyboard through your interface, or a voice) and draws it in pink next to the song. Nothing is recorded.
+  - On the notes, thin pink bars show the notes you play over the song's own, so you can see at a glance whether you are on the same ones.
+  - On the spectrum, a pink curve for your input sits beside the song's curve and the chord you are trying.
+  - A **You play C** line above the spectrum says which notes of that chord it hears and which are missing, and names the strongest note you play that the chord does not have (play C minor against C major and it reports the E missing and the D sharp).
+  - A level meter and a short message tell you when there is no sound, when the input is clipping, or when the input is unplugged or could not be opened.
+  - While the song plays, the pink notes are placed using the latency calibrated for your input (the same one recording uses), so calibrate it for the best match. Use headphones: a song coming out of speakers is picked up too.
+  - The monitor stops by itself when you leave the song, hide the chord roll, or start a recording, and it follows you if you choose another input.
+
+### Fixed
+- The chord spectrum could stay empty (no orange curve for the song) when the page had just opened, until you moved the playhead. It now measures again as soon as the audio is ready.
+
 ## [0.0.67] - 2026-10-20
 
 ### Added
