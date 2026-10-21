@@ -48,6 +48,12 @@ const FLOOR_BELOW_TOP_DB = 30;
 /** A note this far under the stem's loudest is silence, however clearly it stands out. */
 const AUDIBLE_DB = 45;
 
+/** One note's 0-255 strength from its contrast and level, `top` being the level of the loudest the signal gets. */
+export function strengthOf(contrast: number, level: number, top: number): number {
+  if (level < top - AUDIBLE_DB) return 0;
+  return Math.min(255, Math.round((255 * contrast) / ROLL_RANGE_DB));
+}
+
 export interface FrameNotes {
   /** dB each note stands above the median of the notes around it (0 when it does not). */
   contrast: Float64Array;
@@ -128,10 +134,7 @@ export async function computeNoteMatrix(
   const sorted = Float64Array.from(level).sort();
   const top = sorted[Math.floor(sorted.length * 0.995)];
   const data = new Uint8Array(contrast.length);
-  for (let i = 0; i < data.length; i++) {
-    if (level[i] < top - AUDIBLE_DB) continue;
-    data[i] = Math.min(255, Math.round((255 * contrast[i]) / ROLL_RANGE_DB));
-  }
+  for (let i = 0; i < data.length; i++) data[i] = strengthOf(contrast[i], level[i], top);
   onProgress?.(1);
   return { hop: ROLL_HOP, frames, data };
 }

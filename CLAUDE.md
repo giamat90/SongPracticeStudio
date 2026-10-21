@@ -129,8 +129,12 @@ SongPracticeStudio/
 │   ├── audio/
 │   │   ├── engine.ts           ← AudioEngine: dynamic stems Map + take instance, rAF loop
 │   │   ├── chordSynth.ts       ← organ-like Web Audio chord for auditioning (ChordEditor); own AudioContext, follows the output device
+│   │   ├── liveInput.ts        ← the Monitor's input: opens the chosen device for analysis (no voice processing, loudest channel) and hands out the newest window
+│   │   ├── liveMonitor.ts      ← the Monitor's 100 ms loop, everything injected: reads the input, analyses it, writes the notes into the trace, publishes the reading
 │   ├── stores/
 │   │   ├── player/             ← Zustand, one store built from slices: transport, mixer (volumes/mute/solo/transpose), timeline (punch, zoom, loops, metronome offset), devices (+ latency calibration), recording, takes, chords; plus audioMix/prefs/singletons helpers
+│   │   ├── liveInputStore.ts   ← Zustand factory for the Monitor's state (off / starting / on / error, latest reading)
+│   │   ├── liveInput.ts        ← the Monitor's store wired to the player store, plus `liveTrace` (the notes heard, by roll frame) and the registration of `liveMonitorGate`
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress (`libraryStateCreator` from `@giamat90/mps-core/hooks` + this app's request shape)
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
@@ -140,6 +144,7 @@ SongPracticeStudio/
 │   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
 │   ├── lib/ipc.generated.ts    ← GENERATED IPC wrappers (scripts/gen-ipc.mjs, `npm run gen:ipc`); never edit by hand
 │   ├── lib/ipcTypes.ts         ← shapes that cross IPC and are not Rust-derived (MixSource, ZipExportEntry)
+│   ├── lib/liveInput.ts        ← the Monitor's pure part: LiveAnalyser (spectrum + note strengths of a window), LiveTrace, liveFrameTime, describeInput
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
 │   ├── lib/lyrics.ts           ← canSyncLyrics only (SPS songs may lack the vocals stem); the rest of lyrics is @giamat90/mps-core/lyrics
 │   ├── components/
@@ -155,11 +160,12 @@ SongPracticeStudio/
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
 │   │   │   ├── ChordRoll.tsx      ← the chord panel under the stems (Panels menu "Chord roll"): notes of each stem over time, a strip of chord buttons (click to correct, drag a handle to move a start, + to add), the spectrum section; not detachable (needs decoded audio)
+│   │   │   ├── MonitorControl.tsx ← the Monitor switch in the chord roll's header: listens to the chosen input and draws it in pink on the notes and the spectrum against the song; level meter; the "You play C" readout is in the spectrum panel
 │   │   │   ├── useNoteRoll.ts     ← loads the saved note strengths (`note_roll.json`) or analyses the decoded stems and saves them
 │   │   │   ├── useChordCommit.ts  ← saving a chord correction (stored vs shown chords, `save_chord_edits`, refresh)
 │   │   │   ├── ChordEditorHost.tsx ← the editor of the picked chord with its saving; hands its parts to the spectrum panel
 │   │   │   ├── ChordEditor.tsx    ← Hear (synth, tuned to the recording), With song (loops the chord's stretch with the chord held under it), Go to / Start here / End here / Split / Join / Delete / Done, and drop-downs of the key's chords and of the detector's other guesses
-│   │   │   ├── ChordSpectrumPanel.tsx ← the chord roll's spectrum: ticked stems over a chord's stretch or the playhead plus the spectrum of a synthetic candidate chord (root / quality / slash bass, Use), per-note readings (lib/chordSpectrum.ts)
+│   │   │   ├── ChordSpectrumPanel.tsx ← the chord roll's spectrum: ticked stems over a chord's stretch or the playhead plus the spectrum of a synthetic candidate chord (root / quality / slash bass, Use), per-note readings (lib/chordSpectrum.ts); with the Monitor on, the live input as a pink curve and a "You play" readout
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  PRESENT_DB, candidateSpectrumDb, columnCurve, meanSpectrumDb, noteName, readTones, spectrumPeaks, strongestExtra,
+  PRESENT_DB, candidateSpectrumDb, columnCurve, isPresent, meanSpectrumDb, noteName, readTones, spectrumPeaks, strongestExtra,
 } from "./chordSpectrum";
 import { chordVoicing } from "./chordVoicing";
 
@@ -103,5 +103,20 @@ describe("columnCurve", () => {
     const curve = columnCurve(db, SR, 400);
     expect(curve.length).toBe(400);
     expect(Math.max(...curve)).toBeCloseTo(0, 5);
+  });
+});
+
+describe("isPresent", () => {
+  const tone = (db: number | null, overtoneOf: string | null = null) => ({ note: "E", freq: 330, db, overtoneOf });
+
+  it("accepts a note found at or above the present level", () => {
+    expect(isPresent(tone(0))).toBe(true);
+    expect(isPresent(tone(PRESENT_DB))).toBe(true);
+  });
+
+  it("rejects a missing note, a weak one, and one that is only an overtone", () => {
+    expect(isPresent(tone(null))).toBe(false);
+    expect(isPresent(tone(PRESENT_DB - 1))).toBe(false);
+    expect(isPresent(tone(-3, "C"))).toBe(false);
   });
 });
