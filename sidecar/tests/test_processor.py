@@ -261,7 +261,7 @@ class TestProcessProgress:
         for _, stage in events:
             if not order or order[-1] != stage:
                 order.append(stage)
-        assert order == ["stem-separation", "bpm-detection", "key-detection", "chord-detection", "bass-tab", "complete"]
+        assert order == ["stem-separation", "bpm-detection", "key-detection", "chord-detection", "meter", "bass-tab", "complete"]
 
     def test_separation_hands_over_to_bpm_without_a_gap_or_overlap(self, mix, demucs, tmp_path):
         _, events = run(mix, tmp_path / "o", stems_to_extract=["vocals"])

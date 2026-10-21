@@ -1,5 +1,6 @@
 import { metronome } from "@giamat90/mps-core/metronome";
 import { countInDurationSeconds } from "@giamat90/mps-core/metronomeSync";
+import { clickSequence, countInMap, pulseTimes } from "@giamat90/mps-core/meter";
 import { showTake } from "@giamat90/mps-core/takes";
 import type { AudioEngine } from "../../audio/engine";
 import { saveTake } from "../../lib/tauri";
@@ -49,25 +50,48 @@ function clearCountInTimers(): void {
 // Click stops the instant recording starts; a second Record click during
 // the countdown aborts it via cancelCountIn().
 function runCountIn(set: Setter, get: Getter, song: Song, bars: number): Promise<boolean> {
-  const bpm = (song.detectedBpm ?? 120) * get().playbackRate;
+  const rate = get().playbackRate;
+  const bpm = (song.detectedBpm ?? 120) * rate;
+  const meter = get().meterMap;
+  // A song with bars is counted in the way its bars are counted: its own accents, its own number of pulses.
+  const counted = meter ? countInMap(meter, recordingSession.startPos, bars) : null;
+  const sequence = counted ? clickSequence(counted, 0, rate) : null;
   const beatIntervalMs = (60 / bpm) * 1000;
   return new Promise<boolean>((resolve) => {
-    let remaining = bars * 4;
     countIn.resolve = resolve;
-    set({ isCountingIn: true, countInBeatsRemaining: remaining });
-    metronome.start(bpm, 0.05, 0);
-    countIn.intervalId = window.setInterval(() => {
-      remaining -= 1;
-      set({ countInBeatsRemaining: Math.max(0, remaining) });
-    }, beatIntervalMs);
-    countIn.timeoutId = window.setTimeout(() => {
+    const finish = () => {
       countIn.timeoutId = null;
       clearCountInTimers();
       metronome.stop();
       set({ isCountingIn: false, countInBeatsRemaining: 0 });
       countIn.resolve = null;
       resolve(true);
-    }, countInDurationSeconds(bpm, bars) * 1000);
+    };
+    if (counted && sequence) {
+      const wallMs = counted.bars.flatMap((_, i) => pulseTimes(counted, i)).map((t) => (t / rate) * 1000);
+      const began = performance.now();
+      let remaining = wallMs.length;
+      set({ isCountingIn: true, countInBeatsRemaining: remaining });
+      metronome.startSequence({ ...sequence.first, wait: 0.05 }, sequence.next);
+      countIn.intervalId = window.setInterval(() => {
+        const elapsed = performance.now() - began;
+        const left = wallMs.filter((t) => t > elapsed).length;
+        if (left !== remaining) {
+          remaining = left;
+          set({ countInBeatsRemaining: left });
+        }
+      }, 40);
+      countIn.timeoutId = window.setTimeout(finish, (counted.end / rate) * 1000);
+      return;
+    }
+    let remaining = bars * 4;
+    set({ isCountingIn: true, countInBeatsRemaining: remaining });
+    metronome.start(bpm, 0.05, 0);
+    countIn.intervalId = window.setInterval(() => {
+      remaining -= 1;
+      set({ countInBeatsRemaining: Math.max(0, remaining) });
+    }, beatIntervalMs);
+    countIn.timeoutId = window.setTimeout(finish, countInDurationSeconds(bpm, bars) * 1000);
   });
 }
 

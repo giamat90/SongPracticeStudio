@@ -62,6 +62,10 @@ Details in [Lyrics Sync](lyrics.md#tests). In short: the alignment algorithm is 
 
 Details in [Tab sync](tab-sync.md#tests). The alignment is tested on synthetic tabs and stems with a known drifting timeline (no fixtures); `tests/tabs/realTabs.test.ts` reads the maintainer's local folder of copyrighted `.gp` files and skips without it. The score builder is tested with alphaTex strings, so repeats and tracks need no files. `integration_tests.rs` drives `align_impl` through the real sidecar.
 
+## Meter tests
+
+Details in [Meter](meter.md#tests-and-how-it-was-checked). The bar model, its edits, tap fitting and the click cursor are tested in mps-core (`src/meter/*.test.ts`); here `lib/meterView.test.ts` (what a press on the lane hits, which bars an edit reaches, accent presets, typed groups and patterns, the drums' hit envelope), the IPC wrappers, the Meter slot of `AnalyzerPage.test.ts`, Rust `meter::tests` (validation with its reasons, the user's bars win, clearing, a corrupt file is an error) and sidecar `tests/test_meter.py` (synthetic stems with a known bar length of 3, 4, 5 and 7, the shorter-divisor rule, confidence, the written file). How well the bar finder does on real songs is not a unit test but the lab's benchmark (`sidecar/meter_lab/`, [Meter detection](meter-detection.md)).
+
 ## Chord accuracy
 
 `sidecar/chord_eval.py` is a developer tool (not part of the app or of `pytest`'s accuracy claims): it scores detected chords against a reference chart so a change to the detector is measured, not judged by ear. The unit tests only cover the scoring maths (`tests/test_chord_eval.py`); how accurate the detector is on real songs needs reference charts, which are not in the repository.

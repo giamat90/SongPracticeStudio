@@ -73,7 +73,8 @@ Steps (`processor.py`):
 2. BPM detection via `librosa.beat.tempo` on the original file (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — chroma windowed **on the beats** (`_beat_frames`: `librosa.beat.beat_track` on the drums + bass stems when there are drums, on everything otherwise; fewer than `_MIN_BEATS` beats or a median interval outside 0.2–1.5 s means no usable pulse and a fixed 1 s grid is used; a beat longer than `_MAX_WINDOW_SECONDS` is cut in equal parts, a sliver under `_MIN_WINDOW_SECONDS` is folded into its neighbour) → chord-template matching, **decoded with Viterbi** (`_viterbi`) over 61 states (24 triads, 36 sevenths, no-chord): the emission is the cosine score, a seventh pays `_SEVENTH_MARGIN` (0.07, chosen on a tuning set and checked on a held-out one: wiki/testing.md#chord-accuracy), a chord of the detected key (`_best_key` on the song's own chroma, `_diatonic_chords`) gets `_KEY_BONUS`, and every change costs `_SWITCH_COST` (less for the same root or a fifth apart, `_transition_costs`) — so one noisy window cannot flip a chord and a change has to be backed by about that much score. This replaced the 3-window median filter in `CHORDS_FORMAT_VERSION` 4. The chroma is computed with an explicit `librosa.estimate_tuning` on the harmonic mix (the same value for the bass chroma): `chroma_cqt`'s own default estimate misses a recording about a quarter-tone off A440 (measured: a 2019 remix at +29 cents went 26% → 60% root accuracy against its reference chart; songs within ±16 cents are unchanged within noise). Chords: 24 major/minor triads, plus 7, maj7 and min7 chords when the seventh clearly beats the best triad (`_SEVENTH_MARGIN`), plus a slash-chord `bass` note read from the bass stem when it holds one chord tone other than the root for most of a window (`_BASS_DOMINANCE`); writes `chords.json`; non-fatal on failure (0.92→0.96). The chroma is taken from the **sum of the extracted stems without `drums` and `vocals`** (`_harmonic_stem_paths`): drums are broadband noise to a chroma and a sung melody adds non-chord tones. At least one of `guitar` / `piano` / `other` has to be among them (`_CHORD_HARMONY_STEMS`) — a bass line alone names roots, not qualities — otherwise the original file is read instead, as before. Two limits: a single pass folds unrequested stems into `other`, so a song extracted as only `vocals` + `other` has its drums inside the harmonic mix; and `_chords_from_signal` weights every stem equally, so a very quiet stem barely counts
-5. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.96→1.0). Read back by the `read_bass_tab` command (`library::read_bass_tab`: `None` when the file does not exist, an error when it does not parse) and shown by `BassTabPanel`; there is no flag on `Song`, the file's presence is the test. Note format: `{time, duration, pitch, string, fret}`, strings 0=E 1=A 2=D 3=G.
+5. Bar finding (`meter.py`, see `detect_meter` below) — writes `meter.json`; non-fatal on failure (0.96→0.98).
+6. Bass tab transcription — only if a `bass` stem was extracted; writes `bass_tab.json`; non-fatal on failure (0.98→1.0). Read back by the `read_bass_tab` command (`library::read_bass_tab`: `None` when the file does not exist, an error when it does not parse) and shown by `BassTabPanel`; there is no flag on `Song`, the file's presence is the test. Note format: `{time, duration, pitch, string, fret}`, strings 0=E 1=A 2=D 3=G.
 
 Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — the last two are booleans (whether each JSON file was successfully written), not the data itself; chords are fetched separately via `read_song_chords` once `Song.hasChords` is true.
 
@@ -136,6 +137,16 @@ Detects a song's chords again from its separated stems and writes `chords.json` 
 ```
 
 Replies `{"segments": <count>}`; an empty `stemPaths` is an error.
+
+### `detect_meter`
+
+Finds a song's bars from its separated stems and writes `meter.json` (a bar map, `version` 1, `algorithm` `stems-accent-v0`, `source` `detected`, `confidence`) to `outputPath`. The beats are tracked on the `drums` and `bass` stems (everything when there is no drums stem); each beat is described by the strength of the kick (the drums' lowest bins), the rest of the drums, the bass and how much the harmony changes; a bar of N beats (2 to 7) is right when one position in every N stands out (variance explained by position, adjusted for N), and a shorter divisor wins when it explains 85% as much (6 beats repeating every 3 are bars of 3); the first beat of the bar is where kick, bass and harmony change are strongest. The bars are the tracked beats cut into whole bars of that length, so tempo drift is followed; one signature for the whole song, counted in eighths when the beat is quicker than 0.33 s. A song with no steady beat is an error and any old `meter.json` is removed. A first guess, measured in [Meter detection](meter-detection.md#results-of-the-first-detector).
+
+```json
+{"cmd": "detect_meter", "stemPaths": {"drums": "/song/drums.wav", "bass": "/song/bass.wav"}, "outputPath": "/song/meter.json"}
+```
+
+Replies `{"bars": <count>, "perBar": <pulses in the first bar>, "confidence": <0-1>}`.
 
 ### `pitch_shift`
 

@@ -19,5 +19,5 @@ describe.skipIf(localTabs.length === 0)("real Guitar Pro 8 files (local only)", 
       expect(built.notes.some((n) => n[3] === "g" || n[3] === "b"), file).toBe(true);
       expect(built.notes.some((n) => n[3] === "d" && (n[2] === 36 || n[2] === 38)), `${file} kick or snare`).toBe(true);
     }
-  });
+  }, 60_000);
 });

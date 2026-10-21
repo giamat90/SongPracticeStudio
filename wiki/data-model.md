@@ -55,6 +55,15 @@ One detected chord over a time range, from `_chords_from_signal()`'s chroma-temp
 
 **`metronomeOffset`** — set via `set_metronome_offset(songId, offset)`, which mirrors `rename_take`'s "find by id, mutate one field, re-save library.json" shape rather than going through `library::add`. `null`/absent means the metronome phase-locks to song position 0 (unchanged legacy behavior). See [Components: TempoControl](components.md#tempocontrol).
 
+### BarMap (the song's bars)
+
+```typescript
+interface Bar { start: number; num: number; den: number; groups?: number[] }  // seconds; num pulses of a 1/den note
+interface BarMap { version: 1; bars: Bar[]; end: number; source: "detected" | "grid" | "tapped" | "edited"; confidence?: number }
+```
+
+Defined in `@giamat90/mps-core/meter`, mirrored by `MeterDoc` in `src-tauri/src/meter.rs`. A bar lasts until the next bar starts; its pulses are spaced evenly over it. Details and the editing rules: [Meter](meter.md).
+
 ### Take
 
 ```ts
@@ -137,6 +146,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
         ├── other.wav      separated other/residual stem
         ├── chords.json    detected chord segments
         ├── chords_edited.json  the user's corrected chords (only when edited; wins over chords.json)
+        ├── meter.json     detected bars (BarMap, written at import and by "Find bars")
+        ├── meter_edited.json  the user's bars (only when edited; wins over meter.json)
         ├── lyrics.json    synced lyrics (see lyrics.md)
         ├── takes.json     Take[] metadata
         └── takes/

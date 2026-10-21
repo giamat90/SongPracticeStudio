@@ -1,3 +1,4 @@
+import { CLICK_DENSITIES, type ClickDensity } from "@giamat90/mps-core/meter";
 import type { TakePlayback } from "@giamat90/mps-core/takes";
 import { isChordDetail, type ChordDetail } from "../../lib/chordNames";
 import type { CalibrationEntry } from "./types";
@@ -122,5 +123,25 @@ export function writeCapo(songId: string, fret: number): void {
     localStorage.setItem(CAPO_KEY, JSON.stringify(all));
   } catch (e) {
     console.warn("[player] could not save the capo fret:", e);
+  }
+}
+
+const CLICK_DENSITY_KEY = "sps_click_density";
+
+export function readClickDensity(): ClickDensity {
+  try {
+    const raw = localStorage.getItem(CLICK_DENSITY_KEY);
+    return CLICK_DENSITIES.find((d) => d === raw) ?? "pulses";
+  } catch (e) {
+    console.warn("[settings] Could not read the click density:", e);
+    return "pulses";
+  }
+}
+
+export function persistClickDensity(density: ClickDensity): void {
+  try {
+    localStorage.setItem(CLICK_DENSITY_KEY, density);
+  } catch (e) {
+    console.warn("[settings] Could not persist the click density:", e);
   }
 }

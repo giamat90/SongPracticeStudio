@@ -9,6 +9,7 @@ repository's `wiki/`; this page records how SPS uses it.
 
 | Import | Replaced |
 |---|---|
+| `@giamat90/mps-core/meter` | `src/meter/` (bar maps, edits, tap fitting, the click cursor and the count-in map) and its tests; the metronome's `startSequence`, `useTempoControl`'s `meterMap`, the ruler's `barLines.ts` and `barSectionsFromMap` use it |
 | `@giamat90/mps-core/metronome`, `/metronomeSync`, `/recorder`, `/zoomPan` | `src/audio/metronome.ts`, `src/lib/metronomeSync.ts`, `src/audio/recorder.ts`, `src/lib/zoomPan.ts` and their tests |
 | `@giamat90/mps-core/updater` | `src/stores/updater.ts` |
 | `@giamat90/mps-core/panels` | new in v0.2.0: `src/stores/panels.ts` builds the analyzer-page store with `createPanelStore`; `PanelMenu` is this app's own |

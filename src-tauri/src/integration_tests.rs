@@ -8,12 +8,13 @@
 //! sidecar before any model is loaded.
 
 use crate::commands::{
-    redetect_chords_impl,
+    redetect_chords_impl, redetect_meter_impl,
     convert_take_to_temp_wav, import_youtube_impl, pitch_shift_song_impl, process_song_impl, render_mix_to_temp_wav,
     save_take_impl, MixSource, ProcessingStatus, SidecarState,
 };
 use crate::library;
 use crate::lyrics;
+use crate::meter;
 use crate::tab;
 use crate::sidecar::SidecarManager;
 use crate::storage::{self, test_support::TestHome};
@@ -234,6 +235,76 @@ fn detecting_the_chords_again_replaces_chords_json_and_marks_the_song() {
     assert_eq!(segments[0].bass.as_deref(), Some("E"));
 
     let none = redetect_chords_impl(&state, "ghost");
+    assert!(none.unwrap_err().contains("ghost"));
+}
+
+/// A burst of a decaying sine at `at` seconds: a thump when low, a tick when high.
+fn burst(samples: &mut [f32], at: f64, freq: f64, amp: f64, sr: u32) {
+    let start = (at * f64::from(sr)) as usize;
+    for i in 0..(sr as usize / 10) {
+        if start + i >= samples.len() {
+            break;
+        }
+        let t = i as f64 / f64::from(sr);
+        samples[start + i] += (amp * (2.0 * std::f64::consts::PI * freq * t).sin() * (-40.0 * t).exp()) as f32;
+    }
+}
+
+#[test]
+fn finding_the_bars_again_replaces_meter_json_and_drops_the_users_bars() {
+    let Some((home, state)) = start() else { return };
+    let song_dir = home.path().join("song-meter");
+    std::fs::create_dir_all(&song_dir).unwrap();
+    let sr = 22050;
+    let mut drums = vec![0f32; sr as usize * 50];
+    let mut bass = vec![0f32; sr as usize * 50];
+    for k in 0..96 {
+        let at = 0.3 + 0.5 * f64::from(k);
+        if k % 4 == 0 {
+            burst(&mut drums, at, 110.0, 0.9, sr);
+            burst(&mut bass, at, 55.0, 0.5, sr);
+        } else {
+            burst(&mut drums, at, 3000.0, 0.25, sr);
+        }
+    }
+    write_wav(&song_dir.join("drums.wav"), &drums, sr);
+    write_wav(&song_dir.join("bass.wav"), &bass, sr);
+    library::add(library::Song {
+        id: "song-meter".into(),
+        title: "Meter".into(),
+        duration: 50.0,
+        detected_key: None,
+        detected_bpm: None,
+        processed_at: "2026-01-01T00:00:00Z".into(),
+        directory: song_dir.to_string_lossy().to_string(),
+        stems: vec!["drums".into(), "bass".into(), "vocals".into()],
+        metronome_offset: None,
+        has_chords: false,
+        folder_id: None,
+        sort_index: 0,
+        loops: vec![],
+        official_title: None,
+        official_artist: None,
+    })
+    .unwrap();
+    let mine = meter::MeterDoc {
+        version: 1,
+        bars: vec![meter::MeterBar { start: 1.0, num: 7, den: 8, groups: None }],
+        end: 9.0,
+        source: "edited".into(),
+        confidence: None,
+    };
+    meter::save_meter_edits("song-meter", mine).unwrap();
+    assert!(meter::has_meter_edits("song-meter").unwrap());
+
+    let doc = redetect_meter_impl(&state, "song-meter").expect("redetect").expect("bars");
+    assert_eq!(doc.source, "detected");
+    assert!(doc.bars.len() > 10, "{} bars", doc.bars.len());
+    assert!(doc.bars.iter().all(|b| b.num == 4 && b.den == 4), "a steady four-beat pattern");
+    assert!(song_dir.join("meter.json").exists());
+    assert!(!meter::has_meter_edits("song-meter").unwrap(), "the user's bars belonged to the old detection");
+
+    let none = redetect_meter_impl(&state, "ghost");
     assert!(none.unwrap_err().contains("ghost"));
 }
 

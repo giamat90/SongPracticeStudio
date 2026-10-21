@@ -8,6 +8,7 @@ import ChordDetailSelect from "../components/player/ChordDetailSelect";
 import ExportChartButton from "../components/player/ExportChartButton";
 import BassTabPanel from "../components/player/BassTabPanel";
 import ChordRoll from "../components/player/ChordRoll";
+import MeterPanel from "../components/player/MeterPanel";
 import { MoveGrip } from "../components/panels/SortablePanels";
 import TabPanel from "../components/tab/TabPanel";
 import TransportControls from "../components/player/TransportControls";
@@ -45,10 +46,10 @@ function Detachable({ panel, inline, children }: { panel: DetachablePanel; inlin
 }
 
 // The chord carousel lives in the topbar; these are the panels stacked under the tracks.
-const BODY_PANELS: readonly AnalyzerPanelId[] = ["roll", "lyrics", "takes"];
+const BODY_PANELS: readonly AnalyzerPanelId[] = ["roll", "meter", "lyrics", "takes"];
 
 const slotClass = (id: AnalyzerPanelId) =>
-  id === "roll" ? "analyzer-page__roll" : id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined;
+  id === "roll" ? "analyzer-page__roll" : id === "meter" ? "analyzer-page__meter" : id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined;
 
 interface AnalyzerPageProps {
   songId: string;
@@ -155,6 +156,11 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
             <div className="detachable">
               <div className="detach-handle"><MoveGrip /></div>
               <ChordRoll song={song} />
+            </div>
+          ) : id === "meter" ? (
+            <div className="detachable">
+              <div className="detach-handle"><MoveGrip /></div>
+              <MeterPanel song={song} />
             </div>
           ) : (
             <Detachable panel={id}>

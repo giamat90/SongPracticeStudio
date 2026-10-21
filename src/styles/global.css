@@ -4693,3 +4693,246 @@ button.stem-track__take-name {
   padding-left: 0.8rem;
   border-left: 1px solid var(--border);
 }
+
+/* ── Meter panel ───────────────────────────────────────────────────────────
+   The song's bars: a summary, the whole song coloured by signature, the bars
+   around the playhead to drag and pick, and the tools to count them anew. */
+.analyzer-page__meter {
+  flex-shrink: 0;
+  max-height: 70%;
+  overflow-y: auto;
+}
+
+.meter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.meter-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.meter-panel__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.meter-panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.meter-panel__source {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+.meter-panel__readout {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-panel__actions,
+.meter-panel__options,
+.meter-panel__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.meter-panel__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #f87171;
+}
+
+.meter-panel__hint {
+  margin: -0.2rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.meter-pill {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.meter-pill small {
+  color: var(--text-secondary);
+}
+
+.meter-pill--pattern {
+  color: var(--accent-hover);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.meter-pill--more {
+  color: var(--text-secondary);
+}
+
+.meter-btn {
+  padding: 0.28rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.meter-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.meter-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.meter-btn--primary {
+  color: #1a1a2e;
+  font-weight: 600;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.meter-btn--primary:hover:not(:disabled) {
+  background: var(--accent-ring);
+}
+
+.meter-link {
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--accent-hover);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.meter-lane {
+  touch-action: none;
+  display: block;
+  width: 100%;
+  height: clamp(8rem, 24vh, 13rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #0f0f1e;
+}
+
+.meter-overview {
+  display: block;
+  width: 100%;
+  height: 1.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #0f0f1e;
+  cursor: pointer;
+}
+
+.meter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.meter-editor__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.meter-editor__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-editor__head strong {
+  color: var(--text-primary);
+}
+
+.meter-editor__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.meter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+}
+
+.meter-input {
+  width: 4.2rem;
+  padding: 0.22rem 0.4rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.meter-input--wide {
+  width: 7rem;
+}
+
+.meter-input:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.meter-tap {
+  min-width: 7rem;
+  padding: 0.7rem 1.4rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 650;
+  color: #1a1a2e;
+  background: var(--accent-hover);
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+}
+
+.meter-tap:active {
+  transform: scale(0.97);
+}

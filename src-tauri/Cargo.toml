@@ -29,6 +29,6 @@ chrono = { version = "0.4", features = ["serde"] }
 tauri-plugin-dialog = "2.7.0"
 tauri-plugin-updater = "2.10.1"
 zip = "2.2"
-mps-youtube-signin = { git = "https://github.com/giamat90/mps-core", tag = "v0.14.0" }
-mps-sidecar = { git = "https://github.com/giamat90/mps-core", tag = "v0.14.0" }
-mps-detached-windows = { git = "https://github.com/giamat90/mps-core", tag = "v0.14.0" }
+mps-youtube-signin = { git = "https://github.com/giamat90/mps-core", tag = "v0.15.0" }
+mps-sidecar = { git = "https://github.com/giamat90/mps-core", tag = "v0.15.0" }
+mps-detached-windows = { git = "https://github.com/giamat90/mps-core", tag = "v0.15.0" }

@@ -56,3 +56,9 @@ sidecar/chord_lab/results/*
 
 # Python coverage data (pytest --cov)
 sidecar/.coverage
+
+# Meter lab: audio, tab-derived references and results stay local
+sidecar/meter_lab/datasets/*
+!sidecar/meter_lab/datasets/.gitkeep
+sidecar/meter_lab/results/*
+!sidecar/meter_lab/results/.gitkeep

@@ -152,6 +152,8 @@ All player state lives in a single Zustand store, composed from slices in `src/s
 
 | `chordsSlice.ts` | capo, chord detail, chords revision |
 
+| `meterSlice.ts` | the song's bars (`meterMap`), whether they are the user's, undo history, the picked bar, tap sessions, click density, and the saving of every change; see [Meter](meter.md) |
+
 | `audioMix.ts` | `effectiveStemGain`, `buildMixSources`, `takesSilenced`, and the subscription that pushes take audibility to the engine |
 
 | `prefs.ts` | every localStorage read/write the store does |
@@ -434,7 +436,7 @@ The logic (drawing, drag, cursors) is mps-core's `useTimeRuler`; the component i
 
 **Chord spectrum** (`ChordSpectrumPanel.tsx`, the Spectrum view of the chord roll) shows the short-term spectrum of the song over the selected chord and, over it, the spectrum of a synthetic candidate chord, to judge by eye and numbers whether the song has the notes of that chord (Cm or Cm7, minor or sus2). The song curve is the mean spectrum (16384-point Blackman frames, a quarter window apart, averaged as power, 0.12 s after the chord starts, at most 3 s) of the ticked stems (`AudioEngine.getStemSamples`, a mono sum of the decoded stems; drums and vocals start unticked, like the detector reads), or the window around the playhead. The candidate is `chordVoicing` rendered as samples (two partials like *Hear*, or eight like an instrument) and pushed through the same FFT (`lib/chordSpectrum.ts`), both curves drawn on a log-frequency axis normalised to their own highest peak; the chord now on the stretch is drawn dashed when the candidate differs. Under the plot, `readTones` gives each candidate note's strongest matching peak in dB under the spectrum's highest (marked *overtone of X?* when it sits where an overtone of another chord note falls and is at least 8 dB under it) and `strongestExtra` names the strongest peak the chord does not explain. Choosing a root or quality there only auditions it (the trial chord is shared with the editor's drop-downs through `stores/chordSelection.ts`); *Use* writes it as a correction. With no chord picked it follows the playhead; with one picked it measures that chord's stretch. Scoring the same note evidence on 380 chords from the user's tabs picked the true chord from the detector's shortlist less often than the detector itself (57% against 69%), so this is a tool for judging a chord, not a second detector.
 
-Canvas strip above all stem tracks. Shows time ticks at adaptive intervals (≥80 px target). Drag to draw/edit the loop region; click to clear. Toggling the loop itself is done from [LoopButton](#loopbutton), not a button on this ruler (moved 2026-07-10 — see that section). See [Loop Region & Playback](recording-flow.md) for full interaction details. Also draws a draggable blue downbeat marker (dashed line + flag at the bottom edge) for the metronome's phase-lock anchor, hit-tested with priority over the loop-region drag modes — see [Metronome: Downbeat offset](#tempocontrol).
+Canvas strip above all stem tracks. Shows time ticks at adaptive intervals (≥80 px target). Drag to draw/edit the loop region; click to clear. Toggling the loop itself is done from [LoopButton](#loopbutton), not a button on this ruler (moved 2026-07-10 — see that section). See [Loop Region & Playback](recording-flow.md) for full interaction details. Also draws a draggable blue downbeat marker (dashed line + flag at the bottom edge) for the metronome's phase-lock anchor, hit-tested with priority over the loop-region drag modes — see [Metronome: Downbeat offset](#tempocontrol). When the song has a bar map (`meterMap` in the player store) the ruler draws its bars instead (mps-core `barLines.ts`: a line where each bar starts, its number, the signature wherever it changes, a tick per pulse when zoomed in) and the marker is neither drawn nor grabbable, because it only anchored the old four-beat grid; see [Meter](meter.md).
 
 
 
@@ -489,6 +491,8 @@ The anchor is set two ways, both in `TempoControl`'s new "Downbeat" row (shown o
 A "↺" reset-to-0 button appears next to Set once the offset is nonzero.
 
 
+
+**Following the song's bars:** `TempoControl` gives `useTempoControl` the store's `meterMap` and `clickDensity`. With a bar map the click is no longer a steady tempo but the bars' own pulses (`Metronome.startSequence`, accents by group: 1500 / 1200 / 900 Hz), re-started when the bars are edited and when the playhead jumps; the "Downbeat" row is hidden because the bars replace the anchor. Without one nothing changes. The recording count-in does the same (`countInMap`).
 
 ### KeyTranspose
 
@@ -554,6 +558,10 @@ The place to study and correct a song's harmony (`src/components/player/ChordRol
   - *Who holds the input.* The monitor stops when the chord roll leaves the screen or the song changes; when a different input is chosen it moves to that one; `startRecording` stops it first through `liveMonitorGate` (`stores/player/singletons.ts`: the player store cannot import the monitor's store, which imports the player store); and it refuses to start while recording or counting in. Opening an input can move Windows' default output to the communications device, so the output chosen in the output menu is applied again afterwards.
   - *Limits.* It does not name the chord (the live engine of `sidecar/chord_lab/live.py` on `feat/chord-live` was not better than the offline detector and is not in the app). It does not show how far the instrument is from the song's tuning (the notes are read against A440, the candidate against the song's `tuning`). A song heard through speakers is heard by the input too: use headphones. Not run on the real Focusrite and WASAPI yet: tested with Chrome's fake audio device (a WAV played as the input) and the real frontend, see `wiki/testing.md#monitor`.
 - **Why not detachable.** `DETACHABLE_PANELS` lists chords, lyrics and takes: those read only the song and chord data the main window mirrors. The roll needs decoded audio.
+
+### MeterPanel (the Meter panel)
+
+The song's bars with the tools to correct them: overview by signature, a lane of the bars around the playhead (drag a bar line, pick a bar), an editor (count, unit, accents, split, join, remove, repeat a pattern, move the first beat, shift, tap along) and the metronome's click density. Panels menu "Meter", between the chord roll and the lyrics, not detachable. Full description, data and limits: [Meter](meter.md).
 
 ### YouTubeImport
 

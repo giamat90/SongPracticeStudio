@@ -1,4 +1,5 @@
 use crate::library::{self, ChordSegment, Song};
+use crate::meter;
 use crate::sidecar::{SidecarManager, SidecarMessage};
 use crate::storage;
 use crate::takes::{self, Take};
@@ -860,6 +861,64 @@ pub(crate) fn redetect_chords_impl(state: &SidecarState, song_id: &str) -> Resul
 #[tauri::command]
 pub async fn redetect_song_chords(state: State<'_, SidecarState>, song_id: String) -> Result<Song, String> {
     redetect_chords_impl(&state, &song_id)
+}
+
+/// A song's bars: the user's when there are any, otherwise what was detected; null for a song never analysed
+#[tauri::command]
+pub async fn read_song_meter(song_id: String) -> Result<Option<meter::MeterDoc>, String> {
+    meter::read_meter(&song_id)
+}
+
+/// Whether a song's bars carry the user's corrections
+#[tauri::command]
+pub async fn has_meter_edits(song_id: String) -> Result<bool, String> {
+    meter::has_meter_edits(&song_id)
+}
+
+/// Store the user's bar map; `read_song_meter` returns it from then on.
+#[tauri::command]
+pub async fn save_meter_edits(song_id: String, doc: meter::MeterDoc) -> Result<meter::MeterDoc, String> {
+    meter::save_meter_edits(&song_id, doc)
+}
+
+/// Drop the user's bar map; the detected bars show again.
+#[tauri::command]
+pub async fn clear_meter_edits(song_id: String) -> Result<(), String> {
+    meter::clear_meter_edits(&song_id)
+}
+
+/// Detect a song's bars again from its separated stems, replacing `meter.json` and the corrections made to the old one.
+pub(crate) fn redetect_meter_impl(state: &SidecarState, song_id: &str) -> Result<Option<meter::MeterDoc>, String> {
+    let song = library::load_songs()?
+        .into_iter()
+        .find(|s| s.id == song_id)
+        .ok_or_else(|| format!("Song not found: {song_id}"))?;
+    let dir = Path::new(&song.directory);
+    let stem_paths: serde_json::Map<String, serde_json::Value> = song
+        .stems
+        .iter()
+        .filter_map(|name| {
+            let path = dir.join(format!("{name}.wav"));
+            path.exists().then(|| (name.clone(), serde_json::Value::String(path.to_string_lossy().to_string())))
+        })
+        .collect();
+    if stem_paths.is_empty() {
+        return Err("This song has no stems to find the bars from".to_string());
+    }
+    let cmd = serde_json::json!({
+        "cmd": "detect_meter",
+        "stemPaths": stem_paths,
+        "outputPath": dir.join("meter.json").to_string_lossy(),
+    });
+    run_sidecar_command(state, &cmd, Duration::from_secs(300), |_, _| {})?;
+    meter::clear_meter_edits(song_id)?;
+    meter::read_meter(song_id)
+}
+
+/// Find the song's bars again from its stems (beats, bar lines, time signature); resolves to the bar map, replacing any corrections
+#[tauri::command]
+pub async fn redetect_song_meter(state: State<'_, SidecarState>, song_id: String) -> Result<Option<meter::MeterDoc>, String> {
+    redetect_meter_impl(&state, &song_id)
 }
 
 /// Lyrics sync progress event payload (emitted to frontend as "lyrics-progress").
