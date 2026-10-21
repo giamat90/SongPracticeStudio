@@ -6,7 +6,7 @@ import type { AudioEngine } from "../../audio/engine";
 import { saveTake } from "../../lib/tauri";
 import type { Song } from "../../lib/types";
 import { pushTakeAudio, selectionOf } from "./audioMix";
-import { countIn, getEngine, getRecorder, recordingSession } from "./singletons";
+import { countIn, getEngine, getRecorder, liveMonitorGate, recordingSession } from "./singletons";
 import type { Getter, RecordingSlice, Setter, Slice } from "./types";
 
 // Takes shorter than this carry too little accumulated drift to be worth logging.
@@ -204,6 +204,7 @@ export const createRecordingSlice: Slice<RecordingSlice> = (set, get) => ({
     // `metronome` singleton before the count-in below claims it.
     set({ isPlaying: false });
 
+    liveMonitorGate.stop?.();
     const inputLatencyS = await openMic(set, get, eng);
 
     const bars = get().countInBars;

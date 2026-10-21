@@ -153,6 +153,11 @@ export interface ToneReading {
   overtoneOf: string | null;
 }
 
+/** Whether a reading found the note itself, not nothing and not just an overtone of another note of the chord. */
+export function isPresent(tone: ToneReading): boolean {
+  return tone.db !== null && tone.db >= PRESENT_DB && !tone.overtoneOf;
+}
+
 /** For each tone of the chord (the bass and the notes above it, once each), how strongly the stretch has it. */
 export function readTones(db: Float32Array, sampleRate: number, voicing: ChordVoicing, tuning: number): ToneReading[] {
   const peaks = spectrumPeaks(db, sampleRate);

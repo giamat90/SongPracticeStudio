@@ -3,9 +3,11 @@ import { STEM_COLORS } from "../../audio/engine";
 import { CHORD_NOTES, CHORD_QUALITIES, formatChordName } from "../../lib/chordNames";
 import { chordVoicing } from "../../lib/chordVoicing";
 import {
-  DB_RANGE, F_MAX, F_MIN, FFT_SIZE, PRESENT_DB, candidateSpectrumDb, columnCurve, meanSpectrumDb, noteName,
-  readTones, strongestExtra, type Overtones,
+  DB_RANGE, F_MAX, F_MIN, FFT_SIZE, candidateSpectrumDb, columnCurve, isPresent, meanSpectrumDb, noteName,
+  readTones, strongestExtra, type Overtones, type ToneReading,
 } from "../../lib/chordSpectrum";
+import { LIVE_RGB } from "../../lib/liveInput";
+import { useLiveInput } from "../../stores/liveInput";
 
 /** Where the measured samples come from: the song's stems, summed. */
 export interface SpectrumSource {
@@ -44,9 +46,11 @@ interface ChordSpectrumPanelProps {
 // What the chord detector reads: no drums, no voice. The panel starts there and lets the user add or remove.
 const DEFAULT_OFF = new Set(["drums", "vocals"]);
 const ONSET_SKIP = 0.12;
+const MEASURE_RETRY_MS = 700;
+const MEASURE_RETRIES = 60;
 const MAX_STRETCH = 3;
 
-const COLOURS = { candidate: "#38bdf8", detected: "rgba(255,255,255,0.4)" };
+const COLOURS = { candidate: "#38bdf8", detected: "rgba(255,255,255,0.4)", live: `rgb(${LIVE_RGB})` };
 
 function drawCurve(ctx: CanvasRenderingContext2D, curve: Float32Array, w: number, h: number, colour: string, fill: string | null, dashed: boolean) {
   const y = (db: number) => h * (1 - Math.max(0, db + DB_RANGE) / DB_RANGE);
@@ -149,6 +153,8 @@ export default function ChordSpectrumPanel({
   // The measured spectrum: the whole stretch averaged, or the window around the playhead.
   // The live view follows the playhead tenth by tenth, not frame by frame.
   const liveTenth = live ? Math.round(currentTime * 10) : 0;
+  // The panel opens with the page, before the stems are decoded: look again until there is something to measure.
+  const [attempt, setAttempt] = useState(0);
   const measured = useMemo(() => {
     const probe = source.samples(stems, 0, 0.01);
     const sr = probe?.sampleRate ?? 44100;
@@ -157,7 +163,14 @@ export default function ChordSpectrumPanel({
       : [start + ONSET_SKIP, Math.min(end, start + ONSET_SKIP + MAX_STRETCH)];
     const got = source.samples(stems, Math.max(0, from), to);
     return got ? { sampleRate: got.sampleRate, db: meanSpectrumDb(got.samples) } : null;
-  }, [source, stems, live, start, end, liveTenth]);
+    // `attempt` is not read above: a new value only makes the memo look again.
+  }, [source, stems, live, start, end, liveTenth, attempt]);
+
+  useEffect(() => {
+    if (measured || stems.length === 0 || attempt >= MEASURE_RETRIES) return;
+    const timer = window.setTimeout(() => setAttempt((n) => n + 1), MEASURE_RETRY_MS);
+    return () => window.clearTimeout(timer);
+  }, [measured, stems, attempt]);
 
   const sampleRate = measured?.sampleRate ?? 44100;
   const candidateDb = useMemo(
@@ -176,6 +189,16 @@ export default function ChordSpectrumPanel({
     return { tones, extra: strongestExtra(measured.db, measured.sampleRate, tuningCents, tones) };
   }, [measured, voicing, tuningCents]);
 
+  // What the player plays, read the same way: the notes of the candidate in the input, and the strongest one it has not got.
+  const monitoring = useLiveInput((state) => state.status === "on");
+  const liveReading = useLiveInput((state) => state.reading);
+  const heard = monitoring ? liveReading : null;
+  const liveReadings = useMemo(() => {
+    if (!heard?.db || !voicing) return null;
+    const tones = readTones(heard.db, heard.sampleRate, voicing, tuningCents);
+    return { tones, extra: strongestExtra(heard.db, heard.sampleRate, tuningCents, tones) };
+  }, [heard, voicing, tuningCents]);
+
   useEffect(() => {
     const el = canvas.current;
     if (!el || width <= 0) return;
@@ -189,10 +212,11 @@ export default function ChordSpectrumPanel({
     ctx.clearRect(0, 0, width, h);
     drawGrid(ctx, width, h);
     if (measured) drawCurve(ctx, columnCurve(measured.db, measured.sampleRate, width), width, h, "#f59e0b", "rgba(245, 158, 11, 0.22)", false);
+    if (heard?.db) drawCurve(ctx, columnCurve(heard.db, heard.sampleRate, width), width, h, COLOURS.live, `rgba(${LIVE_RGB}, 0.16)`, false);
     if (detectedDb) drawCurve(ctx, columnCurve(detectedDb, sampleRate, width), width, h, COLOURS.detected, null, true);
     if (candidateDb) drawCurve(ctx, columnCurve(candidateDb, sampleRate, width), width, h, COLOURS.candidate, null, false);
     if (voicing) drawMarkers(ctx, [voicing.bass, ...voicing.upper], tuningCents, width, h, COLOURS.candidate);
-  }, [width, measured, candidateDb, detectedDb, voicing, sampleRate, tuningCents]);
+  }, [width, measured, heard, candidateDb, detectedDb, voicing, sampleRate, tuningCents]);
 
   const [candRoot, candQuality] = candidate.split(":");
   const toggleStem = (name: string) => setStems((cur) => (cur.includes(name) ? cur.filter((s) => s !== name) : [...cur, name]));
@@ -273,10 +297,21 @@ export default function ChordSpectrumPanel({
         {chordExtra}
       </div>
 
+      {liveReadings && (
+        <div className="chord-spectrum__readings chord-spectrum__readings--you" aria-label="Notes of the candidate in what you play">
+          <span className="chord-spectrum__label">You play {formatChordName(candidate)}</span>
+          {liveReadings.tones.map((t) => <LiveTone key={t.note} tone={t} />)}
+          <span className="chord-spectrum__extra">
+            {liveReadings.extra ? `Strongest note you play that it does not have: ${liveReadings.extra.note}` : "Nothing else strong"}
+          </span>
+        </div>
+      )}
+
       <canvas ref={canvas} className="chord-spectrum__canvas" aria-label="Spectrum of the song and of the candidate chord" />
 
       <div className="chord-spectrum__legend">
         <span style={{ color: "#f59e0b" }}>■ the song ({stems.join(" + ") || "no stems"})</span>
+        {monitoring && <span style={{ color: COLOURS.live }}>■ you{heard?.db ? "" : " (no sound on the input)"}</span>}
         <span style={{ color: COLOURS.candidate }}>— {formatChordName(candidate)} (candidate)</span>
         {detectedDb && <span style={{ color: COLOURS.detected }}>- - {formatChordName(chord, bass)} (now)</span>}
       </div>
@@ -286,7 +321,7 @@ export default function ChordSpectrumPanel({
         <div className="chord-spectrum__readings">
           <span className="chord-spectrum__label">Notes of {formatChordName(candidate)} in the song</span>
           {readings.tones.map((t) => (
-            <span key={t.note} className={`chord-spectrum__tone${t.db !== null && t.db >= PRESENT_DB && !t.overtoneOf ? " chord-spectrum__tone--present" : ""}`}>
+            <span key={t.note} className={`chord-spectrum__tone${isPresent(t) ? " chord-spectrum__tone--present" : ""}`}>
               {t.note} {t.db === null ? "absent" : `${Math.round(t.db)} dB`}{t.overtoneOf ? ` (overtone of ${t.overtoneOf}?)` : ""}
             </span>
           ))}
@@ -296,5 +331,16 @@ export default function ChordSpectrumPanel({
         </div>
       )}
     </div>
+  );
+}
+
+/** One note of the candidate chord, found in the input or not. */
+function LiveTone({ tone }: { tone: ToneReading }) {
+  const present = isPresent(tone);
+  const text = present ? "found" : tone.overtoneOf ? `missing (only an overtone of ${tone.overtoneOf})` : "missing";
+  return (
+    <span className={`chord-spectrum__tone ${present ? "chord-spectrum__tone--present" : "chord-spectrum__tone--missing"}`}>
+      {tone.note} {text}
+    </span>
   );
 }
