@@ -17,6 +17,7 @@
   --success: #4ade80;
   --warning: #fbbf24;
   --info: #4a9eff;
+  --live: #f472b6;
 
   --bg-raised: #1d2a4d;
   --border: rgba(255, 255, 255, 0.09);
@@ -4447,6 +4448,82 @@ button.stem-track__take-name {
   border-color: var(--accent);
 }
 
+/* The monitor: a switch for listening to the input, its level, and what is wrong with it */
+.roll-monitor {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.roll-monitor__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.roll-monitor__button:hover {
+  color: var(--text-primary);
+  border-color: var(--live);
+}
+
+.roll-monitor__button[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: rgba(244, 114, 182, 0.16);
+  border-color: var(--live);
+}
+
+.roll-monitor__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--live);
+  opacity: 0.45;
+}
+
+.roll-monitor__button[aria-pressed="true"] .roll-monitor__dot {
+  opacity: 1;
+  box-shadow: 0 0 0.4rem var(--live);
+}
+
+.roll-monitor__note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.roll-monitor__note--bad {
+  color: var(--warning);
+}
+
+.roll-meter {
+  position: relative;
+  width: 5rem;
+  height: 0.45rem;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.roll-meter__fill {
+  display: block;
+  height: 100%;
+  background: var(--live);
+}
+
+.roll-meter__fill--clip {
+  background: var(--warning);
+}
+
 .roll-chips {
   display: inline-flex;
   flex-wrap: wrap;
@@ -4546,6 +4623,16 @@ button.stem-track__take-name {
 
 .chord-spectrum__tone--present {
   border-color: rgba(74, 222, 128, 0.4);
+}
+
+/* The candidate's notes in what the player plays: what to add is called out, what is right is not shouted */
+.chord-spectrum__readings--you {
+  border-left: 0.2rem solid var(--live);
+}
+
+.chord-spectrum__tone--missing {
+  color: var(--warning);
+  border-color: rgba(251, 191, 36, 0.4);
 }
 
 /* The editing rows inside the spectrum section */

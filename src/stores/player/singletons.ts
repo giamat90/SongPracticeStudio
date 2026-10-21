@@ -31,3 +31,7 @@ export const countIn: {
   intervalId: number | null;
   resolve: ((completed: boolean) => void) | null;
 } = { timeoutId: null, intervalId: null, resolve: null };
+
+// The live monitor (stores/liveInput) registers how to stop itself here: startRecording gives the input back
+// before it opens its own, and the player store cannot import the monitor's store (which imports the player store).
+export const liveMonitorGate: { stop: (() => void) | null } = { stop: null };

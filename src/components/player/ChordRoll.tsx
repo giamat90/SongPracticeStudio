@@ -7,7 +7,10 @@ import { useChordSelection } from "../../stores/chordSelection";
 import ChordEditorHost from "./ChordEditorHost";
 import { useNoteRoll } from "./useNoteRoll";
 import { useChordCommit } from "./useChordCommit";
+import MonitorControl from "./MonitorControl";
 import { chordSynth } from "../../audio/chordSynth";
+import { LIVE_RGB } from "../../lib/liveInput";
+import { liveTrace, useLiveInput } from "../../stores/liveInput";
 import { getEngine, usePlayerStore } from "../../stores/player";
 import { STEM_COLORS } from "../../audio/engine";
 import { formatChordName, isUnsure, shiftSegment, useChordSegments } from "../../lib/chords";
@@ -133,6 +136,7 @@ export default function ChordRoll({ song }: RollProps) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const revision = usePlayerStore((s) => s.chordsRevision);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const monitoring = useLiveInput((s) => s.status === "on");
   const { stored, segments, display, centerIndex } = useChordSegments(song);
   const [tuningCents, setTuningCents] = useState(0);
   const candidate = useChordSelection((s) => s.candidate);
@@ -170,6 +174,9 @@ export default function ChordRoll({ song }: RollProps) {
   useEffect(() => {
     useChordSelection.getState().clear();
   }, [song.id]);
+
+  // The input is held only while the chord roll is on screen for this song.
+  useEffect(() => () => useLiveInput.getState().stop(), [song.id]);
 
   useEffect(() => {
     setTicked(Object.fromEntries(noteStems.map((s) => [s, s !== "vocals"])));
@@ -339,6 +346,22 @@ export default function ChordRoll({ song }: RollProps) {
       }
 
       ctx.globalCompositeOperation = "source-over";
+      const monitor = useLiveInput.getState();
+      const listening = monitor.status === "on";
+      if (listening) {
+        // What the player plays: a thinner bar in the middle of the row, so the song's own note stays visible under it.
+        for (let f = f0; f <= f1; f++) {
+          const heard = liveTrace.frame(f);
+          if (!heard) continue;
+          const x = xOf(f * 0.125);
+          for (let midi = Math.max(low, MIDI_LOW); midi <= Math.min(high, MIDI_HIGH); midi++) {
+            const v = heard[midi - MIDI_LOW];
+            if (v < 25) continue;
+            ctx.fillStyle = `rgba(${LIVE_RGB}, ${(v / 255) ** 1.4 * 0.95})`;
+            ctx.fillRect(x, yOf(midi) + rowH * 0.2, cellW, rowH * 0.6);
+          }
+        }
+      }
       // The chord strip: a ruler of its own above the notes, one button per chord.
       ctx.fillStyle = "#12122a";
       ctx.fillRect(KEYS_W, 0, rollW, STRIP_H);
@@ -401,6 +424,10 @@ export default function ChordRoll({ song }: RollProps) {
         for (const [stem, matrix] of Object.entries(m)) if (on[stem]) lit = Math.max(lit, noteStrength(matrix, frame, midi - shift));
         ctx.fillStyle = lit > LIT ? "#f59e0b" : BLACK.has(pc) ? "#1d1d38" : "#2a2a4a";
         ctx.fillRect(0, yOf(midi), BLACK.has(pc) ? KEYS_W * 0.6 : KEYS_W - 1, rowH - 0.5);
+        if (listening && (monitor.reading?.notes[midi - MIDI_LOW] ?? 0) > LIT) {
+          ctx.fillStyle = `rgb(${LIVE_RGB})`;
+          ctx.fillRect(KEYS_W * 0.62, yOf(midi) + 1, KEYS_W * 0.38 - 1, rowH - 2.5);
+        }
         if (pc === 0) {
           ctx.fillStyle = lit > LIT ? "#1a1a2e" : "#a0a0b0";
           ctx.fillText(midiName(midi), 2, yOf(midi) + rowH / 2 - 5);
@@ -446,6 +473,7 @@ export default function ChordRoll({ song }: RollProps) {
             <button type="button" className="roll-seg__btn" aria-pressed={prefs.roll} onClick={() => setPref("roll", !prefs.roll)}>Notes</button>
             <button type="button" className="roll-seg__btn" aria-pressed={prefs.spectrum} onClick={() => setPref("spectrum", !prefs.spectrum)}>Spectrum</button>
           </div>
+          <MonitorControl />
           {prefs.roll && roll.status !== null && <span className="chord-roll__status" role="status">{roll.status}</span>}
           {problem && <span className="chord-roll__error" role="alert">{problem}</span>}
           {prefs.roll && roll.status === null && (
@@ -519,6 +547,7 @@ export default function ChordRoll({ song }: RollProps) {
         {prefs.roll && (
           <p className="chord-roll__hint">
             Click to go there · drag to scrub · click a chord to correct it · drag its amber handle to move where it starts
+            {monitoring && " · pink is what you play (use headphones: a speaker's song is heard too)"}
           </p>
         )}
         {prefs.spectrum && here ? (

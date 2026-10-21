@@ -800,6 +800,15 @@ describe("startRecording", () => {
     expect(store().getState()).toMatchObject({ isRecording: true, isPlaying: true });
   });
 
+  it("gives the live monitor's input back before it opens its own", async () => {
+    const { liveMonitorGate } = await import("./player/singletons");
+    const release = vi.fn();
+    liveMonitorGate.stop = release;
+    await store().getState().startRecording();
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(release.mock.invocationCallOrder[0]).toBeLessThan(rec().init.mock.invocationCallOrder[0]);
+  });
+
   it("starts at the punch-in rather than the playhead", async () => {
     store().setState({ punchIn: 30 });
     await store().getState().startRecording();
