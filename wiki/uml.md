@@ -78,12 +78,14 @@ flowchart TB
         TOP["Topbar: TransportControls, TempoControl, KeyTranspose,<br/>CapoSelect, ChordDetailSelect, LoopButton, LoopsMenu,<br/>OutputSelector, Export buttons"]
         SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>(collapsible waveform area)"]
         CR["ChordRoll panel: notes per stem, chord strip,<br/>spectrum, chord editor (note_roll.json cache)"]
+        MON["MonitorControl (in the ChordRoll header):<br/>the input drawn in pink on the notes and the spectrum"]
         BT["BassTabPanel (bass stem only)"]
         TB["TabPanel + TabScoreView (alphaTab)"]
         REC["Recording: RecordButton, MicSelector, RecordingOffsetControl"]
         SP["SortablePanels (drag to reorder, detach)"]
     end
     AP --> ap
+    CR --> MON
     SP --> P1["chords: ChordCarousel (now / past / next)"]
     SP --> P2["lyrics: LyricsPanel"]
     SP --> P3["takes: TakeList, TakesBar"]
@@ -564,6 +566,7 @@ sequenceDiagram
 
     U->>RB: click Record
     RB->>RS: startRecording()
+    RS->>RS: liveMonitorGate.stop() (the Monitor gives the input back)
     RS->>REC: init(mic), pin hardware output
     RS->>E: play from punchIn or playhead
     RS->>REC: start()
@@ -625,6 +628,28 @@ stateDiagram-v2
     Importing --> Error : failure (size, format)
     Aligning --> Error : failure (empty tab, sidecar error)
     Error --> Idle : clearError
+```
+
+## 16. Monitor: the input against the song (component view)
+
+The Monitor in the chord roll listens to the input chosen in the mic menu and never records. `liveMonitorGate` (in the player store's `singletons.ts`) exists because the player store cannot import the monitor's store, which imports the player store; `startRecording` stops the monitor through it first.
+
+```mermaid
+flowchart LR
+    MC["MonitorControl<br/>toggle, level meter, status"] --> LS["useLiveInput<br/>(liveInputStore: off, starting, on, error, reading)"]
+    LS --> LM["createLiveMonitor<br/>100 ms loop, deps injected"]
+    LM --> OPEN["openLiveInput<br/>getUserMedia, loudest channel"]
+    OPEN --> DEV["Input device"]
+    LM --> AN["LiveAnalyser<br/>spectrum + note strengths of the newest window"]
+    AN --> NR["noteRoll: frameStrengths, strengthOf<br/>(same scale as a stem)"]
+    LM --> TR["liveTrace (LiveTrace)<br/>notes by roll frame"]
+    LM -- "reading" --> LS
+    PS["PlayerStore<br/>selectedDeviceId, isPlaying, recordingOffsets"] -- "clock: time + calibrated latency" --> LM
+    TR --> CRD["ChordRoll draw loop<br/>pink bars, read every frame"]
+    LS --> CSP["ChordSpectrumPanel<br/>pink curve, You play C readout"]
+    CSP --> CS["chordSpectrum: readTones, isPresent"]
+    GATE["liveMonitorGate"] -. "stop() before recording" .-> LS
+    PS -. "another input chosen" .-> LS
 ```
 
 ---
