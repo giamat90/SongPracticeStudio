@@ -6,6 +6,20 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.69] - 2026-10-21
+
+### Added
+- **Meter: count a song's bars, whatever its time signature.** SPS used to treat every bar as four beats. A new **Meter** panel (Panels menu, under the chord roll) gives each song a map of its bars: where each starts, how many pulses it has, and which note is one pulse, so 5/4, 7/8, 6/8, or a song that changes meter from bar to bar, can be seen, corrected and clicked along to. Like the chords, the app's guess is a starting point and your corrections are kept apart and win.
+  - **Find bars** listens to the song's beat and proposes the bars; new imports do it automatically. **Treat it as a first guess:** on the author's own test songs it found the right bar length about two times in three on steady songs and rarely on songs that change meter, and it often puts the first beat of the bar one beat off. The panel says where the bars came from and how sure it was, asks before replacing bars you edited, and has Undo.
+  - **Correct them with tools:** the song as coloured stretches by time signature; a lane of the bars around the playhead with the drums drawn under them, where you drag a bar line; pulses and note unit; accent groups (3+2+2, or your own); split, join, remove; count finer or coarser (4/4 as 8/8); **repeat a pattern** such as 5+7 at a chosen pulse rate over the rest of the song; move the first beat of every bar a pulse earlier or later; shift every bar by 10 or 50 ms.
+  - **Tap along:** press T on the first beat of each bar (and once more where the last bar ends), or on every beat, and the bars are built from your taps. Seven pulses between taps comes out as seven.
+  - **Start from the tempo** gives four beats to a bar at the detected tempo to correct from.
+  - **Everything follows the bars:** the metronome clicks the bars' own pulses with the first of each group louder and starts again when you seek or the loop wraps (choose to click every pulse, only the groups, or only the bars); the recording count-in counts the bar you start in; the time ruler draws bar lines with numbers and the signature where it changes; the Loops menu's bar sections are cut from the bars. A song with no bars works as before.
+  - Uses mps-core 0.15.0.
+
+### Fixed
+- The local-only test that reads a folder of real Guitar Pro files no longer times out on a busy machine.
+
 ## [0.0.68] - 2026-10-21
 
 ### Added
