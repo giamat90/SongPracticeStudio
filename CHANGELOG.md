@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.70] - 2026-10-22
+
+### Fixed
+- **A long list of release notes no longer pushes the update buttons off screen.** The "Update available" window is now at most as tall as the window allows and the notes scroll inside it, so Install & Restart and Later stay visible.
+
 ## [0.0.69] - 2026-10-21
 
 ### Added
