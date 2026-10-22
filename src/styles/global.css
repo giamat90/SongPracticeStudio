@@ -2452,6 +2452,7 @@ body,
 .update-dialog__panel {
   width: 90%;
   max-width: 28rem;
+  max-height: 85vh;
   padding: 1.5rem;
   border-radius: 8px;
   background: var(--bg-secondary);
@@ -2470,6 +2471,18 @@ body,
   color: var(--text-secondary);
   font-size: 0.9rem;
   white-space: pre-wrap;
+}
+
+.update-dialog__notes {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.update-dialog__title,
+.update-dialog__version,
+.update-dialog__actions {
+  flex-shrink: 0;
 }
 
 .update-dialog__actions {
