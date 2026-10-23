@@ -97,49 +97,51 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
 
   return (
     <div className="analyzer-page">
-      <header className="analyzer-page__header">
-        <button className="analyzer-page__back" onClick={onBack}>
-          &larr; Back
-        </button>
-        <div className="analyzer-page__song-info">
-          <h1 className="analyzer-page__title">{song.title}</h1>
-          <div className="analyzer-page__meta">
-            {song.detectedBpm && <span>{Math.round(song.detectedBpm)} BPM</span>}
-            {song.detectedKey && <span>{transposeKey(song.detectedKey, transpose)}</span>}
+      <div className="analyzer-page__pinned">
+        <header className="analyzer-page__header">
+          <button className="analyzer-page__back" onClick={onBack}>
+            &larr; Back
+          </button>
+          <div className="analyzer-page__song-info">
+            <h1 className="analyzer-page__title">{song.title}</h1>
+            <div className="analyzer-page__meta">
+              {song.detectedBpm && <span>{Math.round(song.detectedBpm)} BPM</span>}
+              {song.detectedKey && <span>{transposeKey(song.detectedKey, transpose)}</span>}
+            </div>
           </div>
-        </div>
-        <PanelMenu
-          store={useAnalyzerPanels}
-          panels={ANALYZER_PANELS}
-          fixed={{
-            store: useWaveformPanels,
-            items: waveformMenuItems(stems),
-            tags: hiddenStemTags(waveformVisible, { stems, muted: mutedStems, soloed: soloedStem }),
-          }}
-        />
-        <DownloadAllButton song={song} />
-        <ExportChartButton song={song} />
-        <ExportMixButton />
-      </header>
+          <PanelMenu
+            store={useAnalyzerPanels}
+            panels={ANALYZER_PANELS}
+            fixed={{
+              store: useWaveformPanels,
+              items: waveformMenuItems(stems),
+              tags: hiddenStemTags(waveformVisible, { stems, muted: mutedStems, soloed: soloedStem }),
+            }}
+          />
+          <DownloadAllButton song={song} />
+          <ExportChartButton song={song} />
+          <ExportMixButton />
+        </header>
 
-      <div className="analyzer-page__topbar">
-        <TransportControls />
-        <LoopButton />
-        <LoopsMenu />
-        <TempoControl detectedBpm={song.detectedBpm} />
-        <KeyTranspose />
-        <div className="analyzer-page__io-group">
-          <MicSelector />
-          <OutputSelector />
+        <div className="analyzer-page__topbar">
+          <TransportControls />
+          <LoopButton />
+          <LoopsMenu />
+          <TempoControl detectedBpm={song.detectedBpm} />
+          <KeyTranspose />
+          <div className="analyzer-page__io-group">
+            <MicSelector />
+            <OutputSelector />
+          </div>
+          <RecordButton />
+          <CapoSelect song={song} />
+          <ChordDetailSelect song={song} />
+          {docked("chords") && (
+            <Detachable panel="chords" inline>
+              <ChordCarousel song={song} />
+            </Detachable>
+          )}
         </div>
-        <RecordButton />
-        <CapoSelect song={song} />
-        <ChordDetailSelect song={song} />
-        {docked("chords") && (
-          <Detachable panel="chords" inline>
-            <ChordCarousel song={song} />
-          </Detachable>
-        )}
       </div>
 
       <div className="analyzer-page__body">

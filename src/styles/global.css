@@ -1885,8 +1885,29 @@ body,
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0 1.5rem 1.25rem;
   min-height: 0;
+  overflow-y: auto;
+}
+
+/* The page is the one scroll region: sections keep their height instead of
+   being squeezed into the window, and the topbar stays pinned while they pass. */
+.analyzer-page > * {
+  flex-shrink: 0;
+}
+
+/* Header and topbar are pinned together. The page has no top padding: padding on a
+   scroll container leaves a gap above a pinned block that content scrolls through. */
+.analyzer-page__pinned {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1.25rem;
+  padding-bottom: 0.5rem;
+  background: var(--bg-primary);
 }
 
 .analyzer-page__header {
@@ -1935,17 +1956,13 @@ body,
 }
 
 .analyzer-page__body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  min-height: 0;
 }
 
 .analyzer-page__stems {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
+  flex-shrink: 0;
 }
 
 /* The stem area switched off in the Panels menu. Collapsed rather than
@@ -1957,34 +1974,53 @@ body,
   pointer-events: none;
 }
 
-.analyzer-page__lyrics {
-  flex-shrink: 0;
-  max-height: 35%;
-  overflow-y: auto;
-}
-
+.analyzer-page__lyrics,
 .analyzer-page__takes {
   flex-shrink: 0;
-  max-height: 30%;
-  overflow-y: auto;
 }
 
 .analyzer-page__topbar {
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  background: var(--bg-primary);
+  gap: 0.5rem 1rem;
 }
 
 .analyzer-page__io-group {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+/* Compact pinned bar: speed, devices and transport sit in rows, not stacks,
+   so the pinned block stays about two rows tall. */
+.analyzer-page__topbar .transport {
+  padding: 0.4rem 0.75rem;
+  gap: 1rem;
+}
+
+.analyzer-page__topbar .tempo-control {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.analyzer-page__topbar .tempo-control__bpm-group {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.analyzer-page__topbar .analyzer-page__io-group {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.analyzer-page__topbar .mic-selector__label,
+.analyzer-page__topbar .output-selector__label {
+  min-width: 0;
 }
 
 /* Chord carousel, sitting in the sticky topbar so it stays visible regardless
