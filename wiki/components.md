@@ -38,7 +38,7 @@ App
 
 │   │   └── ExportMixButton    — render the audible mix (mute/solo/volume/punch) to WAV
 
-│   ├── topbar (fixed)
+│   ├── topbar (pinned with the header)
 
 │   │   ├── TransportControls  — play/pause/stop + current time display
 
@@ -317,6 +317,8 @@ Keyboard shortcuts (`installPlayerShortcuts` from `@giamat90/mps-core/hooks`, in
 ### BassTabPanel / ExportChartButton
 
 
+
+**Page scroll (2026-10-24):** `.analyzer-page` is the one scroll region (`overflow-y: auto`, no top padding, children never shrink). The stem area, lyrics and takes have no scroll box or percentage height cap of their own. The header and the topbar sit in `analyzer-page__pinned` (`position: sticky; top: 0`), so the title, Panels menu and export buttons stay with the transport; speed, devices and transport lay out in rows to keep that block short. Plain wheel over the stems scrolls the page; ctrl+wheel zooms and shift+wheel pans the timeline.
 
 `BassTabPanel` (below `StemView` in `.analyzer-page__stems`) reads `bass_tab.json` through `read_bass_tab` and draws a four-string tab on a canvas: a 6 s window with the playhead a quarter of the way in (`tabWindowStart`, `tabTimeToX` in `src/lib/bassTab.ts`), fret numbers on the string rows, the sounding note in the accent colour. Clicking seeks. It renders nothing for a song without a bass stem or without a transcription. "Export MIDI" saves a format 0 `.mid` (`bassTabToMidi`, fingered-bass program, the song's detected tempo as a fixed tempo map) through `export_file`.
 
