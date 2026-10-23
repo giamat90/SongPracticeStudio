@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.71] - 2026-10-24
+
+### Changed
+- **The analyzer page scrolls as one page.** The stems or waveforms, lyrics and takes no longer have scroll boxes of their own: the whole page scrolls, so every panel is reachable with the wheel. The title, Panels menu and export buttons stay pinned with the transport bar, which is now more compact (speed, input and output sit in rows). Ctrl+wheel still zooms the timeline and Shift+wheel still pans it.
+
 ## [0.0.70] - 2026-10-22
 
 ### Fixed
