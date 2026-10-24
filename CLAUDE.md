@@ -9,6 +9,12 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ---
 
+## Architecture documents
+
+**Every pull request updates them, in the same PR.** `CLAUDE.md`, the wiki pages it touches and `wiki/uml.md` (and `MPS/wiki/uml-architecture.md` / `shared-architecture.md` when the shared shape changed) are part of the PR; if no diagram is affected, the PR description says "UML: no change, because ...". MPS rule 22 (`MPS/wiki/conventions.md`).
+
+---
+
 ## Shared code (`@giamat90/mps-core`)
 
 Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `countIn` (the count-in slice, plans and tempo), `metronomeSync`, `meter` (bar maps: where each bar starts, its pulses and unit, with the edits, tap fitting and the click cursor), `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), `youtube` (sign-in IPC wrappers, `cookiesSource`, `isSessionExpiredError`) plus the Rust crate `mps-youtube-signin` (the in-app YouTube sign-in, a Cargo git dependency pinned in `src-tauri/Cargo.toml`), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
