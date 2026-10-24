@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.72] - 2026-10-24
+
+### Added
+- **Every panel's name is a button that folds it**, like the Lyrics button always did. Click the name to fold the panel down to just that button, click it again to open it. It works on the Chords display in the top bar (folded, the bar gets shorter), Takes, the Bass tab and the Tab panel. The Bass tab and the Tab panel keep their buttons above their card, the way the Lyrics button sits above its card. A folded panel is only its button. Your choice is remembered, and a panel in a window of its own follows it.
+
+### Changed
+- Uses mps-core v0.16.0.
+
 ## [0.0.71] - 2026-10-24
 
 ### Changed
