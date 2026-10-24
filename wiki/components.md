@@ -630,6 +630,16 @@ The stem area can be hidden as a whole, each stem's waveform can be shrunk to a 
 
 
 
+## Folding a panel to its title
+
+Every panel's name is a button, the one the Lyrics panel always had (`PanelTitle`, class `analysis-tab`, lit while the panel is open). Clicking it folds the panel down to that title and opens it again. State: `useCollapsedPanels` in `src/stores/collapsed.ts`, a `createCollapseStore` from `@giamat90/mps-core/panels`, persisted under `sps_collapsed` as the list of folded ids; `usePanelCollapse(id)` is `useCollapsiblePanel` from `@giamat90/mps-core/hooks` bound to it. Panels start open.
+
+- **Panels with a button:** `chords` (the topbar carousel gains a "Chords" button; folded, the carousel is gone and the sticky bar shrinks), `takes`, `bassTab`, `tab`. The Tab panel keeps its import and alignment controls with its body. Lyrics keeps its own `open` (closed until it has lyrics).
+- **Keyed by the panel's own id**, so a panel in a window of its own agrees with the main window (it re-reads the store when the main window writes).
+- **A folded panel is not drawn:** the bass tab renders its canvas only while open and lists `open` in its draw effect; the Tab panel unmounts the notation (the file bytes stay in the panel, so unfolding redraws without re-reading).
+- **The button sits outside the card.** The Bass tab and the Tab panel draw the title button above their card, the way the Lyrics button sits above its card; folded, only the button is left. Their controls (Export MIDI, import, track menu) stay in the card.
+- **Not the Panels menu.** The menu decides whether a panel is mounted at all. The stem area keeps its own collapse (it owns the engine's containers).
+
 ## Panel menu, sortable panels, detach/dock handles, loops menu (headless hooks)
 
 

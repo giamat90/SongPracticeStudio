@@ -142,6 +142,7 @@ SongPracticeStudio/
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress (`libraryStateCreator` from `@giamat90/mps-core/hooks` + this app's request shape)
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
+│   │   ├── collapsed.ts        ← which panels are folded down to their title button (createCollapseStore from mps-core, `sps_collapsed`); `usePanelCollapse(id)`
 │   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
@@ -185,6 +186,7 @@ SongPracticeStudio/
 │   │   │   ├── RecordingOffsetControl.tsx ← Latency calibration wizard (click-clap)
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete
 │   │   ├── panels/
+│   │   │   ├── PanelTitle.tsx     ← a panel's name as the button that folds it (the Lyrics panel's button)
 │   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the bass tab first
 │   │   ├── tab/
 │   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")

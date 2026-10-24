@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const h = vi.hoisted(() => ({
+  folded: false,
   state: {
     song: { id: "s1", title: "Song" },
     takes: [] as { id: string; name?: string; recordedAt: string; filepath: string }[],
@@ -26,6 +27,14 @@ vi.mock("../../stores/player", () => ({
   takesSilenced: (s: { takesSilenced: boolean }) => s.takesSilenced,
 }));
 vi.mock("../../lib/tauri", () => ({ exportTake: async () => {} }));
+// Server rendering reads a zustand store's initial state, so the folded state is stood in for here.
+vi.mock("../../stores/collapsed", () => ({
+  usePanelCollapse: () => ({
+    open: !h.folded,
+    toggle: () => {},
+    buttonProps: { type: "button", onClick: () => {}, "aria-expanded": !h.folded },
+  }),
+}));
 
 import TakeList from "./TakeList";
 
@@ -36,6 +45,7 @@ const item = (html: string, n: number) => html.split(/<div class="take-item(?: t
 const marks = (html: string) => [...html.matchAll(/take-item__state" aria-label="(\w+)"/g)].map((m) => m[1]);
 
 beforeEach(() => {
+  h.folded = false;
   h.state.takes = [mk("a"), mk("b"), mk("c")];
   h.state.activeTakeId = null;
   h.state.shownTakeIds = [];
@@ -127,5 +137,19 @@ describe("takes list", () => {
   it("says there are no recordings when there are none", () => {
     h.state.takes = [];
     expect(render()).toContain("No recordings yet.");
+  });
+
+  it("names the panel with a button that is open by default", () => {
+    expect(render()).toMatch(/<h3 class="take-list__title"><button[^>]*aria-expanded="true"[^>]*>Takes<\/button><\/h3>/);
+  });
+
+  it("folds down to its title, with or without takes", () => {
+    h.folded = true;
+    const html = render();
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain(">Takes</button>");
+    expect(html).not.toContain("take-item");
+    h.state.takes = [];
+    expect(render()).not.toContain("No recordings yet.");
   });
 });
