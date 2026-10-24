@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.76] - 2026-10-24
+
+### Removed
+- **The bass tab is gone.** The imported Guitar Pro tab (Tab panel) shows a real tab, so the guessed bass line is no longer made on import, there is no Bass tab panel or Panels-menu entry, and the bass tab MIDI export is removed. Chord sheets and everything else are unchanged; old `bass_tab.json` files in your library are simply ignored.
+
 ## [0.0.75] - 2026-10-24
 
 ### Added
