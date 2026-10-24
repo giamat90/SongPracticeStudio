@@ -75,13 +75,13 @@ flowchart TB
 
     subgraph ap["AnalyzerPage"]
         direction TB
-        TOP["Topbar: TransportControls, TempoControl, KeyTranspose,<br/>CapoSelect, ChordDetailSelect, LoopButton, LoopsMenu,<br/>OutputSelector, Export buttons"]
+        TOP["Topbar: TransportControls (with RecordButton and CountInButton), TempoControl, KeyTranspose,<br/>CapoSelect, ChordDetailSelect, LoopButton, LoopsMenu,<br/>Export buttons"]
         SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>(collapsible waveform area)"]
         CR["ChordRoll panel: notes per stem, chord strip,<br/>spectrum, chord editor (note_roll.json cache)"]
         MON["MonitorControl (in the ChordRoll header):<br/>the input drawn in pink on the notes and the spectrum"]
         BT["BassTabPanel (bass stem only)"]
         TB["TabPanel + TabScoreView (alphaTab)"]
-        REC["Recording: RecordButton, MicSelector, RecordingOffsetControl"]
+        REC["Input strip: MicSelector, OutputSelector, RecordingOffsetControl<br/>(RecordButton is in the Transport)"]
         SP["SortablePanels (drag to reorder, detach)"]
     end
     AP --> ap

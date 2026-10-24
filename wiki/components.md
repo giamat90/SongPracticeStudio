@@ -40,19 +40,19 @@ App
 
 │   ├── topbar (pinned with the header)
 
-│   │   ├── TransportControls  — play/pause/stop + current time display
+│   │   ├── TransportControls  — skip, Stop, Play, Record (renders RecordButton), current time display
 
 │   │   ├── LoopButton         — punch-loop toggle
 
 │   │   ├── TempoControl       — BPM-first speed control
 
-│   │   ├── KeyTranspose       — semitone transpose control (ported from VPS)
-
 │   │   ├── MicSelector        — microphone input picker
 
 │   │   ├── OutputSelector     — audio output device picker (ported from VPS)
 
-│   │   ├── RecordButton       — start/stop recording
+│   │   ├── KeyTranspose       — semitone transpose control (ported from VPS); after Input/Output, like VPS
+
+│   │   ├── RecordButton       — start/stop recording (rendered inside TransportControls, not in the topbar row)
 
 │   │   └── ChordCarousel      — gauge-dial-style "now/past/next" chord display
 
@@ -406,7 +406,7 @@ Extra row rendered when `activeTakeId` is set. Loads the take into the engine vi
 
 
 
-- **RecordButton** — starts/stops recording via the player store; disabled until a song is loaded. With a count-in set, `startRecording()` counts in (`runCountIn(countInPlan(get, startPos), "record")`) immediately before its existing `eng.setInteract(false); eng.seekTo(...); eng.play(); rec.start()` sequence, so `Take.startPosition` (captured earlier, unaffected) ends up beat-aligned; the click stops the instant capture starts; clicking Record during the countdown cancels it via `cancelCountIn()`. The Record button shows the countdown for `"record"` counts only; a count-in before Play belongs to the Play button. See VPS's `wiki/components.md#recordbutton` for the shared design (same `countIn` slice from mps-core).
+- **RecordButton** — starts/stops recording via the player store (rendered by `TransportControls`, see there); disabled until a song is loaded. With a count-in set, `startRecording()` counts in (`runCountIn(countInPlan(get, startPos), "record")`) immediately before its existing `eng.setInteract(false); eng.seekTo(...); eng.play(); rec.start()` sequence, so `Take.startPosition` (captured earlier, unaffected) ends up beat-aligned; the click stops the instant capture starts; clicking Record during the countdown cancels it via `cancelCountIn()`. The Record button shows the countdown for `"record"` counts only; a count-in before Play belongs to the Play button. See VPS's `wiki/components.md#recordbutton` for the shared design (same `countIn` slice from mps-core).
 
 - **CountInButton** — the ⏱ clock in the transport bar that cycles `countInBars` through `0 → 1 → 2 → 0` (headless `useCountInButton`). One setting for Play and Record. `countInPlan(get, startPos)` (`countInSlice.ts`) is where SPS differs from VPS: a song with a bar map (`meterMap`) is counted in the way its bars are counted (`countInMap` + `clickSequence`: the bar playing at the start position, its accents, its number of pulses, `metronome.startSequence`), otherwise it is `steadyCountIn` at `song.detectedBpm * playbackRate`.
 
@@ -454,7 +454,9 @@ All of `tX`/`xToTime` (coordinate mapping), `modeForOffset` (handle hit-testing)
 
 
 
-Play/pause/stop buttons + current time display. Stop seeks to 0 and cancels a count-in. Time is read from the player store's `currentTime` (updated at ~30 fps from the rAF loop).
+Skip, Stop, Play, Record and skip buttons + the ⏱ count-in and the current time display. Stop seeks to 0 and cancels a count-in. Time is read from the player store's `currentTime` (updated at ~30 fps from the rAF loop).
+
+**Record lives here (2026-10-24, ported layout from VPS).** `TransportControls` renders `RecordButton` directly after Play, the Stop, Play, Record order of Pro Tools, Logic, Cubase and Reaper: recording is a global transport action, so it belongs with the transport and no longer sits in the topbar row after the Input/Output pair. Only where it is rendered moved; the hook, the store and the take flow are unchanged. `TransportControls.test.ts` pins the order, and `AnalyzerPage.test.ts` that the page itself no longer renders Record. The button is a `2.25rem` ring in the `--record` red (not the amber accent: a record button stays red whatever the app's accent), the same size as the other transport buttons; its "Saving…" label and its error are inline in the bar, the error clipped to `12rem` with the full message in its `title` (it keeps `role="alert"`).
 
 **Play with a count-in.** `togglePlay()` with `countInBars > 0` and a song loaded runs `runCountIn(countInPlan(get, punchIn ?? currentTime), "play")` first and calls `play()` only when the count finished; `isPlaying` stays `false` during the count, the Play button shows `countInBeatsRemaining` (`.transport__btn--counting-in`) and reads "Cancel count-in", and pressing Play (or Space) again cancels it. Resuming from a pause counts in too. `play()` itself never counts in (the chord editor's "With song" loop and the recording flow use it directly). `stop()`, `loadSong()` and `cleanup()` cancel a running count; a recording started during the count replaces it.
 
@@ -510,7 +512,7 @@ Semitone transpose control (`src/components/player/KeyTranspose.tsx`), ported fr
 
 
 
-Clicking `-`/`+` calls the player store's `setTranspose(semitones)`, which — unlike VPS's fixed vocals/instrumental pair — resolves **every stem currently in `song.stems`**: at `semitones === 0` it points each stem back at its plain `{songDir}/{stem}.wav`; otherwise it calls the Tauri `pitch_shift_song(songDir, song.stems, semitones)` command (phase vocoder, Rust-cached per song/semitone-count) and gets back a `{ stems: Record<string, string> }` map. Either way the resulting paths are handed to `AudioEngine.reloadStemsFromPaths()`, which swaps each stem WaveSurfer instance's underlying file in place — see `wiki/audio-engine.md#key-transpose`. Rendered in `AnalyzerPage.tsx`'s topbar next to `TempoControl` (VPS renders it in `PracticeRoom.tsx`'s equivalent topbar).
+Clicking `-`/`+` calls the player store's `setTranspose(semitones)`, which — unlike VPS's fixed vocals/instrumental pair — resolves **every stem currently in `song.stems`**: at `semitones === 0` it points each stem back at its plain `{songDir}/{stem}.wav`; otherwise it calls the Tauri `pitch_shift_song(songDir, song.stems, semitones)` command (phase vocoder, Rust-cached per song/semitone-count) and gets back a `{ stems: Record<string, string> }` map. Either way the resulting paths are handed to `AudioEngine.reloadStemsFromPaths()`, which swaps each stem WaveSurfer instance's underlying file in place — see `wiki/audio-engine.md#key-transpose`. Rendered in `AnalyzerPage.tsx`'s topbar after the Input/Output strip, inside `analyzer-page__topbar-devices`, the same order and wrapper as VPS (2026-10-24: it used to sit between Speed and Input/Output). In the topbar it is one row like Speed and Input/Output (`.analyzer-page__topbar .key-transpose` is `flex-direction: row`), not a label stacked over the buttons.
 
 
 
@@ -612,7 +614,7 @@ The analyzer page lets the user show or hide its optional parts from the **Panel
 
 
 
-Always on: transport, tempo, transpose, mic/output, record. The stems and the bass tab are not in this list either (see "Waveforms, single stems and the bass tab" below). A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
+Always on: transport, tempo, mic/output, transpose, record. The stems and the bass tab are not in this list either (see "Waveforms, single stems and the bass tab" below). A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
 
 
 

@@ -182,13 +182,13 @@ SongPracticeStudio/
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region
-│   │   │   ├── TransportControls.tsx  ← Play/pause/stop + time display; Play counts in when the count-in is set
+│   │   │   ├── TransportControls.tsx  ← skip, Stop, Play, Record (renders RecordButton), time display; Play counts in when the count-in is set
 │   │   │   ├── CountInButton.tsx  ← ⏱ count-in bars (headless `useCountInButton`); counts in Play and Record
 │   │   │   ├── TempoControl.tsx   ← BPM-first speed control + metronome toggle
 │   │   │   ├── KeyTranspose.tsx   ← semitone transpose UI (ported from VPS)
 │   │   │   └── OutputSelector.tsx ← Audio output device picker (ported from VPS)
 │   │   ├── recording/
-│   │   │   ├── RecordButton.tsx   ← Start/stop recording
+│   │   │   ├── RecordButton.tsx   ← Start/stop recording (rendered inside TransportControls, in the `--record` red, not the amber accent)
 │   │   │   ├── MicSelector.tsx    ← Microphone input picker
 │   │   │   ├── RecordingOffsetControl.tsx ← Latency calibration wizard (click-clap)
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete

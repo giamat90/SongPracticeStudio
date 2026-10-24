@@ -1,5 +1,6 @@
 import { useTransportControls } from "@giamat90/mps-core/hooks";
 import { usePlayerStore } from "../../stores/player";
+import RecordButton from "../recording/RecordButton";
 import CountInButton from "./CountInButton";
 
 function TransportControls() {
@@ -28,6 +29,7 @@ function TransportControls() {
         >
           {transport.isCountingIn ? transport.countInBeatsRemaining : transport.isPlaying ? "❚❚" : "▶"}
         </button>
+        <RecordButton />
         <button
           className="transport__btn"
           onClick={transport.skipToEnd}

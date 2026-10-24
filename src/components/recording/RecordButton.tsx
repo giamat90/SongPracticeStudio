@@ -20,7 +20,7 @@ function RecordButton() {
         )}
       </button>
       {rec.isSavingTake && <span className="record-btn__saving-label" role="status">Saving…</span>}
-      {rec.error && <span className="record-btn__error" role="alert">{rec.error}</span>}
+      {rec.error && <span className="record-btn__error" role="alert" title={rec.error}>{rec.error}</span>}
     </div>
   );
 }
