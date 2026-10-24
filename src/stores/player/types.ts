@@ -3,6 +3,7 @@ import type { Song, StemName, Take } from "../../lib/types";
 import type { ChordDetail } from "../../lib/chordNames";
 import type { TakePlayback } from "@giamat90/mps-core/takes";
 import type { BarMap, ClickDensity } from "@giamat90/mps-core/meter";
+import type { CountInSlice } from "@giamat90/mps-core/countIn";
 
 export interface CalibrationEntry {
   offset: number; // ms
@@ -96,15 +97,8 @@ export interface DevicesSlice {
 export interface RecordingSlice {
   isRecording: boolean;
   isSavingTake: boolean;
-  // Count-in: bars of click played before startRecording actually starts
-  // capturing (0 = off). Session-only, not persisted per song.
-  countInBars: 0 | 1 | 2;
-  isCountingIn: boolean;
-  countInBeatsRemaining: number;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<void>;
-  setCountInBars: (bars: 0 | 1 | 2) => void;
-  cancelCountIn: () => void;
 }
 
 export interface TakesSlice {
@@ -200,6 +194,7 @@ export type PlayerStore = TransportSlice &
   MixerSlice &
   TimelineSlice &
   DevicesSlice &
+  CountInSlice &
   RecordingSlice &
   TakesSlice &
   ChordsSlice &

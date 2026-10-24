@@ -1,4 +1,5 @@
 import type { AudioEngine } from "../../audio/engine";
+import { countInPlan } from "./countInSlice";
 import { clampCapo, readCapos } from "./prefs";
 import { disposeRecorder, getEngine } from "./singletons";
 import { meterReset } from "./meterSlice";
@@ -45,6 +46,11 @@ function attachEngineHandlers(eng: AudioEngine, set: Setter, get: Getter): void 
   });
 }
 
+async function playAfterCountIn(get: Getter): Promise<void> {
+  const startAt = get().punchIn ?? getEngine().getCurrentTime();
+  if (await get().runCountIn(countInPlan(get, startAt), "play")) get().play();
+}
+
 export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   song: null,
   isPlaying: false,
@@ -53,6 +59,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   playbackRate: 1.0,
 
   loadSong: async (song, containers) => {
+    get().cancelCountIn();
     const eng = getEngine();
     if (!(await eng.load(song.directory, song.stems, containers))) return;
     attachEngineHandlers(eng, set, get);
@@ -95,12 +102,24 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
     set({ isPlaying: false });
   },
 
+  // The transport's Play button: with a count-in set it counts in first. play() itself starts at once
+  // (the recording flow starts the engine directly, and the chord editor's "With song" plays a loop).
   togglePlay: () => {
-    if (get().isPlaying) get().pause();
-    else get().play();
+    const s = get();
+    if (s.isCountingIn) {
+      // Only the count-in before Play is the transport's to cancel; a recording's belongs to the Record button.
+      if (s.countInFor === "play") s.cancelCountIn();
+    } else if (s.isPlaying) {
+      s.pause();
+    } else if (s.countInBars > 0 && s.song && !s.isRecording) {
+      void playAfterCountIn(get);
+    } else {
+      s.play();
+    }
   },
 
   stop: () => {
+    get().cancelCountIn();
     getEngine().stop();
     set({ isPlaying: false, currentTime: 0 });
   },
@@ -127,6 +146,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   },
 
   cleanup: () => {
+    get().cancelCountIn();
     getEngine().destroy();
     disposeRecorder();
     set({

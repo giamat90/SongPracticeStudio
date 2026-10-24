@@ -11,7 +11,7 @@ Forked from **VPS** (`C:\Workspace\GiaMat90\MPS\VPS`), a vocal practice studio. 
 
 ## Shared code (`@giamat90/mps-core`)
 
-Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `metronomeSync`, `meter` (bar maps: where each bar starts, its pulses and unit, with the edits, tap fitting and the click cursor), `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), `youtube` (sign-in IPC wrappers, `cookiesSource`, `isSessionExpiredError`) plus the Rust crate `mps-youtube-signin` (the in-app YouTube sign-in, a Cargo git dependency pinned in `src-tauri/Cargo.toml`), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
+Code that is identical in VPS and SPS lives in `github.com/giamat90/mps-core`, pinned by tag in `package.json` and `sidecar/requirements*.txt`: `metronome`, `recorder`, `countIn` (the count-in slice, plans and tempo), `metronomeSync`, `meter` (bar maps: where each bar starts, its pulses and unit, with the edits, tap fitting and the click cursor), `zoomPan`, `shortcuts` (global key handler), `loops` (named loops, bar sections), note/frequency maths (`music`), the updater store, the lyrics slice (types, timing, IPC wrappers, store), `createPanelStore` (headless show/hide store for optional panels), `windows` (the app-independent half of detachable panels), `youtube` (sign-in IPC wrappers, `cookiesSource`, `isSessionExpiredError`) plus the Rust crate `mps-youtube-signin` (the in-app YouTube sign-in, a Cargo git dependency pinned in `src-tauri/Cargo.toml`), and in the sidecar `mps_core.lyrics`, `mps_core.version_check` and `AppIdentity`. **Do not copy those back into this repository and do not edit them in `node_modules`**: change them in the mps-core repository, tag, and bump the pin here and in VPS. See `wiki/shared-core.md`.
 
 ---
 
@@ -47,7 +47,7 @@ Replaces the fixed `vocals`/`instrumental`/`take` WaveSurfer trio with a dynamic
 - `setOutputDevice(deviceId)` re-routes every instance (and future ones) via `setSinkId`.
 
 ### Player store (`src/stores/player/`)
-One `usePlayerStore`, composed in `player/index.ts` from eight zustand slices (`transportSlice`, `mixerSlice`, `timelineSlice`, `devicesSlice`, `recordingSlice`, `takesSlice`, `chordsSlice`, `meterSlice`); see `wiki/components.md#player-store`. Shared pieces: `audioMix.ts` (pure gain/mix helpers + the take-audio subscription), `prefs.ts` (localStorage), `singletons.ts` (engine, recorder, recording session, count-in handles). The public surface is unchanged: `usePlayerStore`, `getEngine`, `buildMixSources`, `effectiveStemGain`, `takesSilenced`, `TAKE_TRACK_KEY`, `MAX_CAPO_FRET`, `CalibrationEntry`.
+One `usePlayerStore`, composed in `player/index.ts` from nine zustand slices (`transportSlice`, `mixerSlice`, `timelineSlice`, `devicesSlice`, `countInSlice`, `recordingSlice`, `takesSlice`, `chordsSlice`, `meterSlice`); see `wiki/components.md#player-store`. Shared pieces: `audioMix.ts` (pure gain/mix helpers + the take-audio subscription), `prefs.ts` (localStorage), `singletons.ts` (engine, recorder, recording session). The public surface is unchanged: `usePlayerStore`, `getEngine`, `buildMixSources`, `effectiveStemGain`, `takesSilenced`, `TAKE_TRACK_KEY`, `MAX_CAPO_FRET`, `CalibrationEntry`.
 `stemVolumes: Record<string, number>` per-stem volume, `mutedStems: Record<string, boolean>` and `soloedStem: string | null` for the per-stem mute/solo buttons.  
 Punch region state (`punchIn`, `punchOut`, `punchLoop`) is shared with the TimeRuler — same pattern as VPS.  
 Recording state: `isRecording`, `isSavingTake`, `takes: Take[]`, `activeTakeId`, `takeVolume`, mic/output device selection, and `recordingOffsets: Record<string, CalibrationEntry>` (per-device latency calibration `{ offset, stale?, madMs? }`, localStorage-backed, with `usedLatencyFallback` set when recording starts without a usable calibration). Recording auto-stops when playback stops itself (punch-out or song end).  
@@ -176,7 +176,8 @@ SongPracticeStudio/
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region
-│   │   │   ├── TransportControls.tsx  ← Play/pause/stop + time display
+│   │   │   ├── TransportControls.tsx  ← Play/pause/stop + time display; Play counts in when the count-in is set
+│   │   │   ├── CountInButton.tsx  ← ⏱ count-in bars (headless `useCountInButton`); counts in Play and Record
 │   │   │   ├── TempoControl.tsx   ← BPM-first speed control + metronome toggle
 │   │   │   ├── KeyTranspose.tsx   ← semitone transpose UI (ported from VPS)
 │   │   │   └── OutputSelector.tsx ← Audio output device picker (ported from VPS)

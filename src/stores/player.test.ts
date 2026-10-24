@@ -14,7 +14,7 @@ const h = vi.hoisted(() => {
       saveTake: vi.fn(), listTakes: vi.fn(), deleteTakeApi: vi.fn(), renameTakeApi: vi.fn(),
       setTakeManualOffsetApi: vi.fn(), pitchShiftSong: vi.fn(), setMetronomeOffsetApi: vi.fn(), setSongLoopsApi: vi.fn(),
     },
-    metronome: { start: vi.fn(), stop: vi.fn() },
+    metronome: { start: vi.fn(), startSequence: vi.fn(), stop: vi.fn() },
     rec,
   };
 });
@@ -1118,6 +1118,141 @@ describe("count-in", () => {
   it("cancelCountIn is a no-op when no count-in is running", () => {
     store().getState().cancelCountIn();
     expect(h.metronome.stop).not.toHaveBeenCalled();
+  });
+
+  describe("when playing", () => {
+    it("plays at once with the count-in off", () => {
+      store().getState().togglePlay();
+      expect(h.metronome.start).not.toHaveBeenCalled();
+      expect(eng().play).toHaveBeenCalled();
+      expect(store().getState()).toMatchObject({ isPlaying: true, isCountingIn: false });
+    });
+
+    it("counts in with the click, then plays", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      expect(store().getState()).toMatchObject({ isCountingIn: true, countInFor: "play", countInBeatsRemaining: 4, isPlaying: false });
+      expect(h.metronome.start).toHaveBeenCalledWith(120, 0.05, 0);
+      expect(eng().play).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(500);
+      expect(store().getState().countInBeatsRemaining).toBe(3);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(h.metronome.stop).toHaveBeenCalled();
+      expect(eng().play).toHaveBeenCalledTimes(1);
+      expect(store().getState()).toMatchObject({ isCountingIn: false, countInFor: null, countInBeatsRemaining: 0, isPlaying: true });
+    });
+
+    it("counts in again when resuming from a pause", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      await vi.advanceTimersByTimeAsync(2000);
+      store().getState().togglePlay();
+      expect(store().getState().isPlaying).toBe(false);
+      store().getState().togglePlay();
+      expect(store().getState().isCountingIn).toBe(true);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(eng().play).toHaveBeenCalledTimes(2);
+    });
+
+    it("scales the click by the playback rate", () => {
+      store().setState({ playbackRate: 0.5 });
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      expect(h.metronome.start).toHaveBeenCalledWith(60, 0.05, 0);
+    });
+
+    it("counts in the way the song's bars are counted", async () => {
+      const bar = { num: 3, den: 4 };
+      store().setState({
+        meterMap: { version: 1, bars: [{ start: 0, ...bar }, { start: 1.5, ...bar }], end: 3, source: "edited" },
+      });
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      expect(h.metronome.start).not.toHaveBeenCalled();
+      expect(h.metronome.startSequence).toHaveBeenCalledTimes(1);
+      expect(store().getState()).toMatchObject({ isCountingIn: true, countInBeatsRemaining: 3 });
+
+      await vi.advanceTimersByTimeAsync(500);
+      expect(store().getState().countInBeatsRemaining).toBe(2);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(store().getState().countInBeatsRemaining).toBe(1);
+      expect(eng().play).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(eng().play).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts from the punch-in point after the count", async () => {
+      store().getState().setCountInBars(1);
+      store().setState({ punchIn: 12 });
+      store().getState().togglePlay();
+      expect(eng().seekTo).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(eng().seekTo).toHaveBeenCalledWith(12);
+      expect(eng().play).toHaveBeenCalled();
+    });
+
+    it("pressing Play again during the count cancels it without ever playing", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      await vi.advanceTimersByTimeAsync(300);
+      store().getState().togglePlay();
+      expect(h.metronome.stop).toHaveBeenCalled();
+      expect(store().getState()).toMatchObject({ isCountingIn: false, countInBeatsRemaining: 0, isPlaying: false });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(eng().play).not.toHaveBeenCalled();
+    });
+
+    it("Stop cancels the count", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      await vi.advanceTimersByTimeAsync(300);
+      store().getState().stop();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(eng().play).not.toHaveBeenCalled();
+      expect(store().getState().isCountingIn).toBe(false);
+    });
+
+    it("leaving the song cancels the count", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      store().getState().cleanup();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(eng().play).not.toHaveBeenCalled();
+      expect(store().getState().isCountingIn).toBe(false);
+    });
+
+    it("leaves the count-in of a recording to the Record button", async () => {
+      store().getState().setCountInBars(1);
+      const pending = store().getState().startRecording();
+      await vi.advanceTimersByTimeAsync(0);
+      store().getState().togglePlay();
+      expect(store().getState()).toMatchObject({ isCountingIn: true, countInFor: "record" });
+      await vi.advanceTimersByTimeAsync(2000);
+      await pending;
+      expect(rec().start).toHaveBeenCalled();
+    });
+
+    it("a recording started during the count takes over, and the song does not start twice", async () => {
+      store().getState().setCountInBars(1);
+      store().getState().togglePlay();
+      await vi.advanceTimersByTimeAsync(300);
+      const pending = store().getState().startRecording();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store().getState()).toMatchObject({ isCountingIn: true, countInFor: "record" });
+      expect(eng().play).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2000);
+      await pending;
+      expect(eng().play).toHaveBeenCalledTimes(1);
+      expect(rec().start).toHaveBeenCalledTimes(1);
+    });
+
+    it("play() itself never counts in", () => {
+      store().getState().setCountInBars(1);
+      store().getState().play();
+      expect(h.metronome.start).not.toHaveBeenCalled();
+      expect(eng().play).toHaveBeenCalled();
+    });
   });
 
   it("refuses to change the bar count while counting in or recording", () => {
