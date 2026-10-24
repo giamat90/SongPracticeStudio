@@ -19,7 +19,7 @@ tab.gp + tab_sync.json  ◄── Rust stores the result  ◄──────�
 1. **The webview reads the tab.** alphaTab parses the file; `buildTabScore` (`tabScore.ts`) generates alphaTab's own MIDI, so the **played** bars (repeats expanded) and their tempo map come from the same source the notation uses and bar indices always match what is drawn. Only guitar, bass, keyboard and drum notes are kept (vocals and strings are left out); each note is `[tick, duration, pitch, role]`.
 2. **Rust hands it to the sidecar.** `tab::align_impl` writes `tab_score.json` (a hand-over file, deleted afterwards) and sends `align_tab` with the song's stems that exist on disk. It refuses before spawning the sidecar when there is no tab, no usable score, or no guitar/bass/piano/other stem.
 3. **The sidecar aligns** (`tab_sync.align_tab_to_stems`) and writes `tab_sync.json`; Rust validates the bar count, stamps `alignedAt` and stores it atomically.
-4. **The view draws it.** `TabScoreView` renders with alphaTab (player off) and draws its own cursor from the stored bar times and the app's playback clock; alphaTab's `boundsLookup` gives each bar's rectangle. Clicking a beat maps back to a time and calls the player's `seek`.
+4. **The view draws it.** `TabScoreView` renders with alphaTab (player off) and draws its own cursor from the stored bar times and the app's playback clock, placed between the notes' own x positions (`cursorX`, from alphaTab's beat bounds) so the line sits on a note at that note's time, the first note of a bar included, rather than spread evenly across the bar; alphaTab's `boundsLookup` gives each bar's rectangle. Clicking a beat maps back to a time and calls the player's `seek`.
 
 ## The algorithm (`chroma-dtw-v1`)
 

@@ -3,7 +3,7 @@ import { usePlayerStore } from "../../stores/player";
 import bravuraWoff2 from "@coderline/alphatab/font/Bravura.woff2?url";
 import { loadAlphaTab, tabTracks, type TabTrackInfo } from "../../lib/tabScore";
 import type { TabNoteModel } from "../../lib/tabEdit";
-import { barSpans, locate, timeAt } from "../../lib/tabSync";
+import { barSpans, cursorX, locate, timeAt, type BeatStop } from "../../lib/tabSync";
 import type { TabBar } from "../../lib/types";
 
 interface TabScoreViewProps {
@@ -40,7 +40,7 @@ type AlphaScore = import("@coderline/alphatab").model.Score;
 interface Bounds { x: number; y: number; w: number; h: number }
 interface BarsLookup {
   findMasterBarByIndex(index: number): { realBounds: Bounds } | null;
-  findBeat(beat: unknown): { notes: { note: unknown; noteHeadBounds: Bounds }[] | null } | null;
+  findBeat(beat: unknown): { onNotesX: number; notes: { note: unknown; noteHeadBounds: Bounds }[] | null } | null;
 }
 interface AlphaApi {
   boundsLookup?: BarsLookup | null;
@@ -169,6 +169,22 @@ export default function TabScoreView({
     api.renderTracks([tracks[track]]);
   }, [track, scoreVersion]);
 
+  /** Where the notes of a bar are drawn, for the cursor to sit on them. */
+  const beatStops = (index: number): BeatStop[] => {
+    const api = apiRef.current;
+    const lookup = api?.boundsLookup;
+    const shown = trackRef.current;
+    const beats = shown === null ? undefined : api?.score?.tracks[shown]?.staves[0]?.bars[index]?.voices[0]?.beats;
+    if (!lookup || !beats) return [];
+    const stops: BeatStop[] = [];
+    for (const beat of beats) {
+      const found = lookup.findBeat(beat);
+      if (found) stops.push({ tick: beat.playbackStart, x: found.onNotesX });
+    }
+    return stops;
+  };
+  const barLength = (index: number) => apiRef.current?.score?.masterBars[index]?.calculateDuration() ?? 0;
+
   useEffect(() => {
     const lookup = apiRef.current?.boundsLookup;
     if (!lookup) {
@@ -181,7 +197,7 @@ export default function TabScoreView({
       setCursor(null);
       return;
     }
-    const x = bounds.x + bounds.w * at.fraction;
+    const x = cursorX(beatStops(at.index), { x: bounds.x, w: bounds.w, length: barLength(at.index) }, at.fraction);
     setCursor({ x, y: bounds.y, w: 0, h: bounds.h });
     const view = scrollRef.current;
     if (view && (x < view.scrollLeft || x > view.scrollLeft + view.clientWidth * 0.9)) {

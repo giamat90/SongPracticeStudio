@@ -54,6 +54,35 @@ export function timeAt(index: number, occurrence: number, fraction: number, span
   return span.start + (span.end - span.start) * Math.min(1, Math.max(0, fraction));
 }
 
+/** Where a beat's notes are drawn: ticks from the bar line and the x of the notes. */
+export interface BeatStop {
+  tick: number;
+  x: number;
+}
+
+/**
+ * The x of the cursor inside a bar at `fraction` (0 at the bar line, 1 at the next): between the beats' own
+ * positions, so the line sits on a note at that note's time (the first note of a bar included) instead of
+ * being spread evenly over a bar whose notes are not.
+ */
+export function cursorX(stops: readonly BeatStop[], bar: { x: number; w: number; length: number }, fraction: number): number {
+  const f = Math.min(1, Math.max(0, fraction));
+  if (stops.length === 0 || bar.length <= 0) return bar.x + bar.w * f;
+  const tick = f * bar.length;
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
+  const first = stops[0];
+  if (tick <= first.tick) return first.tick > 0 ? lerp(bar.x, first.x, tick / first.tick) : first.x;
+  for (let i = 1; i < stops.length; i++) {
+    if (tick <= stops[i].tick) {
+      const before = stops[i - 1];
+      return lerp(before.x, stops[i].x, (tick - before.tick) / (stops[i].tick - before.tick));
+    }
+  }
+  const last = stops[stops.length - 1];
+  const rest = bar.length - last.tick;
+  return rest > 0 ? lerp(last.x, bar.x + bar.w, (tick - last.tick) / rest) : last.x;
+}
+
 /**
  * Move the bar line at play order `order` to `time`. With `following` every
  * later bar line moves by the same amount (the tab was early or late from here
