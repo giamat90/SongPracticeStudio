@@ -176,13 +176,13 @@ SongPracticeStudio/
 │   │   │   ├── StemTrack.tsx      ← Single stem row: waveform + mute/solo/volume + download button
 │   │   │   ├── TakeTrack.tsx      ← Recorded take row, aligned at its startPosition
 │   │   │   ├── TimeRuler.tsx      ← Canvas ruler with drag-to-create punch region
-│   │   │   ├── TransportControls.tsx  ← Play/pause/stop + time display; Play counts in when the count-in is set
+│   │   │   ├── TransportControls.tsx  ← skip, Stop, Play, Record (renders RecordButton), time display; Play counts in when the count-in is set
 │   │   │   ├── CountInButton.tsx  ← ⏱ count-in bars (headless `useCountInButton`); counts in Play and Record
 │   │   │   ├── TempoControl.tsx   ← BPM-first speed control + metronome toggle
 │   │   │   ├── KeyTranspose.tsx   ← semitone transpose UI (ported from VPS)
 │   │   │   └── OutputSelector.tsx ← Audio output device picker (ported from VPS)
 │   │   ├── recording/
-│   │   │   ├── RecordButton.tsx   ← Start/stop recording
+│   │   │   ├── RecordButton.tsx   ← Start/stop recording (rendered inside TransportControls, in the `--record` red, not the amber accent)
 │   │   │   ├── MicSelector.tsx    ← Microphone input picker
 │   │   │   ├── RecordingOffsetControl.tsx ← Latency calibration wizard (click-clap)
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete
@@ -225,6 +225,10 @@ SongPracticeStudio/
 ## GUI rule
 
 **All dimensions must use relative units** (`%`, `rem`, `vw`, `vh`, `fr`). Never fixed `px` for layout. This is inherited from VPS and must be followed strictly.
+
+## Docs rule
+
+Every pull request updates the docs in the same PR: `CLAUDE.md`, the wiki pages it touches and `wiki/uml.md` (and `MPS/wiki/uml-architecture.md` / `shared-architecture.md` when the shared shape changed). If no diagram is affected, the PR description says "UML: no change, because ...". MPS rule 22 (`MPS/wiki/conventions.md`).
 
 ---
 

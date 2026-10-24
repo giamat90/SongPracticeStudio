@@ -18,7 +18,6 @@ import KeyTranspose from "../components/player/KeyTranspose";
 import ChordCarousel from "../components/player/ChordCarousel";
 import MicSelector from "../components/recording/MicSelector";
 import OutputSelector from "../components/player/OutputSelector";
-import RecordButton from "../components/recording/RecordButton";
 import TakeList from "../components/recording/TakeList";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
 import PanelMenu from "../components/panels/PanelMenu";
@@ -128,12 +127,13 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <LoopButton />
           <LoopsMenu />
           <TempoControl detectedBpm={song.detectedBpm} />
-          <KeyTranspose />
-          <div className="analyzer-page__io-group">
-            <MicSelector />
-            <OutputSelector />
+          <div className="analyzer-page__topbar-devices">
+            <div className="analyzer-page__io-group">
+              <MicSelector />
+              <OutputSelector />
+            </div>
+            <KeyTranspose />
           </div>
-          <RecordButton />
           <CapoSelect song={song} />
           <ChordDetailSelect song={song} />
           {docked("chords") && (

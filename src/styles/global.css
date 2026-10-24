@@ -18,6 +18,9 @@
   --warning: #fbbf24;
   --info: #4a9eff;
   --live: #f472b6;
+  --record: #ef4444;
+  --record-soft: rgba(239, 68, 68, 0.16);
+  --record-glow: rgba(239, 68, 68, 0.5);
 
   --bg-raised: #1d2a4d;
   --border: rgba(255, 255, 255, 0.09);
@@ -1456,45 +1459,6 @@ body,
   cursor: default;
 }
 
-/* Record Button */
-.record-btn {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-
-.record-btn__dot {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  background: var(--accent);
-  transition: border-radius 0.15s, background 0.15s;
-}
-
-.record-btn--active .record-btn__dot {
-  border-radius: 3px;
-  background: var(--accent);
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.record-btn:hover {
-  background: rgba(245, 158, 11, 0.1);
-}
-
-
 /* A/B Toggle */
 .ab-toggle {
   display: flex;
@@ -1992,6 +1956,13 @@ body,
   gap: 0.5rem 1rem;
 }
 
+.analyzer-page__topbar-devices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
 .analyzer-page__io-group {
   display: flex;
   flex-direction: column;
@@ -2021,7 +1992,14 @@ body,
 .analyzer-page__topbar .analyzer-page__io-group {
   flex-direction: row;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem 0.75rem;
+}
+
+.analyzer-page__topbar .key-transpose {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .analyzer-page__topbar .mic-selector__label,
@@ -2640,10 +2618,10 @@ body,
 
 /* Record Button */
 .record-btn {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  border: 0.125rem solid var(--record);
   background: transparent;
   cursor: pointer;
   display: flex;
@@ -2654,16 +2632,19 @@ body,
 }
 
 .record-btn__dot {
-  width: 1rem;
-  height: 1rem;
+  width: 0.8rem;
+  height: 0.8rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--record);
   transition: border-radius 0.15s, background 0.15s;
+}
+
+.record-btn--active {
+  background: var(--record-soft);
 }
 
 .record-btn--active .record-btn__dot {
   border-radius: 0.2rem;
-  background: var(--accent);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -2741,15 +2722,20 @@ body,
 .record-btn__saving-label {
   font-size: 0.75rem;
   color: var(--warning);
+  white-space: nowrap;
 }
 
 .record-btn__error {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.75rem;
-  color: var(--accent);
+  color: var(--record);
 }
 
 .record-btn:hover:not(:disabled) {
-  background: rgba(245, 158, 11, 0.1);
+  background: var(--record-soft);
 }
 
 /* Take List */

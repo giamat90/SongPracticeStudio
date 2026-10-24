@@ -94,12 +94,23 @@ beforeEach(() => {
 
 describe("AnalyzerPage panels", () => {
   it("shows everything by default", async () => {
-    expect(shown(await render())).toEqual(expect.arrayContaining([...OPTIONAL, "stems", "transport", "record"]));
+    expect(shown(await render())).toEqual(expect.arrayContaining([...OPTIONAL, "stems", "transport"]));
+  });
+
+  it("leaves Record to the transport: the topbar no longer renders it", async () => {
+    expect(shown(await render())).not.toContain("record");
+  });
+
+  it("lays the topbar out like VPS: tempo, then the input strip, then Transpose", async () => {
+    const ids = shown(await render());
+    expect(ids.indexOf("tempo")).toBeLessThan(ids.indexOf("mic"));
+    expect(ids.indexOf("mic") + 1).toBe(ids.indexOf("output"));
+    expect(ids.indexOf("output")).toBeLessThan(ids.indexOf("transpose"));
   });
 
   it("always keeps the stems and the controls, however much is hidden", async () => {
     const ids = shown(await render({ chords: false, lyrics: false, takes: false }));
-    expect(ids).toEqual(expect.arrayContaining(["stems", "transport", "loop", "tempo", "transpose", "mic", "output", "record"]));
+    expect(ids).toEqual(expect.arrayContaining(["stems", "transport", "loop", "tempo", "transpose", "mic", "output"]));
     expect(ids.filter((c) => OPTIONAL.includes(c))).toEqual([]);
   });
 
