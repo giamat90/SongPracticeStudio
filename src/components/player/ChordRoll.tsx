@@ -7,7 +7,8 @@ import { useChordSelection } from "../../stores/chordSelection";
 import ChordEditorHost from "./ChordEditorHost";
 import { useNoteRoll } from "./useNoteRoll";
 import { useChordCommit } from "./useChordCommit";
-import MonitorControl from "./MonitorControl";
+import PanelTitle from "../panels/PanelTitle";
+import { usePanelCollapse } from "../../stores/collapsed";
 import { chordSynth } from "../../audio/chordSynth";
 import { LIVE_RGB } from "../../lib/liveInput";
 import { liveTrace, useLiveInput } from "../../stores/liveInput";
@@ -137,6 +138,8 @@ export default function ChordRoll({ song }: RollProps) {
   const revision = usePlayerStore((s) => s.chordsRevision);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const monitoring = useLiveInput((s) => s.status === "on");
+  const collapse = usePanelCollapse("roll");
+  const { open: bodyOpen } = collapse;
   const { stored, segments, display, centerIndex } = useChordSegments(song);
   const [tuningCents, setTuningCents] = useState(0);
   const candidate = useChordSelection((s) => s.candidate);
@@ -150,7 +153,7 @@ export default function ChordRoll({ song }: RollProps) {
   const addAt = useRef<number | null>(null);
   const selected = useChordSelection((s) => s.index);
   const noteStems = useMemo(() => song.stems.filter((s) => !NOT_NOTES.has(s)), [song.stems]);
-  const roll = useNoteRoll(song, noteStems, prefs.roll);
+  const roll = useNoteRoll(song, noteStems, prefs.roll && bodyOpen);
   const live = useRef({ matrices: roll.matrices, ticked, stored, names: display, transpose, shift: 0, playing: isPlaying, prefs, selected });
   live.current = {
     matrices: roll.matrices, ticked, stored, names: display, transpose, shift: transpose - roll.analysedAt,
@@ -174,9 +177,6 @@ export default function ChordRoll({ song }: RollProps) {
   useEffect(() => {
     useChordSelection.getState().clear();
   }, [song.id]);
-
-  // The input is held only while the chord roll is on screen for this song.
-  useEffect(() => () => useLiveInput.getState().stop(), [song.id]);
 
   useEffect(() => {
     setTicked(Object.fromEntries(noteStems.map((s) => [s, s !== "vocals"])));
@@ -272,7 +272,7 @@ export default function ChordRoll({ song }: RollProps) {
   };
 
   useEffect(() => {
-    if (!prefs.roll) return;
+    if (!prefs.roll || !bodyOpen) return;
     let raf = 0;
     const draw = () => {
       raf = requestAnimationFrame(draw);
@@ -438,7 +438,7 @@ export default function ChordRoll({ song }: RollProps) {
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [prefs.roll]);
+  }, [prefs.roll, bodyOpen]);
 
   if (!song.hasChords) return null;
   // The spectrum looks at the chord being corrected, or at the one under the playhead when none is.
@@ -465,131 +465,136 @@ export default function ChordRoll({ song }: RollProps) {
   const problem = error ?? editing.error ?? roll.error;
 
   return (
-    <section className="chord-roll">
-      <header className="chord-roll__head">
-        <div className="chord-roll__headline">
-          <h2 className="chord-roll__title">Chord roll</h2>
-          <div className="roll-seg" role="group" aria-label="Views">
-            <button type="button" className="roll-seg__btn" aria-pressed={prefs.roll} onClick={() => setPref("roll", !prefs.roll)}>Notes</button>
-            <button type="button" className="roll-seg__btn" aria-pressed={prefs.spectrum} onClick={() => setPref("spectrum", !prefs.spectrum)}>Spectrum</button>
-          </div>
-          <MonitorControl />
-          {prefs.roll && roll.status !== null && <span className="chord-roll__status" role="status">{roll.status}</span>}
-          {problem && <span className="chord-roll__error" role="alert">{problem}</span>}
-          {prefs.roll && roll.status === null && (
-            <button
-              type="button"
-              className="roll-icon-btn"
-              onClick={roll.reanalyse}
-              title={computed ? "Analyse the notes again" : "Analyse the notes"}
-              aria-label={computed ? "Analyse the notes again" : "Analyse the notes"}
-            >
-              {"\u21BB"}
-            </button>
-          )}
-        </div>
-        {prefs.roll && (
-          <div className="chord-roll__options">
-            <div className="roll-chips" role="group" aria-label="Stems in the notes">
-              {noteStems.map((s) => (
+    <section className="chord-roll" aria-label="Chord roll">
+      <h2 className="chord-roll__title">
+        <PanelTitle collapse={collapse}>Chord roll</PanelTitle>
+      </h2>
+      {bodyOpen && (
+        <div className="chord-roll__card">
+          <header className="chord-roll__head">
+            <div className="chord-roll__headline">
+              <div className="roll-seg" role="group" aria-label="Views">
+                <button type="button" className="roll-seg__btn" aria-pressed={prefs.roll} onClick={() => setPref("roll", !prefs.roll)}>Notes</button>
+                <button type="button" className="roll-seg__btn" aria-pressed={prefs.spectrum} onClick={() => setPref("spectrum", !prefs.spectrum)}>Spectrum</button>
+              </div>
+              {prefs.roll && roll.status !== null && <span className="chord-roll__status" role="status">{roll.status}</span>}
+              {problem && <span className="chord-roll__error" role="alert">{problem}</span>}
+              {prefs.roll && roll.status === null && (
                 <button
-                  key={s}
+                  type="button"
+                  className="roll-icon-btn"
+                  onClick={roll.reanalyse}
+                  title={computed ? "Analyse the notes again" : "Analyse the notes"}
+                  aria-label={computed ? "Analyse the notes again" : "Analyse the notes"}
+                >
+                  {"\u21BB"}
+                </button>
+              )}
+            </div>
+            {prefs.roll && (
+              <div className="chord-roll__options">
+                <div className="roll-chips" role="group" aria-label="Stems in the notes">
+                  {noteStems.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className="roll-chip"
+                      style={{ "--dot": STEM_COLORS[s] } as CSSProperties}
+                      aria-pressed={!!ticked[s]}
+                      onClick={() => setTicked({ ...ticked, [s]: !ticked[s] })}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <div className="roll-field" role="group" aria-label="Notes range">
+                  <span className="roll-field__label">Range</span>
+                  <select className="roll-select" value={prefs.low} onChange={(e) => setPref("low", Number(e.target.value))} aria-label="Lowest note">
+                    {LOW_OPTIONS.map((m) => <option key={m} value={m}>{midiName(m)}</option>)}
+                  </select>
+                  <span className="roll-field__label">to</span>
+                  <select className="roll-select" value={prefs.high} onChange={(e) => setPref("high", Number(e.target.value))} aria-label="Highest note">
+                    {HIGH_OPTIONS.map((m) => <option key={m} value={m}>{midiName(m)}</option>)}
+                  </select>
+                </div>
+                <button
                   type="button"
                   className="roll-chip"
-                  style={{ "--dot": STEM_COLORS[s] } as CSSProperties}
-                  aria-pressed={!!ticked[s]}
-                  onClick={() => setTicked({ ...ticked, [s]: !ticked[s] })}
+                  aria-pressed={prefs.fade}
+                  onClick={() => setPref("fade", !prefs.fade)}
+                  title="Draw notes the chord does not have fainter, so the chord's own notes stand out"
                 >
-                  {s}
+                  Fade notes outside the chord
                 </button>
-              ))}
-            </div>
-            <div className="roll-field" role="group" aria-label="Notes range">
-              <span className="roll-field__label">Range</span>
-              <select className="roll-select" value={prefs.low} onChange={(e) => setPref("low", Number(e.target.value))} aria-label="Lowest note">
-                {LOW_OPTIONS.map((m) => <option key={m} value={m}>{midiName(m)}</option>)}
-              </select>
-              <span className="roll-field__label">to</span>
-              <select className="roll-select" value={prefs.high} onChange={(e) => setPref("high", Number(e.target.value))} aria-label="Highest note">
-                {HIGH_OPTIONS.map((m) => <option key={m} value={m}>{midiName(m)}</option>)}
-              </select>
-            </div>
-            <button
-              type="button"
-              className="roll-chip"
-              aria-pressed={prefs.fade}
-              onClick={() => setPref("fade", !prefs.fade)}
-              title="Draw notes the chord does not have fainter, so the chord's own notes stand out"
-            >
-              Fade notes outside the chord
-            </button>
-          </div>
-        )}
-        {roll.progress !== null && (
-          <div className="chord-roll__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(roll.progress * 100)}>
-            <span style={{ width: `${roll.progress * 100}%` }} />
-          </div>
-        )}
-      </header>
-      <div className="chord-roll__body">
-        {prefs.roll && (
-          <canvas
-            ref={canvas}
-            className="chord-roll__canvas"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => { drag.current = null; }}
-            onPointerLeave={() => { hover.current = null; }}
-            title="Click to go there, drag to scrub. Click a chord button to correct it; drag the amber handle at its left to move where it starts"
-          />
-        )}
-        {prefs.roll && (
-          <p className="chord-roll__hint">
-            Click to go there · drag to scrub · click a chord to correct it · drag its amber handle to move where it starts
-            {monitoring && " · pink is what you play (use headphones: a speaker's song is heard too)"}
-          </p>
-        )}
-        {prefs.spectrum && here ? (
-          <div className="chord-roll__spectrum">
-            <ChordEditorHost song={song}>
-              {(parts) => (
-                <ChordSpectrumPanel
-                  key={picked === null ? "playhead" : "stretch"}
-                  source={spectrumSource}
-                  start={here.start}
-                  end={here.end}
-                  currentTime={currentTime}
-                  chord={here.chord}
-                  bass={here.bass ?? null}
-                  candidate={tryingChord}
-                  onCandidate={tryChord}
-                  onUse={picked === null ? undefined : useChord}
-                  bassNote={picked === null ? null : here.bass ?? null}
-                  onBass={picked === null ? undefined : useBass}
-                  soundingOffset={capo}
-                  tuningCents={tuningCents}
-                  busy={editing.busy}
-                  defaultLive={picked === null}
-                  stemsExtra={parts?.actions}
-                  chordExtra={parts?.guesses}
-                />
-              )}
-            </ChordEditorHost>
-          </div>
-        ) : (
-          <ChordEditorHost song={song}>
-            {(parts) => parts && (
-              <div className="chord-roll__spectrum chord-spectrum">
-                <div className="chord-spectrum__row">
-                  {parts.actions}
-                  {parts.guesses}
-                </div>
               </div>
             )}
-          </ChordEditorHost>
-        )}
-      </div>
+            {roll.progress !== null && (
+              <div className="chord-roll__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(roll.progress * 100)}>
+                <span style={{ width: `${roll.progress * 100}%` }} />
+              </div>
+            )}
+          </header>
+          <div className="chord-roll__body">
+            {prefs.roll && (
+              <canvas
+                ref={canvas}
+                className="chord-roll__canvas"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={() => { drag.current = null; }}
+                onPointerLeave={() => { hover.current = null; }}
+                title="Click to go there, drag to scrub. Click a chord button to correct it; drag the amber handle at its left to move where it starts"
+              />
+            )}
+            {prefs.roll && (
+              <p className="chord-roll__hint">
+                Click to go there · drag to scrub · click a chord to correct it · drag its amber handle to move where it starts
+                {monitoring && " · pink is what you play (use headphones: a speaker's song is heard too)"}
+              </p>
+            )}
+            {prefs.spectrum && here ? (
+              <div className="chord-roll__spectrum">
+                <ChordEditorHost song={song}>
+                  {(parts) => (
+                    <ChordSpectrumPanel
+                      key={picked === null ? "playhead" : "stretch"}
+                      source={spectrumSource}
+                      start={here.start}
+                      end={here.end}
+                      currentTime={currentTime}
+                      chord={here.chord}
+                      bass={here.bass ?? null}
+                      candidate={tryingChord}
+                      onCandidate={tryChord}
+                      onUse={picked === null ? undefined : useChord}
+                      bassNote={picked === null ? null : here.bass ?? null}
+                      onBass={picked === null ? undefined : useBass}
+                      soundingOffset={capo}
+                      tuningCents={tuningCents}
+                      busy={editing.busy}
+                      defaultLive={picked === null}
+                      stemsExtra={parts?.actions}
+                      chordExtra={parts?.guesses}
+                    />
+                  )}
+                </ChordEditorHost>
+              </div>
+            ) : (
+              <ChordEditorHost song={song}>
+                {(parts) => parts && (
+                  <div className="chord-roll__spectrum chord-spectrum">
+                    <div className="chord-spectrum__row">
+                      {parts.actions}
+                      {parts.guesses}
+                    </div>
+                  </div>
+                )}
+              </ChordEditorHost>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

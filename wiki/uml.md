@@ -78,11 +78,12 @@ flowchart TB
         TOP["Topbar: TransportControls (with RecordButton and CountInButton), TempoControl, KeyTranspose,<br/>CapoSelect, ChordDetailSelect, LoopButton, LoopsMenu,<br/>Export buttons"]
         SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>(collapsible waveform area)"]
         CR["ChordRoll panel: notes per stem, chord strip,<br/>spectrum, chord editor (note_roll.json cache)"]
-        MON["MonitorControl (in the ChordRoll header):<br/>the input drawn in pink on the notes and the spectrum"]
+        MON["MonitorControl (in the top bar input strip):<br/>the input drawn in pink on the notes and the spectrum"]
         BT["BassTabPanel (bass stem only)"]
         TB["TabPanel + TabScoreView (alphaTab)"]
         REC["Input strip: MicSelector, OutputSelector, RecordingOffsetControl<br/>(RecordButton is in the Transport)"]
-        SP["SortablePanels (drag to reorder, detach)"]
+        SP["SortablePanels (drag up or down to reorder, detach)"]
+        STB["SortableTopbar (cards of the top bar, drag anywhere in the bar; Cards menu hides them; own store sps_topbar)"]
     end
     AP --> ap
     CR --> MON
@@ -632,7 +633,7 @@ stateDiagram-v2
 
 ## 16. Monitor: the input against the song (component view)
 
-The Monitor in the chord roll listens to the input chosen in the mic menu and never records. `liveMonitorGate` (in the player store's `singletons.ts`) exists because the player store cannot import the monitor's store, which imports the player store; `startRecording` stops the monitor through it first.
+The Monitor (a pill in the top bar's input strip, next to the mic menu) listens to the input chosen in the mic menu and never records. `liveMonitorGate` (in the player store's `singletons.ts`) exists because the player store cannot import the monitor's store, which imports the player store; `startRecording` stops the monitor through it first.
 
 ```mermaid
 flowchart LR

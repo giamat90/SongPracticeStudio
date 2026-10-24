@@ -1,11 +1,13 @@
+import { useEffect } from "react";
 import { describeInput, levelFraction } from "../../lib/liveInput";
 import { useLiveInput } from "../../stores/liveInput";
 
 /**
  * The switch that puts what the player plays on the chord roll's notes and spectrum next to the song, with the
- * level of the input and what is wrong with it. The input is the one chosen in the mic menu of the top bar.
+ * level of the input and what is wrong with it. It sits in the input strip of the top bar, next to the mic menu
+ * that chooses the input it listens to.
  */
-export default function MonitorControl() {
+export default function MonitorControl({ songId }: { songId: string }) {
   const status = useLiveInput((s) => s.status);
   const label = useLiveInput((s) => s.label);
   const error = useLiveInput((s) => s.error);
@@ -13,33 +15,38 @@ export default function MonitorControl() {
   const clipped = useLiveInput((s) => s.reading?.clipped ?? false);
   const toggle = useLiveInput((s) => s.toggle);
 
+  // The input is held only while this control is on screen for this song.
+  useEffect(() => () => useLiveInput.getState().stop(), [songId]);
+
   const on = status === "on" || status === "starting";
   const note = describeInput(status, label, error, levelDb === null ? null : { levelDb, clipped });
+  const bad = note?.tone === "bad";
+  const fraction = levelDb === null ? 0 : levelFraction(levelDb);
 
   return (
-    <div className="roll-monitor">
+    <div className="input-monitor">
       <button
         type="button"
-        className="roll-monitor__button"
+        className={`input-monitor__button${bad ? " input-monitor__button--bad" : ""}`}
         aria-pressed={on}
         onClick={() => void toggle()}
         title={on
-          ? "Stop listening to the input"
+          ? `${note ? `${note.text}. ` : ""}Click to stop listening to the input`
           : "Listen to the input chosen in the mic menu (a guitar, a piano, a voice) and draw it on the roll and the spectrum against the song. Nothing is recorded"}
       >
-        <span className="roll-monitor__dot" aria-hidden="true" />
+        <span className="input-monitor__icon" aria-hidden="true">🎧</span>
         Monitor
       </button>
-      {status === "on" && levelDb !== null && (
-        <span className="roll-meter" role="meter" aria-label="Input level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(levelFraction(levelDb) * 100)}>
+      {status === "on" && (
+        <span className="roll-meter" role="meter" aria-label="Input level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
           <span
             className={`roll-meter__fill${clipped ? " roll-meter__fill--clip" : ""}`}
-            style={{ width: `${levelFraction(levelDb) * 100}%` }}
+            style={{ width: `${fraction * 100}%` }}
           />
         </span>
       )}
       {note && (
-        <span className={`roll-monitor__note${note.tone === "bad" ? " roll-monitor__note--bad" : ""}`} role={note.tone === "bad" ? "alert" : "status"}>
+        <span className="input-monitor__sr" role={bad ? "alert" : "status"}>
           {note.text}
         </span>
       )}

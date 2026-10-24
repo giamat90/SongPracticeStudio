@@ -1,6 +1,6 @@
 # Detachable panels
 
-Any optional panel of the analyzer page can be dragged out into a window of its own, for a second monitor: **Chords**, **Lyrics** and **Takes**. The waveforms, mixer, transport and microphone stay in the main window. Ported from VPS (see `MPS/wiki/lineage.md`); on branch `feat/detachable-panels`, not released.
+Any optional panel of the analyzer page can be dragged out into a window of its own, for a second monitor: **Chords** (the carousel of the Chords card in the top bar), **Lyrics** and **Takes**. Lyrics and Takes are shown or hidden from the Panels menu; the Chords card from the Cards menu (`sps_topbar`), which closes its window the same way. The waveforms, mixer, transport and microphone stay in the main window. Ported from VPS (see `MPS/wiki/lineage.md`); on branch `feat/detachable-panels`, not released.
 
 ## The model
 

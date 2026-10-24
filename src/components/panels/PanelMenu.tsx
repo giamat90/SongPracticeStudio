@@ -4,11 +4,28 @@ import { useDetachedStore } from "../../stores/detached";
 
 export type { PanelMenuItem };
 
+/** The words of a menu, so the same list serves the panels under the stems and the cards of the top bar. */
+export interface PanelMenuLabels {
+  button: string;
+  title: string;
+  group: string;
+  hint: string;
+  resetTitle: string;
+}
+
+export const PANEL_LABELS: PanelMenuLabels = {
+  button: "Panels",
+  title: "Choose which panels to show",
+  group: "Visible panels",
+  hint: "Drag the ↕ grip on a panel to move it.",
+  resetTitle: "Show the default panels in the default order",
+};
+
 export function PanelMenuList({
-  panels, visible, detached, fixed, movable = true, onToggle, onShowAll, onHideAll, onReset,
-}: PanelMenuListProps) {
+  panels, visible, detached, fixed, movable = true, onToggle, onShowAll, onHideAll, onReset, labels = PANEL_LABELS,
+}: PanelMenuListProps & { labels?: PanelMenuLabels }) {
   return (
-    <div className="panel-menu__list" role="group" aria-label="Visible panels">
+    <div className="panel-menu__list" role="group" aria-label={labels.group}>
       {fixed?.items.map((item) => (
         <Fragment key={item.id}>
           <label className="panel-menu__item">
@@ -40,11 +57,11 @@ export function PanelMenuList({
           {detached?.[p.id] && <span className="panel-menu__tag">own window</span>}
         </label>
       ))}
-      {movable && <p className="panel-menu__hint">Drag the &#8597; grip on a panel to move it.</p>}
+      {movable && <p className="panel-menu__hint">{labels.hint}</p>}
       <div className="panel-menu__actions">
         <button type="button" onClick={onShowAll}>Show all</button>
         <button type="button" onClick={onHideAll}>Hide all</button>
-        <button type="button" onClick={onReset} title="Show the default panels in the default order">Reset</button>
+        <button type="button" onClick={onReset} title={labels.resetTitle}>Reset</button>
       </div>
     </div>
   );
@@ -53,7 +70,7 @@ export function PanelMenuList({
 const useDetached = () => useDetachedStore((s) => s.detached);
 
 function PanelMenu<Id extends string, FixedId extends string = never>(
-  props: Omit<UsePanelMenuOptions<Id, FixedId>, "useDetached">,
+  { labels = PANEL_LABELS, ...props }: Omit<UsePanelMenuOptions<Id, FixedId>, "useDetached"> & { labels?: PanelMenuLabels },
 ) {
   const menu = usePanelMenu<Id, FixedId>({ ...props, useDetached });
 
@@ -65,13 +82,13 @@ function PanelMenu<Id extends string, FixedId extends string = never>(
         onClick={menu.toggle}
         aria-expanded={menu.open}
         aria-controls={menu.listId}
-        title="Choose which panels to show"
+        title={labels.title}
       >
-        Panels {menu.shown}/{menu.total}
+        {labels.button} {menu.shown}/{menu.total}
       </button>
       {menu.open && (
         <div className="panel-menu__popover" id={menu.listId}>
-          <PanelMenuList {...menu.list} />
+          <PanelMenuList {...menu.list} labels={labels} />
         </div>
       )}
     </div>

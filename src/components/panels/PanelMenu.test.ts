@@ -154,3 +154,19 @@ describe("PanelMenu with areas", () => {
     expect(text(html)).toBe("Panels 1/3");
   });
 });
+
+describe("PanelMenu words", () => {
+  it("says Panels by default and takes its own words for another list, such as the cards of the top bar", () => {
+    const store = createPanelStore({ storageKey: "menu_words", panels: PANELS });
+    expect(renderToStaticMarkup(createElement(PanelMenu<"a" | "b">, { store, panels: PANELS }))).toContain("Panels 1/2");
+    const labels = { button: "Cards", title: "Choose cards", group: "Visible cards", hint: "Drag the grip on a card.", resetTitle: "Every card" };
+    const html = renderToStaticMarkup(createElement(PanelMenu<"a" | "b">, { store, panels: PANELS, labels }));
+    expect(html).toContain("Cards 1/2");
+    expect(html).toContain('title="Choose cards"');
+    expect(html).not.toContain("Panels 1/2");
+    const list = renderToStaticMarkup(createElement(PanelMenuList, { ...listProps(), labels }));
+    expect(list).toContain('aria-label="Visible cards"');
+    expect(list).toContain("Drag the grip on a card.");
+    expect(list).toContain('title="Every card"');
+  });
+});
