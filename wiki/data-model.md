@@ -162,7 +162,8 @@ All data lives under `~/.songpracticestudio/` (`C:\Users\{user}\.songpracticestu
 | `import_youtube` | `url: string, stemsToExtract?: StemName[], highQuality?: boolean` | `Song` |
 | `list_songs` | — | `Song[]` |
 | `delete_song` | `songId: string` | `void` |
-| `export_file` | `data: u8[], suggestedName: string` | `void` (Save As for a file the app built; only `.txt` names are accepted) |
+| `read_bass_tab` | `songId: string` | `BassTab` or `null` (`bass_tab.json`: `{version, duration, notes[]}`; `null` when the song has none) |
+| `export_file` | `data: u8[], suggestedName: string` | `void` (Save As for a file the app built; only `.txt` and `.mid` names are accepted) |
 | `set_song_loops` | `songId: string, loops: NamedLoop[]` | `Song` (replaces the saved loops; names trimmed, at most 100, 1-80 characters, regions at least 0.25 s, unique ids, stored in time order) |
 | `rename_song` | `songId: string, title: string` | `Song` (title trimmed; empty or whitespace is rejected; leaves `officialTitle` alone, and a song with none yet gets its old title copied into it first) |
 | `set_song_identity` | `songId, officialTitle: string \| null, officialArtist: string \| null` | `Song` (trimmed; blank clears, and the lookup then falls back to `title`) |

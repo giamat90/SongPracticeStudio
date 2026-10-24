@@ -6,7 +6,7 @@ Three suites, one per language, plus a few tests that deliberately cross the lan
 |---|---|---|---|
 | Frontend | `npm test` (`npx vitest run`) | `src/**/*.test.ts`, `tests/**/*.test.ts` | pure libs, audio engine/recorder/metronome with fakes, the Zustand stores with the Tauri boundary mocked, the TS ↔ Rust IPC contract |
 | Rust | `cargo test --lib` (in `src-tauri/`) | `#[cfg(test)]` modules + `src/integration_tests.rs` | library/take persistence, serde wire format, sidecar message parsing, zip export, and the **real** sidecar process driven through the real command bodies |
-| Python sidecar | `python -m pytest` (in `sidecar/`, venv active) | `sidecar/tests/` | take normalization, mixdown rendering, the stem pipeline with Demucs faked, key/chord analysis, key transpose, the stdio protocol of `main.py`, yt-dlp import flow, version check |
+| Python sidecar | `python -m pytest` (in `sidecar/`, venv active) | `sidecar/tests/` | take normalization, mixdown rendering, the stem pipeline with Demucs faked, key/chord/bass-tab analysis, key transpose, the stdio protocol of `main.py`, yt-dlp import flow, version check |
 
 Coverage of the frontend: `npx vitest run --coverage` (v8; `src/lib`, `src/audio`, `src/stores`, ~98 % lines — the uncovered remainder is the React hook in `chords.ts`).
 
@@ -51,7 +51,7 @@ How to read these numbers: [Code metrics: a short course](../../wiki/code-metric
 
 - `tests/helpers.py` synthesises audio with a known pitch/level; nothing depends on checked-in audio fixtures.
 - `tests/test_protocol.py` drives the real `main.py` over stdio exactly like `SidecarManager` does (ready, ping, invalid JSON, unknown command, exceptions → `error` with traceback, progress ordering, non-ASCII paths, `quit`, EOF). It also asserts that every `"cmd"` string Rust sends has a branch in `main.py`.
-- `tests/test_processor.py` uses `FakeDemucs`/`FakeTensor` (numpy stand-ins for the two torch calls `_save_stem` makes) to pin down which model runs for which stem request, what lands in `other`, the progress ladder (0→0.75 separation, then BPM, key, chords, bars), and that BPM/chord failures degrade instead of failing the import.
+- `tests/test_processor.py` uses `FakeDemucs`/`FakeTensor` (numpy stand-ins for the two torch calls `_save_stem` makes) to pin down which model runs for which stem request, what lands in `other`, the progress ladder (0→0.75 separation, then BPM, key, chords, bass tab), and that BPM/chord/bass-tab failures degrade instead of failing the import.
 - `tests/test_yt_dlp_floor.py` checks the `requirements*.txt` floors against `mps_core.version_check.MIN_YT_DLP_VERSION`; the equal-across-projects rule (MPS conventions #10) now holds by construction because the constant has one home.
 
 ## Lyrics sync tests

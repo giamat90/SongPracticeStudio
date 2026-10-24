@@ -2,6 +2,7 @@
 // Add a command: write the Rust fn, register it in lib.rs, run `npm run gen:ipc`.
 import { invoke } from "@tauri-apps/api/core";
 import type { Song, Take, Folder, NamedLoop, ChordSegment, StemName, TabBar, TabRecord, TabSync } from "./types";
+import type { BassTabData } from "./bassTab";
 import type { BarMap } from "@giamat90/mps-core/meter";
 import type { MixSource, ZipExportEntry } from "./ipcTypes";
 
@@ -116,6 +117,11 @@ export async function hasChordEdits(songId: string): Promise<boolean> {
   return invoke<boolean>("has_chord_edits", { songId });
 }
 
+/** A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem */
+export async function readBassTab(songId: string): Promise<BassTabData | null> {
+  return invoke<BassTabData | null>("read_bass_tab", { songId });
+}
+
 /** The chord roll's analysed notes for a song (the JSON text the frontend saved); null before the first analysis */
 export async function readNoteRoll(songId: string): Promise<string | null> {
   return invoke<string | null>("read_note_roll", { songId });
@@ -126,7 +132,7 @@ export async function saveNoteRoll(songId: string, body: string): Promise<void> 
   return invoke<void>("save_note_roll", { songId, body });
 }
 
-/** Offer a file the app built (a .txt) through a Save As dialog */
+/** Offer a file the app built (a .txt or .mid) through a Save As dialog */
 export async function exportFile(data: number[], suggestedName: string): Promise<void> {
   return invoke<void>("export_file", { data, suggestedName });
 }

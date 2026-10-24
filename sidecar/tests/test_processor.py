@@ -1,4 +1,4 @@
-"""processor.py: the stem pipeline (Demucs replaced by a fake), key / chord analysis and the key transpose."""
+"""processor.py: the stem pipeline (Demucs replaced by a fake), key / chord / bass-tab analysis and the key transpose."""
 
 import json
 import os
@@ -218,7 +218,8 @@ class TestProcessResult:
         assert result["detectedBpm"] == pytest.approx(120, abs=6) or result["detectedBpm"] == pytest.approx(60, abs=3)
         assert result["detectedKey"] == "C major"
         assert result["chords"] is True
-        assert set(result) == {"stems", "duration", "detectedBpm", "detectedKey", "chords"}
+        assert result["bassTab"] is False
+        assert set(result) == {"stems", "duration", "detectedBpm", "detectedKey", "chords", "bassTab"}
 
     def test_the_result_is_json_serialisable_for_the_wire(self, mix, demucs, tmp_path):
         result, _ = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
@@ -231,6 +232,19 @@ class TestProcessResult:
         assert doc["segments"] and doc["segments"][0]["chord"] == "C:maj"
         assert set(doc["segments"][0]) == {"start", "end", "chord", "confidence", "alternatives"}
         assert isinstance(doc["tuning"], float) and abs(doc["tuning"]) <= 50
+
+    def test_a_bass_tab_is_written_only_when_a_bass_stem_was_extracted(self, mix, tmp_path, monkeypatch):
+        tone = np.tile(sine(55, 44100, 1.0, amp=0.5), (2, 1))
+        monkeypatch.setattr(processor, "_run_demucs", FakeDemucs(overrides={"bass": tone}))
+        result, _ = run(mix, tmp_path / "o", stems_to_extract=["bass"])
+        assert result["bassTab"] is True
+        tab = json.loads((tmp_path / "o" / "bass_tab.json").read_text(encoding="utf-8"))
+        assert tab["version"] == 1 and tab["notes"]
+        assert {"time", "duration", "pitch", "string", "fret"} <= set(tab["notes"][0])
+
+        result, _ = run(mix, tmp_path / "p", stems_to_extract=["vocals"])
+        assert result["bassTab"] is False
+        assert not (tmp_path / "p" / "bass_tab.json").exists()
 
 
 class TestProcessProgress:
@@ -247,7 +261,7 @@ class TestProcessProgress:
         for _, stage in events:
             if not order or order[-1] != stage:
                 order.append(stage)
-        assert order == ["stem-separation", "bpm-detection", "key-detection", "chord-detection", "meter", "complete"]
+        assert order == ["stem-separation", "bpm-detection", "key-detection", "chord-detection", "meter", "bass-tab", "complete"]
 
     def test_separation_hands_over_to_bpm_without_a_gap_or_overlap(self, mix, demucs, tmp_path):
         _, events = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
@@ -272,6 +286,12 @@ class TestProcessDegradesGracefully:
         result, _ = run(mix, tmp_path / "o", stems_to_extract=["vocals"])
         assert result["chords"] is False
         assert not (tmp_path / "o" / "chords.json").exists()
+
+    def test_a_bass_tab_failure_is_non_fatal(self, mix, demucs, tmp_path, monkeypatch):
+        monkeypatch.setattr(processor, "_transcribe_bass", lambda p: (_ for _ in ()).throw(RuntimeError("pyin")))
+        result, _ = run(mix, tmp_path / "o", stems_to_extract=["bass"])
+        assert result["bassTab"] is False
+        assert "bass" in result["stems"]
 
     def test_a_demucs_failure_propagates_so_the_caller_can_report_it(self, mix, tmp_path, monkeypatch):
         def boom(*a, **k):
@@ -790,6 +810,75 @@ class TestProcessReadsChordsFromTheHarmonicStems:
     def test_the_source_file_is_read_when_no_harmony_stem_was_extracted(self, mix, tmp_path, monkeypatch):
         doc = self.run_with(mix, tmp_path, monkeypatch, ["vocals", "drums"], vocals=(G_MAJOR, 0.04), drums=(G_MAJOR, 0.04))
         assert [s["chord"] for s in doc["segments"]] == ["C:maj"]
+
+
+# ─── bass transcription ────────────────────────────────────────────────────
+
+class TestAssignFret:
+    def test_open_strings(self):
+        for string, midi in enumerate(processor.BASS_OPEN_MIDI):
+            assert processor._assign_fret(midi, string, 0) == (string, 0)
+
+    def test_prefers_the_nearest_position_to_the_previous_note(self):
+        assert processor._assign_fret(40, 1, 5) == (1, 7)
+
+    def test_prefers_an_open_string_over_a_fret_on_a_lower_one_from_rest(self):
+        assert processor._assign_fret(33, 0, 0) == (1, 0)
+
+    def test_the_lowest_playable_note_is_the_open_low_string(self):
+        assert processor._assign_fret(28, 0, 0) == (0, 0)
+
+    def test_the_highest_fret_is_reachable_and_one_above_is_not(self):
+        top = processor.BASS_OPEN_MIDI[-1] + processor.BASS_MAX_FRET
+        string, fret = processor._assign_fret(top, 3, 24)
+        assert (string, fret) == (3, processor.BASS_MAX_FRET)
+
+    def test_a_pitch_above_the_range_is_clamped_to_the_last_fret_of_the_low_string(self):
+        assert processor._assign_fret(100, 0, 0) == (0, processor.BASS_MAX_FRET)
+
+    def test_a_pitch_below_the_range_falls_back_to_fret_zero(self):
+        assert processor._assign_fret(10, 2, 7) == (0, 0)
+
+    def test_always_returns_a_playable_position_for_any_midi_pitch(self):
+        for midi in range(0, 128):
+            string, fret = processor._assign_fret(midi, 0, 0)
+            assert 0 <= string < 4 and 0 <= fret <= processor.BASS_MAX_FRET
+
+
+class TestTranscribeBass:
+    def test_a_sustained_note_becomes_one_note_with_the_right_pitch_and_position(self, tmp_path):
+        p = write_wav(tmp_path / "b.wav", sine(55.0, SR, 1.5, amp=0.5), SR)
+        notes = processor._transcribe_bass(p)
+        assert len(notes) == 1
+        n = notes[0]
+        assert n["pitch"] == 33 and (n["string"], n["fret"]) == (1, 0)
+        assert n["time"] == pytest.approx(0.0, abs=0.15)
+        assert n["duration"] == pytest.approx(1.5, abs=0.25)
+
+    def test_two_notes_separated_by_silence_are_two_notes_in_order(self, tmp_path):
+        audio = np.concatenate([sine(55.0, SR, 1.0, amp=0.5), np.zeros(int(SR * 0.5), dtype=np.float32), sine(82.41, SR, 1.0, amp=0.5)])
+        notes = processor._transcribe_bass(write_wav(tmp_path / "b.wav", audio, SR))
+        assert [n["pitch"] for n in notes] == [33, 40]
+        assert notes[0]["time"] < notes[1]["time"]
+        assert notes[0]["time"] + notes[0]["duration"] <= notes[1]["time"] + 0.05
+
+    def test_a_pitch_change_without_a_gap_starts_a_new_note(self, tmp_path):
+        audio = np.concatenate([sine(55.0, SR, 1.0, amp=0.5), sine(73.42, SR, 1.0, amp=0.5)])
+        notes = processor._transcribe_bass(write_wav(tmp_path / "b.wav", audio, SR))
+        pitches = [n["pitch"] for n in notes]
+        assert pitches[0] == 33 and pitches[-1] == 38 and len(pitches) >= 2
+
+    def test_silence_has_no_notes(self, tmp_path):
+        p = write_wav(tmp_path / "b.wav", np.zeros(SR * 2, dtype=np.float32), SR)
+        assert processor._transcribe_bass(p) == []
+
+    def test_notes_shorter_than_40_ms_are_dropped(self, tmp_path):
+        audio = np.concatenate([np.zeros(SR, dtype=np.float32), sine(55.0, SR, 0.02, amp=0.5), np.zeros(SR, dtype=np.float32)])
+        assert processor._transcribe_bass(write_wav(tmp_path / "b.wav", audio, SR)) == []
+
+    def test_every_note_is_json_serialisable(self, tmp_path):
+        notes = processor._transcribe_bass(write_wav(tmp_path / "b.wav", sine(55.0, SR, 1.0, amp=0.5), SR))
+        assert json.loads(json.dumps(notes)) == notes
 
 
 # ─── key transpose ─────────────────────────────────────────────────────────

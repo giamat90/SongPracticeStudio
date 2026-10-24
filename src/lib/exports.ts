@@ -1,3 +1,4 @@
+import { bassTabToMidi, type BassNote } from "./bassTab";
 import { buildChordChart, type ChordChartInput } from "./chordChart";
 import { exportFile } from "./tauri";
 
@@ -12,4 +13,8 @@ export function safeFileName(title: string): string {
 export function exportChordChart(input: ChordChartInput): Promise<void> {
   const bytes = new TextEncoder().encode(buildChordChart(input));
   return exportFile(Array.from(bytes), `${safeFileName(input.title)} - Chords.txt`);
+}
+
+export function exportBassMidi(title: string, notes: BassNote[], bpm: number): Promise<void> {
+  return exportFile(Array.from(bassTabToMidi(notes, bpm)), `${safeFileName(title)} - Bass.mid`);
 }

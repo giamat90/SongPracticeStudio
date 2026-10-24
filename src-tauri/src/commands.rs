@@ -473,6 +473,12 @@ pub async fn has_chord_edits(song_id: String) -> Result<bool, String> {
     library::has_chord_edits(&song_id)
 }
 
+/// A song's transcribed bass line; null for songs imported before bass transcription or without a bass stem
+#[tauri::command]
+pub async fn read_bass_tab(song_id: String) -> Result<Option<library::BassTab>, String> {
+    library::read_bass_tab(&song_id)
+}
+
 /// The chord roll's analysed notes for a song (the JSON text the frontend saved); null before the first analysis
 #[tauri::command]
 pub async fn read_note_roll(song_id: String) -> Result<Option<String>, String> {
@@ -493,6 +499,7 @@ pub(crate) fn export_filter_for(name: &str) -> Result<(&'static str, &'static [&
         .map(|e| e.to_ascii_lowercase());
     match ext.as_deref() {
         Some("txt") => Ok(("Text", &["txt"])),
+        Some("mid") => Ok(("MIDI", &["mid"])),
         _ => Err(format!("Cannot export a file named {name}")),
     }
 }
@@ -535,7 +542,7 @@ async fn save_bytes_via_dialog(app: &AppHandle, data: &[u8], suggested_name: &st
     Ok(())
 }
 
-/// Offer a file the app built (a .txt) through a Save As dialog
+/// Offer a file the app built (a .txt or .mid) through a Save As dialog
 #[tauri::command]
 pub async fn export_file(app: AppHandle, data: Vec<u8>, suggested_name: String) -> Result<(), String> {
     save_bytes_via_dialog(&app, &data, &suggested_name).await
@@ -1248,7 +1255,7 @@ mod tests {
     fn a_full_result_becomes_a_song_with_every_field() {
         let data = json!({
             "stems": {"vocals": "/a/vocals.wav", "bass": "/a/bass.wav"},
-            "duration": 215.5, "detectedBpm": 120.5, "detectedKey": "A minor", "chords": true,
+            "duration": 215.5, "detectedBpm": 120.5, "detectedKey": "A minor", "chords": true, "bassTab": true,
         });
         let song = song_from_result("id-1", "Title".into(), "/dir".into(), &data);
         assert_eq!((song.id.as_str(), song.title.as_str(), song.directory.as_str()), ("id-1", "Title", "/dir"));
@@ -1591,10 +1598,19 @@ mod tests {
     #[test]
     fn export_filter_follows_the_extension_and_refuses_anything_else() {
         assert_eq!(export_filter_for("Song - Chords.txt").unwrap().0, "Text");
-        assert_eq!(export_filter_for("Song - CHORDS.TXT").unwrap().1, &["txt"]);
-        assert!(export_filter_for("Song - Bass.mid").is_err());
+        assert_eq!(export_filter_for("Song - Bass.MID").unwrap().1, &["mid"]);
         assert!(export_filter_for("evil.exe").is_err());
         assert!(export_filter_for("noextension").is_err());
+    }
+
+    #[test]
+    fn bass_tab_command_is_none_for_a_song_without_one() {
+        let _home = TestHome::new();
+        library::add(song_from_result(
+            "a", "A".into(), storage::song_dir("a").to_string_lossy().to_string(), &json!({"duration": 1.0}),
+        ))
+        .unwrap();
+        assert!(run(read_bass_tab("a".into())).unwrap().is_none());
     }
 
     // ── the sidecar's silent-failure paths ────────────────────────────────

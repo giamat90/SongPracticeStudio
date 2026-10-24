@@ -24,6 +24,7 @@
     "NamedLoop": "NamedLoop",
     "ChordSegment": "ChordSegment",
     "MeterDoc": "BarMap",
+    "BassTab": "BassTabData",
     "TabRecord": "TabRecord",
     "TabSync": "TabSync",
     "TabBar": "TabBar",
@@ -42,6 +43,7 @@
   },
   "imports": {
     "./types": ["Song", "Take", "Folder", "NamedLoop", "ChordSegment", "StemName", "TabBar", "TabRecord", "TabSync"],
+    "./bassTab": ["BassTabData"],
     "@giamat90/mps-core/meter": ["BarMap"],
     "./ipcTypes": ["MixSource", "ZipExportEntry"]
   }

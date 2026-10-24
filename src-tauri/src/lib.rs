@@ -53,6 +53,7 @@ pub fn run() {
         commands::save_chord_edits,
         commands::clear_chord_edits,
         commands::has_chord_edits,
+        commands::read_bass_tab,
         commands::read_note_roll,
         commands::save_note_roll,
         commands::export_file,

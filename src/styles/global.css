@@ -3873,6 +3873,71 @@ button.stem-track__take-name {
   padding-left: 0.4rem;
 }
 
+/* Bass tab */
+/* A panel whose content sits in a card keeps its title button outside the card, like the Lyrics button. */
+.panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bass-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.bass-tab__body {
+  border: 1px solid var(--bg-surface);
+  border-radius: 0.5rem;
+  background: var(--bg-secondary);
+  padding: 0.5rem 0.75rem;
+}
+
+.bass-tab__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.bass-tab__strings {
+  flex: 1;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+}
+
+.bass-tab__export {
+  padding: 0.25rem 0.7rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--bg-surface);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bass-tab__export:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.bass-tab__export:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bass-tab__canvas {
+  display: block;
+  width: 100%;
+  height: 7rem;
+  cursor: pointer;
+}
+
 .export-chart {
   display: inline-flex;
   align-items: center;

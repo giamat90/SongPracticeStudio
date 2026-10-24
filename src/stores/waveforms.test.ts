@@ -9,10 +9,10 @@ async function fresh() {
   return import("./waveforms");
 }
 
-const ON = { waveforms: true, songTab: true, vocals: true, drums: true, bass: true, guitar: true, piano: true, other: true };
+const ON = { waveforms: true, bassTab: true, songTab: true, vocals: true, drums: true, bass: true, guitar: true, piano: true, other: true };
 
 describe("waveform visibility store", () => {
-  it("shows the area, the tab and every stem until the user chooses otherwise", async () => {
+  it("shows the area, the bass tab and every stem until the user chooses otherwise", async () => {
     const { useWaveformPanels } = await fresh();
     expect(useWaveformPanels.getState().visible).toEqual(ON);
   });
@@ -32,12 +32,6 @@ describe("waveform visibility store", () => {
     s.setVisible("waveforms", false);
     s.setVisible("waveforms", true);
     expect(useWaveformPanels.getState().visible.guitar).toBe(false);
-  });
-
-  it("ignores the bass tab choice an older version saved", async () => {
-    localStorage.setItem("sps_waveforms", JSON.stringify({ overrides: { bassTab: false, drums: false } }));
-    const { useWaveformPanels } = await fresh();
-    expect(useWaveformPanels.getState().visible).toEqual({ ...ON, drums: false });
   });
 
   it("has an entry for every stem name a song can have", async () => {
@@ -63,10 +57,10 @@ describe("waveformMenuItems", () => {
     ]);
   });
 
-  it("offers the same panels whether or not the song has a bass", async () => {
+  it("offers the bass tab only for a song that has a bass", async () => {
     const { waveformMenuItems } = await fresh();
     expect(waveformMenuItems(["vocals"]).map((i) => i.id)).toEqual(["waveforms", "songTab"]);
-    expect(waveformMenuItems(["vocals", "bass"]).map((i) => i.id)).toEqual(["waveforms", "songTab"]);
+    expect(waveformMenuItems(["vocals", "bass"]).map((i) => i.id)).toEqual(["waveforms", "bassTab", "songTab"]);
   });
 });
 

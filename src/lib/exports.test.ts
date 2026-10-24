@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const api = vi.hoisted(() => ({ exportFile: vi.fn() }));
 vi.mock("./tauri", () => api);
 
-import { exportChordChart, safeFileName } from "./exports";
+import { exportBassMidi, exportChordChart, safeFileName } from "./exports";
 
 beforeEach(() => {
   api.exportFile.mockReset().mockResolvedValue(undefined);
@@ -24,5 +24,19 @@ describe("exportChordChart", () => {
     const text = new TextDecoder().decode(new Uint8Array(data));
     expect(text.startsWith("Café\nKey: C major")).toBe(true);
     expect(text).toContain("0:00  C");
+  });
+});
+
+describe("exportBassMidi", () => {
+  it("offers a MIDI file named after the song", async () => {
+    await exportBassMidi("Song", [{ time: 0, duration: 0.5, pitch: 40, string: 0, fret: 0 }], 120);
+    const [data, name] = api.exportFile.mock.calls[0];
+    expect(name).toBe("Song - Bass.mid");
+    expect(String.fromCharCode(...data.slice(0, 4))).toBe("MThd");
+  });
+
+  it("propagates a failed save to the caller", async () => {
+    api.exportFile.mockRejectedValue("disk full");
+    await expect(exportBassMidi("Song", [], 120)).rejects.toBe("disk full");
   });
 });

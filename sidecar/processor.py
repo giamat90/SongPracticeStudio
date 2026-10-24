@@ -1,6 +1,6 @@
 """
 Core processing pipeline for Song Practice Studio.
-Demucs stem separation → BPM → key → chords → bars.
+Demucs stem separation → BPM → key detection → bass tab transcription.
 
 Separation strategy (chosen automatically from user's stem selection):
 
@@ -84,6 +84,9 @@ _CHORD_TONE_OFFSETS = {
     "maj7": {4, 7, 11},
     "min7": {3, 7, 10},
 }
+
+BASS_OPEN_MIDI = [28, 33, 38, 43]
+BASS_MAX_FRET  = 24
 
 ALL_STEMS_6S = ["vocals", "drums", "bass", "guitar", "piano", "other"]
 
@@ -586,6 +589,77 @@ def detect_chords_from_stems(stem_paths: dict, output_path: str) -> dict:
     return {"segments": len(segments)}
 
 
+def _assign_fret(midi_pitch: int, prev_string: int, prev_fret: int) -> tuple:
+    candidates = []
+    for s, open_midi in enumerate(BASS_OPEN_MIDI):
+        fret = midi_pitch - open_midi
+        if 0 <= fret <= BASS_MAX_FRET:
+            position_jump = abs(fret - prev_fret) + abs(s - prev_string) * 2
+            candidates.append((position_jump + fret * 0.1, s, fret))
+    if not candidates:
+        return 0, max(0, min(BASS_MAX_FRET, midi_pitch - BASS_OPEN_MIDI[0]))
+    candidates.sort()
+    _, best_string, best_fret = candidates[0]
+    return best_string, best_fret
+
+
+def _transcribe_bass(bass_path: str) -> list:
+    y, sr = librosa.load(bass_path, sr=SAMPLE_RATE, mono=True)
+
+    HOP = 512
+    frame_dur = HOP / sr
+    f0, voiced_flag, _ = librosa.pyin(
+        y,
+        fmin=librosa.note_to_hz("E1"),
+        fmax=librosa.note_to_hz("G4"),
+        sr=sr, frame_length=2048, hop_length=HOP, fill_na=None,
+    )
+    times = librosa.times_like(f0, sr=sr, hop_length=HOP)
+
+    def _midi_float(f):
+        return float(librosa.hz_to_midi(f))
+
+    notes = []
+    prev_string, prev_fret = 0, 0
+    n, i = len(f0), 0
+
+    while i < n:
+        if not voiced_flag[i] or f0[i] is None or np.isnan(f0[i]) or f0[i] <= 0:
+            i += 1
+            continue
+
+        start_i  = i
+        midi_ref = _midi_float(f0[i])
+        pitch    = int(round(midi_ref))
+
+        while (
+            i < n
+            and voiced_flag[i]
+            and f0[i] is not None
+            and not np.isnan(f0[i])
+            and f0[i] > 0
+            and abs(_midi_float(f0[i]) - midi_ref) <= 1.5
+        ):
+            i += 1
+
+        note_dur = float(times[i - 1]) + frame_dur - float(times[start_i])
+        if note_dur < 0.04:
+            continue
+
+        string_idx, fret    = _assign_fret(pitch, prev_string, prev_fret)
+        prev_string, prev_fret = string_idx, fret
+
+        notes.append({
+            "time":     round(float(times[start_i]), 4),
+            "duration": round(note_dur, 4),
+            "pitch":    pitch,
+            "string":   string_idx,
+            "fret":     fret,
+        })
+
+    return notes
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -598,7 +672,7 @@ def process(
     on_progress                   = None,
 ) -> dict:
     """
-    Full pipeline: separate stems, detect BPM, key, chords and bars.
+    Full pipeline: separate stems, detect BPM and key, transcribe bass tab.
 
     stems_to_extract: subset of ["vocals","drums","bass","guitar","piano","other"].
       Defaults to all 6.  Drives model selection:
@@ -751,6 +825,24 @@ def process(
         _log(f"Bar finding error (non-fatal): {e}\n{traceback.format_exc()}")
     on_progress(0.98, "meter")
 
+    # ===================================================================
+    # Stage 6: Bass tab transcription (0.98 – 1.00)
+    # ===================================================================
+    on_progress(0.98, "bass-tab")
+    bass_tab_written = False
+    if "bass" in stem_paths:
+        _log("Transcribing bass tab...")
+        try:
+            notes    = _transcribe_bass(stem_paths["bass"])
+            tab_data = {"version": 1, "duration": duration, "notes": notes}
+            tab_path = os.path.join(output_dir, "bass_tab.json")
+            with open(tab_path, "w", encoding="utf-8") as f:
+                json.dump(tab_data, f)
+            _log(f"Bass tab written: {len(notes)} notes → {tab_path}")
+            bass_tab_written = True
+        except Exception as e:
+            _log(f"Bass tab error (non-fatal): {e}\n{traceback.format_exc()}")
+
     on_progress(1.0, "complete")
     _log("Processing complete.")
 
@@ -760,6 +852,7 @@ def process(
         "detectedBpm": detected_bpm,
         "detectedKey": detected_key,
         "chords":      chords_written,
+        "bassTab":     bass_tab_written,
     }
 
 

@@ -5,7 +5,7 @@ End-to-end smoke test for a built sidecar binary.
 Spawns the exe, waits for "ready", sends a "process" command against a tiny
 bundled WAV, and asserts a "result" comes back with real stem files. This
 exercises the full pipeline (ffmpeg decode, torch model inference, soundfile
-write, librosa BPM/key/chords) inside the frozen exe — a
+write, librosa BPM/key, bass tab transcription) inside the frozen exe — a
 plain "does the exe launch" check does not touch any of this and would not
 have caught the missing-ffmpeg-on-PATH bug that shipped in an earlier build.
 

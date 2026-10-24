@@ -66,7 +66,7 @@ App
 │   │   └── TakeTrack       — recorded take row, aligned at its startPosition
 
 │   ├── ChordRoll           — the chord panel under the stems: notes of every stem over time with the chords on a strip, the short-term spectrum, the chord editor, and the notes and spectrum that the Monitor (in the top bar's input strip) draws what you play on (see "ChordRoll")
-│   ├── LyricsPanel         — synced lyrics: paste / find online / sync, karaoke view, click a line to seek (below the stems list, above the takes, in its own scroller; explains itself when the song has no vocals stem)
+│   ├── LyricsPanel         — synced lyrics: paste / find online / sync, karaoke view, click a line to seek (below the stems list and bass tab, above the takes, in its own scroller; explains itself when the song has no vocals stem)
 
 │   └── TakeList            — take list with select/rename/delete
 
@@ -316,11 +316,15 @@ Keyboard shortcuts (`installPlayerShortcuts` from `@giamat90/mps-core/hooks`, in
 
 
 
-### ExportChartButton
+### BassTabPanel / ExportChartButton
 
 
 
 **Page scroll (2026-10-24):** `.analyzer-page` is the one scroll region (`overflow-y: auto`, no top padding, children never shrink). The stem area, lyrics and takes have no scroll box or percentage height cap of their own. The header and the topbar sit in `analyzer-page__pinned` (`position: sticky; top: 0`), so the title, Panels menu and export buttons stay with the transport; speed, devices and transport lay out in rows to keep that block short. Plain wheel over the stems scrolls the page; ctrl+wheel zooms and shift+wheel pans the timeline.
+
+`BassTabPanel` (below `StemView` in `.analyzer-page__stems`) reads `bass_tab.json` through `read_bass_tab` and draws a four-string tab on a canvas: a 6 s window with the playhead a quarter of the way in (`tabWindowStart`, `tabTimeToX` in `src/lib/bassTab.ts`), fret numbers on the string rows, the sounding note in the accent colour. Clicking seeks. It renders nothing for a song without a bass stem or without a transcription. "Export MIDI" saves a format 0 `.mid` (`bassTabToMidi`, fingered-bass program, the song's detected tempo as a fixed tempo map) through `export_file`.
+
+
 
 `ExportChartButton` (header, only when `song.hasChords`) saves a text chord sheet (`buildChordChart`: start time and chord name, four per line). The chords are written in the current transpose and capo (`transpose - capo` semitones, the shapes to play) while the key line keeps the sounding key. The same button row has **Re-detect chords**, which runs `redetect_song_chords` (sevenths and slash chords for songs imported before they existed) and then bumps `chordsRevision` so every chord display reloads. `CapoSelect` (topbar) sets the per-song capo, stored in localStorage `sps_capo_by_song` and mirrored to detached windows with `chordsRevision`; `useChordSegments` applies `transpose - capo` to the chord and its bass note.
 
@@ -611,25 +615,25 @@ The analyzer page lets the user show or hide its optional parts from the **Panel
 
 
 
-The chord carousel is not a panel: it is the **Chords card** of the top bar and is shown or hidden from the **Cards menu**, never from this one (it can still be detached into a window of its own, and hiding the card closes that window). Always on: transport, tempo, mic/output, transpose, record (cards of the top bar, which the Cards menu can hide). The stems are not in this list either (see "Waveforms and single stems" below). A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
+The chord carousel is not a panel: it is the **Chords card** of the top bar and is shown or hidden from the **Cards menu**, never from this one (it can still be detached into a window of its own, and hiding the card closes that window). Always on: transport, tempo, mic/output, transpose, record (cards of the top bar, which the Cards menu can hide). The stems and the bass tab are not in this list either (see "Waveforms, single stems and the bass tab" below). A hidden panel is not mounted, so it must stay a pure view (the chord segments are loaded by `useChordSegments` inside the components that show them; the takes are fetched by `loadSong`). Known limit: hiding Lyrics during a sync unmounts the panel (its cleanup clears the lyrics store); the sync still finishes and is saved, and showing the panel again loads it.
 
 
 
-### Waveforms and single stems
+### Waveforms, single stems and the bass tab
 
 
 
-The stem area can be hidden as a whole, each stem's waveform can be shrunk to a strip one by one, as in a DAW, and the imported tab has its own switch. State: `useWaveformPanels` in `src/stores/waveforms.ts` (`createPanelStore`, persisted under `sps_waveforms`, **not** in `sps_panels`). Ids: `waveforms` (the area), `songTab` (the imported tab), and one per stem name. The Panels menu lists them first: **Waveforms** with the song's own stems indented under it (greyed while the area is off), then **Tab**. Each stem row starts with an arrow: **^** shrinks the stem to its strip (name, M, S, volume, download), **∨** brings the waveform back. The arrow and the menu tick are the same state, so unticking a stem in the menu also leaves just the strip. The count on the menu button counts the area and the Tab panel, not the stems.
+The stem area can be hidden as a whole, each stem's waveform can be shrunk to a strip one by one, as in a DAW, and the bass tab has its own switch. State: `useWaveformPanels` in `src/stores/waveforms.ts` (`createPanelStore`, persisted under `sps_waveforms`, **not** in `sps_panels`). Ids: `waveforms` (the area), `bassTab`, and one per stem name. The Panels menu lists them first: **Waveforms** with the song's own stems indented under it (greyed while the area is off), then **Bass tab** (only for a song with a bass stem). Each stem row starts with an arrow: **^** shrinks the stem to its strip (name, M, S, volume, download), **∨** brings the waveform back. The arrow and the menu tick are the same state, so unticking a stem in the menu also leaves just the strip. The count on the menu button counts the area and the bass tab, not the stems.
 
 
 
-- **Hidden means collapsed, never unmounted.** `StemView` owns the containers the audio engine draws into (`loadSong`, the take rails) and `getMinPxPerSec()` reads the width of the master stem, so it always stays mounted. A minimized stem gets `stem-track--collapsed`, which collapses only its `stem-track__body` (height 0, `visibility: hidden`, a small negative margin) so the header strip stays; a hidden area gets `analyzer-page__waveforms--collapsed`; both keep the full width on purpose.
+- **Hidden means collapsed, never unmounted.** `StemView` owns the containers the audio engine draws into (`loadSong`, the take rails) and `getMinPxPerSec()` reads the width of the master stem, so it always stays mounted. A minimized stem gets `stem-track--collapsed`, which collapses only its `stem-track__body` (height 0, `visibility: hidden`, a small negative margin) so the header strip stays; a hidden area gets `analyzer-page__waveforms--collapsed`; both keep the full width on purpose. The bass tab is a plain pure view and is simply not rendered when off.
 
 - **Hiding a waveform does not change what is heard.** Mute, solo and volume still apply; a hidden stem that is muted or soloed gets a "muted" / "solo" tag in the menu.
 
 - The area stays (ruler and strips) until it is switched off in the menu, even with every stem minimized; the old rule that it vanished when nothing was left to draw (`waveformsOnScreen`) is gone. A choice for a stem the song does not have is ignored. Take lanes keep their own show/hide.
 
-- **Hide all** collapses the area but keeps the choice of stems; **Show all** and **Reset** also expand every stem.
+- **Hide all** collapses the area and the bass tab but keeps the choice of stems; **Show all** and **Reset** also expand every stem.
 
 - There is no chord row above the ruler any more: the chords are on the chord roll.
 
@@ -639,10 +643,10 @@ The stem area can be hidden as a whole, each stem's waveform can be shrunk to a 
 
 Every panel's name is a button, the one the Lyrics panel always had (`PanelTitle`, class `analysis-tab`, lit while the panel is open). Clicking it folds the panel down to that title and opens it again. State: `useCollapsedPanels` in `src/stores/collapsed.ts`, a `createCollapseStore` from `@giamat90/mps-core/panels`, persisted under `sps_collapsed` as the list of folded ids; `usePanelCollapse(id)` is `useCollapsiblePanel` from `@giamat90/mps-core/hooks` bound to it. Panels start open.
 
-- **Panels with a button:** `chords` (the Chords card's carousel gains a "Chords" button; folded, the carousel is gone and the sticky bar shrinks), `takes`, `tab`. The Tab panel keeps its import and alignment controls with its body. Lyrics keeps its own `open` (closed until it has lyrics).
+- **Panels with a button:** `chords` (the Chords card's carousel gains a "Chords" button; folded, the carousel is gone and the sticky bar shrinks), `takes`, `bassTab`, `tab`. The Tab panel keeps its import and alignment controls with its body. Lyrics keeps its own `open` (closed until it has lyrics).
 - **Keyed by the panel's own id**, so a panel in a window of its own agrees with the main window (it re-reads the store when the main window writes).
-- **A folded panel is not drawn:** the Tab panel unmounts the notation (the file bytes stay in the panel, so unfolding redraws without re-reading).
-- **The button sits outside the card.** The Tab panel draws the title button above its card, the way the Lyrics button sits above its card; folded, only the button is left. Its controls (import, track menu) stay in the card.
+- **A folded panel is not drawn:** the bass tab renders its canvas only while open and lists `open` in its draw effect; the Tab panel unmounts the notation (the file bytes stay in the panel, so unfolding redraws without re-reading).
+- **The button sits outside the card.** The Bass tab and the Tab panel draw the title button above their card, the way the Lyrics button sits above its card; folded, only the button is left. Their controls (Export MIDI, import, track menu) stay in the card.
 - **Not the Panels menu.** The menu decides whether a panel is mounted at all. The stem area keeps its own collapse (it owns the engine's containers).
 
 ## Panel menu, sortable panels, detach/dock handles, loops menu (headless hooks)

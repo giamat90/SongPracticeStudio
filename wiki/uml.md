@@ -4,13 +4,13 @@ Song Practice Studio, drawn from the code at `v0.0.65` (mps-core `v0.14.0`). Fif
 
 What is shared with VPS is shown as **mps-core** and not redrawn here: see [Shared core](shared-core.md) and `core/wiki/uml.md`. The workspace-level picture of both apps is `MPS/wiki/uml-architecture.md`; the VPS counterpart of this page is `VPS/wiki/uml.md`. When code and a diagram disagree, the code wins; fix the diagram.
 
-What makes SPS different from VPS, and so what this page spends its diagrams on: **stems** (a dynamic set of up to six per song), **chords** (detected, editable, transposable, with a capo), **tab sync** (a Guitar Pro tab placed on the recording), and **no pitch analysis of takes** (takes are only loudness-normalised).
+What makes SPS different from VPS, and so what this page spends its diagrams on: **stems** (a dynamic set of up to six per song), **chords** (detected, editable, transposable, with a capo), **tab sync** (a Guitar Pro tab placed on the recording), **bass tab**, and **no pitch analysis of takes** (takes are only loudness-normalised).
 
 | # | Diagram | Kind | Question |
 |---|---|---|---|
 | 1 | Layers and processes | Deployment | What runs, and where does each concern live? |
 | 2 | Screens and panels | Component | Which page shows which components? |
-| 3 | Domain model | Class | Song, stems, chords, takes, tab, lyrics. |
+| 3 | Domain model | Class | Song, stems, chords, takes, tab, bass tab, lyrics. |
 | 4 | Data on disk | Component | Which file holds which part of the model? |
 | 5 | Player store | Class | How is the player state split into slices? |
 | 6 | AudioEngine | Class | How does a dynamic `Map` of stems differ from VPS's fixed trio? |
@@ -45,7 +45,7 @@ flowchart LR
                 SIDE["sidecar.rs (wrapper)"]
             end
         end
-        SC["Python sidecar (PyInstaller)<br/>Demucs htdemucs / htdemucs_6s, librosa,<br/>chord + bar + tab-sync code, yt-dlp"]
+        SC["Python sidecar (PyInstaller)<br/>Demucs htdemucs / htdemucs_6s, librosa,<br/>chord + bass-tab + tab-sync code, yt-dlp"]
         DATA[("~/.songpracticestudio<br/>library.json, songs, stems, takes, charts")]
     end
     NET["YouTube, lyrics sources, GitHub updater"]
@@ -79,6 +79,7 @@ flowchart TB
         SV["StemView: StemTrack per stem, TakeTrack, TimeRuler,<br/>(collapsible waveform area)"]
         CR["ChordRoll panel: notes per stem, chord strip,<br/>spectrum, chord editor (note_roll.json cache)"]
         MON["MonitorControl (in the top bar input strip):<br/>the input drawn in pink on the notes and the spectrum"]
+        BT["BassTabPanel (bass stem only)"]
         TB["TabPanel + TabScoreView (alphaTab)"]
         REC["Input strip: MicSelector, OutputSelector, RecordingOffsetControl<br/>(RecordButton is in the Transport)"]
         SP["SortablePanels (drag up or down to reorder, detach)"]
@@ -95,7 +96,7 @@ flowchart TB
 
 ## 3. Domain model (class view)
 
-TypeScript types are in `src/lib/types.ts` and `tabScore.ts`; the Rust twins in `library.rs`, `tab.rs`, `takes.rs` and `lyrics.rs` (camelCase over the wire). Note: SPS's `Song` has `stems` and `hasChords` where VPS has `kind` and an artist.
+TypeScript types are in `src/lib/types.ts`, `tabScore.ts` and `bassTab.ts`; the Rust twins in `library.rs`, `tab.rs`, `takes.rs` and `lyrics.rs` (camelCase over the wire). Note: SPS's `Song` has `stems` and `hasChords` where VPS has `kind` and an artist.
 
 ```mermaid
 classDiagram
@@ -157,6 +158,18 @@ classDiagram
         +audioOffset
         +manualOffset
     }
+    class BassTab {
+        +version
+        +duration
+        +notes : BassNote list
+    }
+    class BassNote {
+        +time
+        +duration
+        +pitch
+        +string
+        +fret
+    }
     class TabRecord {
         +fileName
         +originalName
@@ -190,6 +203,8 @@ classDiagram
     Song "1" *-- "0..*" Take : takes.json
     Song "1" o-- "0..*" ChordSegment : chords.json, or chords_edited.json
     ChordSegment "1" *-- "0..*" ChordAlternative
+    Song "1" o-- "0..1" BassTab : bass_tab.json
+    BassTab "1" *-- "0..*" BassNote
     Song "1" o-- "0..1" TabRecord : tab_meta.json
     TabRecord "1" o-- "0..1" TabSync : tab_sync.json
     TabSync "1" *-- "1..*" TabBar
@@ -210,6 +225,7 @@ flowchart TB
     SD --> ST["STEM.wav per extracted stem<br/>(vocals, drums, bass, guitar, piano, other)"]
     SD --> CH["chords.json (detected, v6, with tuning)"]
     SD --> CE["chords_edited.json (user corrections)"]
+    SD --> BTJ["bass_tab.json"]
     SD --> TAB["tab.EXT (imported Guitar Pro file)"]
     SD --> TM["tab_meta.json, tab_score.json, tab_sync.json"]
     SD --> LY["lyrics.json"]
@@ -383,7 +399,7 @@ classDiagram
         process_song import_youtube pitch_shift_song
         read_song_chords redetect_song_chords
         save_chord_edits clear_chord_edits has_chord_edits
-        read_chord_tuning
+        read_bass_tab read_chord_tuning
         read_song_tab import_song_tab align_song_tab
         save_tab_bars delete_song_tab
         save_take list_takes export_mix export_file ...
@@ -399,7 +415,7 @@ classDiagram
     class Library {
         <<library.rs>>
         Song, Folder, NamedLoop
-        ChordSegment
+        ChordSegment, BassTab
         chords.json + chords_edited.json
         library.json
     }
@@ -450,7 +466,7 @@ classDiagram
 ```mermaid
 flowchart TB
     MAIN["main.py<br/>loop: read line, dispatch cmd, send result / progress"]
-    MAIN -- "process<br/>pitch_shift<br/>detect_chords" --> PROC["processor.py<br/>Demucs (htdemucs, htdemucs_6s cascade),<br/>BPM, key, chords, bars, pitch shift"]
+    MAIN -- "process<br/>pitch_shift<br/>detect_chords" --> PROC["processor.py<br/>Demucs (htdemucs, htdemucs_6s cascade),<br/>BPM, key, chords, bass tab, pitch shift"]
     MAIN -- "convert_take<br/>normalize_take<br/>mix_export" --> REC["recording.py<br/>RMS normalise, decode to WAV, mixdown"]
     MAIN -- "align_tab" --> TS["tab_sync.py<br/>chroma + kick/snare features, banded DTW"]
     MAIN -- "import_yt" --> YT["yt_importer.py<br/>yt-dlp, cookie cascade"]
@@ -489,9 +505,9 @@ sequenceDiagram
     P->>P: 3 key, Krumhansl-Kessler (to 0.92)
     P->>P: 4 chords (to 0.96, non-fatal)
     P->>FS: chords.json
-    P->>P: 5 bars, meter.py (to 0.98, non-fatal)
-    P->>FS: meter.json
-    P-->>R: {stems, duration, detectedBpm, detectedKey, chords}
+    P->>P: 5 bass tab if a bass stem exists (to 1.0, non-fatal)
+    P->>FS: bass_tab.json
+    P-->>R: {stems, duration, detectedBpm, detectedKey, chords, bassTab}
     Note over R,LS: progress events "processing-progress" throughout
     R->>FS: library.json (Song with stems, hasChords)
     R-->>LS: Song
