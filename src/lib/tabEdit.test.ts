@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildTabScore, loadAlphaTab, readScore } from "./tabScore";
 import {
-  exportTab, firstNoteOfBar, linkedNotes, movability, moveToString, playerString, restore, stepString, type TabNoteModel,
+  exportTab, firstNoteOfBar, linkedNotes, movability, moveToString, neighbourNote, playerString, restore, stepString, type TabNoteModel,
 } from "./tabEdit";
 
 // Standard guitar tuning. alphaTex writes `fret.string` with string 1 the thinnest; the model counts from the lowest.
@@ -183,6 +183,29 @@ describe("stepString", () => {
   it("is null for a note that cannot move", async () => {
     const { notes } = await load();
     expect(stepString(notes.find((n) => n.isHarmonic) as TabNoteModel, "up")).toBeNull();
+  });
+});
+
+describe("neighbourNote", () => {
+  it("walks forward and back through the track, across bars", async () => {
+    const { notes } = await load();
+    expect(neighbourNote(notes[0], "next")).toBe(notes[1]);
+    expect(neighbourNote(notes[1], "previous")).toBe(notes[0]);
+    expect(neighbourNote(notes[3], "next")).toBe(notes[4]);
+    expect(neighbourNote(notes[4], "previous")).toBe(notes[3]);
+  });
+
+  it("stays on the same string when the next beat has a chord", async () => {
+    const { notes } = await load();
+    const before = notes.find((n) => n.fret === 3 && n.string === 5 && n.beat.notes.length === 1 && n.beat.voice.bar.index === 1) as TabNoteModel;
+    expect(before.beat.nextBeat?.notes.length).toBe(2);
+    expect(neighbourNote(before, "next")?.string).toBe(5);
+  });
+
+  it("ends at the first and the last note", async () => {
+    const { notes } = await load();
+    expect(neighbourNote(notes[0], "previous")).toBeNull();
+    expect(neighbourNote(notes[notes.length - 1], "next")).toBeNull();
   });
 });
 

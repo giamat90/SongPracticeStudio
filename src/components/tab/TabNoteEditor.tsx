@@ -9,6 +9,7 @@ interface TabNoteEditorProps {
   disabled: boolean;
   onStep: (direction: "up" | "down") => void;
   onBar: (direction: "previous" | "next") => void;
+  onNote: (direction: "previous" | "next") => void;
   onUndo: () => void;
   onRedo: () => void;
   onRevert: () => void;
@@ -16,11 +17,12 @@ interface TabNoteEditorProps {
 
 /**
  * The row under the tab while editing, with TuxGuitar's keys: Shift+Up / Shift+Down move the picked note to the
- * string above / below (at the same pitch), Alt+Left / Alt+Right go to the previous / next bar, Ctrl+Z undoes.
+ * string above / below (at the same pitch), Left / Right go to the previous / next note, Alt+Left / Alt+Right to the
+ * previous / next bar, Ctrl+Z undoes.
  * Every key has a button here.
  */
 export default function TabNoteEditor({
-  note, canUndo, canRedo, hasOriginal, disabled, onStep, onBar, onUndo, onRedo, onRevert,
+  note, canUndo, canRedo, hasOriginal, disabled, onStep, onBar, onNote, onUndo, onRedo, onRevert,
 }: TabNoteEditorProps) {
   const [confirming, setConfirming] = useState(false);
   const up = note ? stepString(note, "up") : null;
@@ -32,6 +34,8 @@ export default function TabNoteEditor({
 
   return (
     <div className="tab-panel__fix tab-panel__edit">
+      <button className="tab-panel__btn" onClick={() => onNote("previous")} disabled={disabled} title="Previous note (Left)">◀ Note</button>
+      <button className="tab-panel__btn" onClick={() => onNote("next")} disabled={disabled} title="Next note (Right)">Note ▶</button>
       <button className="tab-panel__btn" onClick={() => onBar("previous")} disabled={disabled} title="Previous bar (Alt+Left)">◀ Bar</button>
       <button className="tab-panel__btn" onClick={() => onBar("next")} disabled={disabled} title="Next bar (Alt+Right)">Bar ▶</button>
       <button
@@ -53,7 +57,7 @@ export default function TabNoteEditor({
       <span className="tab-panel__fixhint">
         {note
           ? `Bar ${note.beat.voice.bar.index + 1}, string ${playerString(note, note.string)}, fret ${note.fret}`
-          : "Click a note. Shift+Up / Down: string. Alt+Left / Right: bar. Ctrl+Z: undo."}
+          : "Click a note. Shift+Up / Down: string. Left / Right: note. Alt+Left / Right: bar. Ctrl+Z: undo."}
       </span>
       <span className="tab-panel__spacer" />
       <button className="tab-panel__btn" onClick={onUndo} disabled={disabled || !canUndo} title="Undo (Ctrl+Z)">Undo</button>

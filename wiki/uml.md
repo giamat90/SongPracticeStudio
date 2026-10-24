@@ -537,7 +537,7 @@ sequenceDiagram
     TP->>TS: saveBars(bars)
     TS->>R: invoke("save_tab_bars")
     R-->>TS: TabSync (edited = true)
-    U->>TP: Edit, click a note, Shift+Up / Shift+Down
+    U->>TP: Edit, click a note, Left / Right, Shift+Up / Shift+Down
     TP->>TP: stepString + moveToString (same pitch), redraw the view
     Note over TP: 600 ms after the last edit, or on fold, song change, Re-align
     TP->>AT: exportTab (Gp7Exporter)

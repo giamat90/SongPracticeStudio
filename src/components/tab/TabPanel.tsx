@@ -206,6 +206,11 @@ export default function TabPanel({ song }: TabPanelProps) {
     if (first) setPickedNote(first);
   };
 
+  const goToNote = (direction: "previous" | "next") => {
+    const note = viewRef.current?.stepNote(direction, pickedNote);
+    if (note) setPickedNote(note);
+  };
+
   const toggleEditing = () => {
     setEditing(!editing);
     setPickedNote(null);
@@ -240,10 +245,10 @@ export default function TabPanel({ song }: TabPanelProps) {
   };
 
   // TuxGuitar's keys while editing: Shift+Up / Shift+Down move the picked note to the string above / below,
-  // Alt+Left / Alt+Right go to the previous / next bar, Ctrl+Z undoes (Ctrl+Y or Ctrl+Shift+Z redoes). Listened for
+  // Left / Right go to the previous / next note, Alt+Left / Alt+Right to the previous / next bar, Ctrl+Z undoes (Ctrl+Y or Ctrl+Shift+Z redoes). Listened for
   // in the capture phase and stopped, so the app's own shortcuts and the meter's undo never see them.
-  const keyActions = useRef({ stepNote, goToBar, undo, redo });
-  keyActions.current = { stepNote, goToBar, undo, redo };
+  const keyActions = useRef({ stepNote, goToNote, goToBar, undo, redo });
+  keyActions.current = { stepNote, goToNote, goToBar, undo, redo };
   useEffect(() => {
     if (!editing) return;
     const onKey = (e: KeyboardEvent) => {
@@ -253,6 +258,8 @@ export default function TabPanel({ song }: TabPanelProps) {
       const key = e.key.toLowerCase();
       if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
         a.stepNote(e.key === "ArrowUp" ? "up" : "down");
+      } else if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        a.goToNote(e.key === "ArrowLeft" ? "previous" : "next");
       } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
         a.goToBar(e.key === "ArrowLeft" ? "previous" : "next");
       } else if ((e.ctrlKey || e.metaKey) && !e.altKey && key === "z") {
@@ -403,6 +410,7 @@ export default function TabPanel({ song }: TabPanelProps) {
                 disabled={busy}
                 onStep={stepNote}
                 onBar={goToBar}
+                onNote={goToNote}
                 onUndo={undo}
                 onRedo={redo}
                 onRevert={revert}

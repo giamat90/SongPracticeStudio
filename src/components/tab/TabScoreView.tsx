@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } f
 import { usePlayerStore } from "../../stores/player";
 import bravuraWoff2 from "@coderline/alphatab/font/Bravura.woff2?url";
 import { loadAlphaTab, tabTracks, type TabTrackInfo } from "../../lib/tabScore";
-import { firstNoteOfBar, type TabNoteModel } from "../../lib/tabEdit";
+import { firstNoteOfBar, neighbourNote, type TabNoteModel } from "../../lib/tabEdit";
 import { barSpans, cursorX, locate, timeAt, type BeatStop } from "../../lib/tabSync";
 import type { TabBar } from "../../lib/types";
 
@@ -38,6 +38,11 @@ export interface TabViewHandle {
    * bar. Returns the bar's first note, or null at the ends of the tab and for a bar of rests.
    */
   stepBar(direction: "previous" | "next", near: TabNoteModel | null): TabNoteModel | null;
+  /**
+   * Put the playhead on the previous or next note after `from`, or after the note at the playhead when nothing is
+   * picked, and select its bar. Returns that note, or null at the ends of the tab.
+   */
+  stepNote(direction: "previous" | "next", from: TabNoteModel | null): TabNoteModel | null;
 }
 
 type AlphaScore = import("@coderline/alphatab").model.Score;
@@ -99,6 +104,46 @@ export default function TabScoreView({
       api.renderTracks([tracks[shown]]);
     },
     getScore: () => apiRef.current?.score ?? null,
+    stepNote(direction, from) {
+      const spans = spansRef.current;
+      const current = locate(positionRef.current, spans);
+      const shown = trackRef.current;
+      const score = apiRef.current?.score;
+      const bars = shown === null ? undefined : score?.tracks[shown]?.staves[0]?.bars;
+      if (!bars || !score) return null;
+      if (!current) {
+        // Before the first bar line: "next" goes to the first note of the tab.
+        const first = spans[0];
+        const note = direction === "next" && first ? firstNoteOfBar(bars[first.index]) : null;
+        if (note && first) {
+          callbacks.current.onSelectBar(first.order);
+          callbacks.current.onSeek(first.start);
+        }
+        return note;
+      }
+
+      let anchor = from;
+      if (!anchor) {
+        // The last note at or before the playhead in this bar.
+        const tick = current.fraction * score.masterBars[current.index].calculateDuration();
+        const beats = bars[current.index]?.voices[0]?.beats ?? [];
+        const at = beats.filter((b) => b.notes.length > 0 && b.playbackStart <= tick + 1).pop();
+        anchor = at ? at.notes[0] : null;
+      }
+      const target = anchor ? neighbourNote(anchor, direction) : direction === "next" ? firstNoteOfBar(bars[current.index]) : null;
+      if (!target) return null;
+
+      const bar = target.beat.voice.bar.masterBar;
+      // The pass over a repeated bar the playhead is in, or the one it moves on to or back to.
+      const near = [current.order, current.order + 1, current.order - 1].map((o) => spans[o]).find((s) => s?.index === bar.index);
+      const length = bar.calculateDuration();
+      const time = timeAt(bar.index, near?.occurrence ?? 0, length > 0 ? target.beat.playbackStart / length : 0, spans);
+      if (time === null) return null;
+      const reached = locate(time, spans);
+      if (reached) callbacks.current.onSelectBar(reached.order);
+      callbacks.current.onSeek(time);
+      return target;
+    },
     stepBar(direction, near) {
       const spans = spansRef.current;
       const current = locate(positionRef.current, spans);

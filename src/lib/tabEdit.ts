@@ -103,6 +103,18 @@ export function stepString(note: TabNoteModel, direction: "up" | "down"): String
 }
 
 /**
+ * The note played before this one in the track, or after it: the nearest beat that has notes (rests are skipped, bars
+ * are crossed), on the same string when a chord is there, else on the nearest string. Null at the ends.
+ */
+export function neighbourNote(note: TabNoteModel, direction: "previous" | "next"): TabNoteModel | null {
+  let beat = direction === "next" ? note.beat.nextBeat : note.beat.previousBeat;
+  while (beat && beat.notes.length === 0) beat = direction === "next" ? beat.nextBeat : beat.previousBeat;
+  if (!beat) return null;
+  const distance = (n: TabNoteModel) => Math.abs(n.string - note.string);
+  return beat.notes.reduce((best, n) => (distance(n) < distance(best) ? n : best));
+}
+
+/**
  * The first note played in a bar, or null for a bar of rests. When a chord starts the bar, the note on the string
  * nearest to `near`'s, so stepping from bar to bar stays on the line the user was working on.
  */
