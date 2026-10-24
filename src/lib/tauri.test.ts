@@ -29,7 +29,6 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
       { songId: "s1", loops: [{ id: "l", name: "V", start: 1, end: 2 }] }],
     ["cancelLyricsSync", () => api.cancelLyricsSync(), "cancel_lyrics_sync", undefined],
     ["redetectSongChords", () => api.redetectSongChords("s1"), "redetect_song_chords", { songId: "s1" }],
-    ["readBassTab", () => api.readBassTab("s1"), "read_bass_tab", { songId: "s1" }],
     ["readSongTab", () => api.readSongTab("s1"), "read_song_tab", { songId: "s1" }],
     ["importSongTab", () => api.importSongTab("s1", "/t.gp"), "import_song_tab", { songId: "s1", sourcePath: "/t.gp" }],
     ["alignSongTab", () => api.alignSongTab("s1", "{}"), "align_song_tab", { songId: "s1", scoreJson: "{}" }],

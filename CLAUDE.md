@@ -63,15 +63,14 @@ Timeline zoom/pan state: `minPxPerSec` (zoom level, WaveSurfer's own px-per-seco
 `meterMap` (the open song's bars: `BarMap` from `@giamat90/mps-core/meter`, the user's own when `meterEdited`, else what `meter.json` held, null when never analysed), `meterHistory` (undo, 40 deep, in memory), `meterSelected`, `tapSession`, `clickDensity` and `applyMeter` / `undoMeter` / `resetMeter` / `detectMeter` / `startMeterFromGrid` / `startTapping`…: every change validates, updates the store and saves `meter_edited.json` in order. The ruler, the loops menu's bar sections, the metronome in `TempoControl` and the recording count-in read `meterMap` when it is set and behave as before when it is not; see `wiki/meter.md`.
 
 ### Processing pipeline (`sidecar/processor.py`)
-Six stages:
+Five stages:
 1. Demucs separation → writes `{name}.wav` for each requested stem, model chosen by a stem-count cascade (no guitar/piano → single `htdemucs`(`_ft`) pass; guitar or piano requested → `htdemucs`(`_ft`) on the full mix then `htdemucs_6s` on the resulting "other" stem) (progress 0→0.75)
 2. BPM detection via `librosa.beat.tempo` on the original file — **no pitch extraction** (0.75→0.86)
 3. Key detection via `chroma_cqt` on the first 60 seconds + Krumhansl-Kessler profiles (0.86→0.92)
 4. Chord detection — chroma-template matching (24 major/minor triads, plus 7 / maj7 / min7 when the seventh is clear, plus slash-chord bass notes from the bass stem) over the stems **without drums and vocals** (needs a guitar/piano/other stem, else the original file is read), one window per beat (`librosa.beat.beat_track` on drums + bass; a fixed 1 s grid when there is no usable pulse), decoded with Viterbi (switch cost + key prior) → `chords.json` v6 (each segment also carries a 0-1 `confidence`, the fit of the chosen chord, which the chord row dims when low, and `alternatives`, the six other chords the audio looked most like, for the editor's list; the document carries `tuning`, the recording's cents off A440, so a heard chord is in tune with it), non-fatal on failure (0.92→0.96). The user's corrections live apart in `chords_edited.json` and win when present (`ChordEditor`, `lib/chordEdit.ts`); re-detecting deletes them.
 5. Bar finding (`sidecar/meter.py`, `stems-accent-v0`) — tracks the beats on drums + bass and cuts them into whole bars of 2 to 7 beats from the strongest downbeat → `meter.json` (a bar map: each bar's start, pulses and unit, `confidence`), non-fatal on failure (0.96→0.98). **A first guess, not an answer**: it misses the downbeat and the bar length often (see `wiki/meter-detection.md`); the Meter panel is where it is corrected, and the user's bars live apart in `meter_edited.json` and win (`wiki/meter.md`).
-6. Bass tab transcription — only if a `bass` stem was extracted → `bass_tab.json`, non-fatal on failure (0.98→1.0). Read back by `read_bass_tab` (`None` for songs without one) and shown by `BassTabPanel`; "Export MIDI" writes it as a `.mid`.
 
-Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords, bassTab }` — `chords`/`bassTab` are booleans (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
+Returns `{ stems: {name: path}, duration, detectedBpm, detectedKey, chords }` — `chords` is a boolean (file written or not); actual chord data is fetched separately via `read_song_chords(songId)` once `Song.hasChords` is true.
 
 ### Song data model
 ```typescript
@@ -120,7 +119,7 @@ Persisted in `takes.json` inside the song directory; audio in `takes/{takeId}.wa
 ```
 SongPracticeStudio/
 ├── sidecar/
-│   ├── processor.py      ← Demucs 6s + BPM + key + chords + bass tab (main pipeline) + pitch_shift_song (transpose)
+│   ├── processor.py      ← Demucs 6s + BPM + key + chords + bars (main pipeline) + pitch_shift_song (transpose)
 │   ├── yt_importer.py    ← yt-dlp download → processor.process()
 │   ├── tab_sync.py       ← tab sync: place a Guitar Pro tab's bar lines on the recording (chroma + kick/snare DTW); see wiki/tab-sync.md
 │   ├── main.py           ← JSON-lines command dispatcher (process, import_yt, convert_take, normalize_take, mix_export, pitch_shift, detect_chords, detect_meter, align_tab, align_lyrics, find_lyrics, search_lyrics, ping, quit)
@@ -150,7 +149,7 @@ SongPracticeStudio/
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
 │   │   ├── topbar.ts           ← the order of the cards of the pinned top bar (`sps_topbar`): Transport, Loop, Tempo, Input and output, Transpose and capo, Chords (detail select + carousel; absent for a song without chords); one list with no fixed lines, the user puts any card anywhere in the bar and hides any from the Cards menu, never mixed with `panels.ts`
 │   │   ├── collapsed.ts        ← which panels are folded down to their title button (createCollapseStore from mps-core, `sps_collapsed`); `usePanelCollapse(id)`
-│   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
+│   │   └── waveforms.ts        ← whether the stem area and the imported tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
 │   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
@@ -168,7 +167,6 @@ SongPracticeStudio/
 │   │   │   ├── CapoSelect.tsx     ← capo fret (per song); chord displays and the sheet show the shapes (analyzer topbar)
 │   │   │   ├── ChordDetailSelect.tsx ← Easy / Medium / Advanced: triads only, with sevenths, or everything incl. slash bass (one preference for every song; analyzer topbar)
 │   │   │   ├── ExportChartButton.tsx ← chord sheet as .txt, with a capo choice (AnalyzerPage header)
-│   │   │   ├── BassTabPanel.tsx   ← scrolling four-string bass tab + Export MIDI (below the stems)
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
@@ -196,7 +194,7 @@ SongPracticeStudio/
 │   │   ├── panels/
 │   │   │   ├── SortableTopbar.tsx ← the pinned top bar: its cards in the user's order, wrapping with the window, each with a grip (⋮⋮) that moves it anywhere inside the bar (own drag context, clamped to the bar; double-click a grip to restore the usual order)
 │   │   │   ├── PanelTitle.tsx     ← a panel's name as the button that folds it (the Lyrics panel's button)
-│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the bass tab first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
+│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the Tab panel first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
 │   │   ├── tab/
 │   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
 │   │   │   └── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek
@@ -215,7 +213,7 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← read_song_meter, has_meter_edits, save_meter_edits, clear_meter_edits, redetect_song_meter, process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, read_bass_tab, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_identity, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, search_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
+    ├── commands.rs   ← read_song_meter, has_meter_edits, save_meter_edits, clear_meter_edits, redetect_song_meter, process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_identity, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, search_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
     ├── meter.rs      ← the song's bars: meter.json (detected) and meter_edited.json (the user's, wins), validation that mirrors core's `validateMap`, atomic writes
     ├── tab.rs        ← tab sync: the stored tab file, tab_sync.json (atomic), validation of hand-corrected bar lines, the align_tab round trip
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)

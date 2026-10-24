@@ -464,44 +464,6 @@ pub fn save_note_roll(song_id: &str, body: &str) -> Result<(), String> {
     fs::rename(&tmp, &path).map_err(|e| format!("Write note roll: {e}"))
 }
 
-/// One transcribed bass note, as written by the sidecar's `_transcribe_bass`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BassNote {
-    pub time: f64,
-    pub duration: f64,
-    pub pitch: i32,
-    pub string: i32,
-    pub fret: i32,
-}
-
-/// The contents of a song's `bass_tab.json`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BassTab {
-    #[serde(default)]
-    pub version: i32,
-    pub duration: f64,
-    pub notes: Vec<BassNote>,
-}
-
-/// Read a song's bass tab. `None` when the song has none: it was imported
-/// before the transcription existed, or without a bass stem.
-pub fn read_bass_tab(song_id: &str) -> Result<Option<BassTab>, String> {
-    let lib = load()?;
-    let song = lib
-        .songs
-        .iter()
-        .find(|s| s.id == song_id)
-        .ok_or_else(|| format!("Song not found: {song_id}"))?;
-    let path = std::path::Path::new(&song.directory).join("bass_tab.json");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let data = fs::read_to_string(&path).map_err(|e| format!("Read bass tab: {e}"))?;
-    serde_json::from_str(&data).map(Some).map_err(|e| format!("Parse bass tab: {e}"))
-}
-
 /// Create a folder and persist it, appended to the end of the folder list.
 pub fn create_folder(name: &str) -> Result<Folder, String> {
     let trimmed = name.trim();
@@ -999,31 +961,6 @@ mod tests {
         let segments = read_chords("a").unwrap();
         assert_eq!(segments.iter().map(|s| s.chord.as_str()).collect::<Vec<_>>(), ["C:maj", "A:min"]);
         assert_eq!(segments[1].start, 4.0);
-    }
-
-    #[test]
-    fn bass_tab_is_none_until_the_file_exists_and_errors_on_a_bad_file() {
-        let home = TestHome::new();
-        let dir = home.path().join("library").join("a");
-        fs::create_dir_all(&dir).unwrap();
-        let mut a = song("a", "A");
-        a.directory = dir.to_string_lossy().to_string();
-        add(a).unwrap();
-
-        assert!(read_bass_tab("a").unwrap().is_none(), "older songs have no bass_tab.json");
-        assert!(read_bass_tab("ghost").unwrap_err().contains("ghost"));
-
-        fs::write(
-            dir.join("bass_tab.json"),
-            r#"{"version":1,"duration":9.5,"notes":[{"time":0.5,"duration":0.25,"pitch":40,"string":0,"fret":0}]}"#,
-        )
-        .unwrap();
-        let tab = read_bass_tab("a").unwrap().unwrap();
-        assert_eq!(tab.duration, 9.5);
-        assert_eq!((tab.notes[0].pitch, tab.notes[0].string, tab.notes[0].fret), (40, 0, 0));
-
-        fs::write(dir.join("bass_tab.json"), "{{").unwrap();
-        assert!(read_bass_tab("a").unwrap_err().contains("Parse bass tab"));
     }
 
     #[test]
