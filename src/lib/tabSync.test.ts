@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alignmentNotes, barSpans, barsDiffer, locate, moveBar, qualityText, timeAt } from "./tabSync";
+import { alignmentNotes, barSpans, barsDiffer, cursorX, locate, moveBar, qualityText, timeAt } from "./tabSync";
 import type { TabBar } from "./types";
 
 const bars: TabBar[] = [
@@ -9,6 +9,39 @@ const bars: TabBar[] = [
   { index: 1, occurrence: 1, time: 7 },
   { index: 2, occurrence: 1, time: 9 },
 ];
+
+describe("cursorX", () => {
+  const bar = { x: 100, w: 400, length: 3840 };
+  // Four beats, drawn unevenly: the first note sits a little inside the bar line.
+  const stops = [{ tick: 0, x: 130 }, { tick: 960, x: 190 }, { tick: 1920, x: 330 }, { tick: 2880, x: 420 }];
+
+  it("sits on the first note at the start of the bar, not on the bar line", () => {
+    expect(cursorX(stops, bar, 0)).toBe(130);
+  });
+
+  it("sits on each note at that note's time", () => {
+    expect(cursorX(stops, bar, 0.25)).toBe(190);
+    expect(cursorX(stops, bar, 0.5)).toBe(330);
+    expect(cursorX(stops, bar, 0.75)).toBe(420);
+  });
+
+  it("moves between notes in proportion to the time, and on to the next bar line after the last note", () => {
+    expect(cursorX(stops, bar, 0.125)).toBe(160);
+    expect(cursorX(stops, bar, 0.875)).toBe(460);
+    expect(cursorX(stops, bar, 1)).toBe(500);
+  });
+
+  it("starts from the bar line when the first beat comes after a pickup", () => {
+    expect(cursorX([{ tick: 960, x: 200 }], bar, 0)).toBe(100);
+    expect(cursorX([{ tick: 960, x: 200 }], bar, 0.125)).toBe(150);
+  });
+
+  it("falls back to an even spread without beats and clamps the fraction", () => {
+    expect(cursorX([], bar, 0.5)).toBe(300);
+    expect(cursorX(stops, bar, -1)).toBe(130);
+    expect(cursorX(stops, bar, 2)).toBe(500);
+  });
+});
 
 describe("barSpans", () => {
   it("ends each bar where the next starts and the last at the song's end", () => {

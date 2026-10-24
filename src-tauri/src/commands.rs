@@ -1021,6 +1021,18 @@ pub async fn save_tab_bars(song_id: String, bars: Vec<crate::tab::TabBar>) -> Re
     crate::tab::save_bars(&song_id, bars)
 }
 
+/// Store the tab the user edited (a Guitar Pro 7 file) beside the song; the imported file is kept for revert
+#[tauri::command]
+pub async fn save_edited_tab(song_id: String, data: Vec<u8>) -> Result<crate::tab::TabRecord, String> {
+    crate::tab::save_edited(&song_id, &data)
+}
+
+/// Put the imported tab back, dropping the user's edits
+#[tauri::command]
+pub async fn revert_tab_edits(song_id: String) -> Result<crate::tab::TabRecord, String> {
+    crate::tab::revert_edits(&song_id)
+}
+
 /// Remove the song's tab and its alignment
 #[tauri::command]
 pub async fn delete_song_tab(song_id: String) -> Result<(), String> {

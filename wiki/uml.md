@@ -40,7 +40,7 @@ flowchart LR
                 SYNTH["chordSynth (audition tone)"]
             end
             subgraph rust["Rust shell"]
-                CMDS["commands.rs + tab, takes, windows,<br/>youtube_signin (51 registered commands)"]
+                CMDS["commands.rs + tab, takes, windows,<br/>youtube_signin (53 registered commands)"]
                 LIB["library.rs, storage.rs, lyrics.rs, tab.rs, takes.rs"]
                 SIDE["sidecar.rs (wrapper)"]
             end
@@ -161,6 +161,7 @@ classDiagram
         +fileName
         +originalName
         +path
+        +hasOriginal
         +sync : TabSync
     }
     class TabSync {
@@ -210,7 +211,8 @@ flowchart TB
     SD --> ST["STEM.wav per extracted stem<br/>(vocals, drums, bass, guitar, piano, other)"]
     SD --> CH["chords.json (detected, v6, with tuning)"]
     SD --> CE["chords_edited.json (user corrections)"]
-    SD --> TAB["tab.EXT (imported Guitar Pro file)"]
+    SD --> TAB["tab.EXT (imported Guitar Pro file), or tab.gp once edited"]
+    SD --> TO["tab.original.EXT (the imported file, kept after the first edit)"]
     SD --> TM["tab_meta.json, tab_score.json, tab_sync.json"]
     SD --> LY["lyrics.json"]
     SD --> TJ["takes.json"]
@@ -367,6 +369,8 @@ flowchart LR
     SY --> TR["TabRecord / TabSync"]
     TR --> UI["TabPanel, TabScoreView<br/>bar lines over the stems"]
     UI -- "drag a bar" --> SB["save_tab_bars -> edited = true"]
+    UI -- "Edit: click a note, Shift+Up / Shift+Down" --> TE["tabEdit.ts on the live alphaTab score<br/>exportTab -> Gp7Exporter"]
+    TE --> SE["save_edited_tab -> tab.gp + tab.original.EXT"]
     SB --> SY
     PY -. "event tab-progress" .-> UI
 ```
@@ -385,7 +389,7 @@ classDiagram
         save_chord_edits clear_chord_edits has_chord_edits
         read_chord_tuning
         read_song_tab import_song_tab align_song_tab
-        save_tab_bars delete_song_tab
+        save_tab_bars save_edited_tab revert_tab_edits delete_song_tab
         save_take list_takes export_mix export_file ...
     }
     class SidecarState {
@@ -533,6 +537,13 @@ sequenceDiagram
     TP->>TS: saveBars(bars)
     TS->>R: invoke("save_tab_bars")
     R-->>TS: TabSync (edited = true)
+    U->>TP: Edit, click a note, Left / Right, Shift+Up / Shift+Down
+    TP->>TP: stepString + moveToString (same pitch), redraw the view
+    Note over TP: 600 ms after the last edit, or on fold, song change, Re-align
+    TP->>AT: exportTab (Gp7Exporter)
+    TP->>TS: saveEdited(songId, bytes)
+    TS->>R: invoke("save_edited_tab")
+    R-->>TS: TabRecord (hasOriginal = true, tab_sync.json untouched)
 ```
 
 ## 13. Record a take (sequence view)

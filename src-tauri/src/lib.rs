@@ -67,6 +67,8 @@ pub fn run() {
         commands::import_song_tab,
         commands::align_song_tab,
         commands::save_tab_bars,
+        commands::save_edited_tab,
+        commands::revert_tab_edits,
         commands::delete_song_tab,
         windows::detach_panel,
         windows::dock_panel,

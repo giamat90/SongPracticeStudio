@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildTabScore, loadAlphaTab, readScore } from "../../src/lib/tabScore";
+import { exportTab, movability, moveToString, type TabNoteModel } from "../../src/lib/tabEdit";
 
 // The real tabs a user brings are copyrighted, so these only run where the
 // maintainer keeps a folder of them; nothing is checked in.
@@ -20,4 +21,37 @@ describe.skipIf(localTabs.length === 0)("real Guitar Pro 8 files (local only)", 
       expect(built.notes.some((n) => n[3] === "d" && (n[2] === 36 || n[2] === 38)), `${file} kick or snare`).toBe(true);
     }
   }, 60_000);
+});
+
+describe.skipIf(localTabs.length === 0)("editing real Guitar Pro 8 files (local only)", () => {
+  it("moves a note to another string, saves a .gp and plays exactly what it played", async () => {
+    const at = await loadAlphaTab();
+    for (const file of localTabs) {
+      const bytes = new Uint8Array(fs.readFileSync(path.join(LOCAL, file)));
+      const s = readScore(at, bytes);
+      const before = buildTabScore(at, s);
+      let moved: { note: TabNoteModel; string: number; fret: number } | null = null;
+      for (const track of s.tracks) {
+        for (const bar of track.staves[0].bars) {
+          for (const beat of bar.voices[0].beats) {
+            for (const note of beat.notes) {
+              const result = moved ? null : movability(note);
+              if (result?.ok) {
+                moveToString(note, result.choices[0].string);
+                moved = { note, string: note.string, fret: note.fret };
+              }
+            }
+          }
+        }
+      }
+      expect(moved, `${file} has a note that can change string`).not.toBeNull();
+      const back = readScore(at, exportTab(at, s));
+      const after = buildTabScore(at, back);
+      // The exporter can change a track's General MIDI preset (a distortion guitar comes back clean, one effects bass
+      // comes back with a guitar program), which moves a note between the pitched roles g / b / k. The alignment treats
+      // those alike, so the note itself (when, how long, which pitch, drum or not) is what has to survive.
+      const plain = (notes: typeof before.notes) => notes.map(([tick, length, pitch, role]) => [tick, length, pitch, role === "d"]);
+      expect({ ...after, notes: plain(after.notes) }, file).toEqual({ ...before, notes: plain(before.notes) });
+    }
+  }, 120_000);
 });
