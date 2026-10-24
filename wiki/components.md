@@ -6,7 +6,7 @@
 
 
 
-> **Logic in mps-core hooks.** `MicSelector`, `OutputSelector`, `KeyTranspose`, `TempoControl`, `LoopButton`, `RecordButton`, `TransportControls`, `ExportMixButton` and `DownloadAllButton` hold markup and CSS classes only; their state, effects and handlers are `@giamat90/mps-core/hooks` (`useMicSelect`, `useOutputSelect`, `useKeyTranspose`, `useTempoControl`, `useLoopToggle`, `useRecordButton`, `useTransportControls`, `useExportMix`, `useDownloadAll`), which take the player store and the IPC functions as arguments. What differs between VPS and SPS is an option (`stopEndsRecording`, the `watch` selectors of the mix export, `trackEntries`) or stays in the markup (aria-labels, wording).
+> **Logic in mps-core hooks.** `MicSelector`, `OutputSelector`, `KeyTranspose`, `TempoControl`, `LoopButton`, `RecordButton`, `CountInButton`, `TransportControls`, `ExportMixButton` and `DownloadAllButton` hold markup and CSS classes only; their state, effects and handlers are `@giamat90/mps-core/hooks` (`useMicSelect`, `useOutputSelect`, `useKeyTranspose`, `useTempoControl`, `useLoopToggle`, `useCountInButton`, `useRecordButton`, `useTransportControls`, `useExportMix`, `useDownloadAll`), which take the player store and the IPC functions as arguments. What differs between VPS and SPS is an option (`stopEndsRecording`, the `watch` selectors of the mix export, `trackEntries`) or stays in the markup (aria-labels, wording).
 
 
 
@@ -146,7 +146,9 @@ All player state lives in a single Zustand store, composed from slices in `src/s
 
 | `devicesSlice.ts` | mic/output devices, `recordingOffsets` calibration, the `devicechange` watcher |
 
-| `recordingSlice.ts` | `startRecording` / `stopRecording`, count-in, latency compensation |
+| `countInSlice.ts` | the count-in before Play and Record: bars setting, the running count and its countdown (mps-core's `createCountInSlice`), and `countInPlan` (the song's own bars or steady beats) |
+
+| `recordingSlice.ts` | `startRecording` / `stopRecording`, latency compensation |
 
 | `takesSlice.ts` | takes list, shown/active/muted/soloed takes, per-take gain, take preferences |
 
@@ -158,7 +160,7 @@ All player state lives in a single Zustand store, composed from slices in `src/s
 
 | `prefs.ts` | every localStorage read/write the store does |
 
-| `singletons.ts` | the `AudioEngine`, the recorder, the recording session and count-in handles (module-level on purpose: start/stop/cancel are separate actions) |
+| `singletons.ts` | the `AudioEngine`, the recorder and the recording session (module-level on purpose: start/stop are separate actions) |
 
 
 
@@ -404,7 +406,9 @@ Extra row rendered when `activeTakeId` is set. Loads the take into the engine vi
 
 
 
-- **RecordButton** — starts/stops recording via the player store; disabled until a song is loaded. A separate ⏱ count-in toggle beside it cycles `countInBars` through `0 → 1 → 2 → 0`; when armed, `startRecording()` plays a flat, tempo-locked count-off (`countInBars * 4` beats at `(song.detectedBpm ?? 120) * playbackRate`, via the shared `Metronome` singleton) immediately before its existing `eng.setInteract(false); eng.seekTo(...); eng.play(); rec.start()` sequence, so `Take.startPosition` (captured earlier, unaffected) ends up beat-aligned — click stops the instant capture starts; clicking Record again during the countdown cancels it via `cancelCountIn()`. See VPS's `wiki/components.md#recordbutton` for the full design (byte-identical implementation, ported in parallel).
+- **RecordButton** — starts/stops recording via the player store; disabled until a song is loaded. With a count-in set, `startRecording()` counts in (`runCountIn(countInPlan(get, startPos), "record")`) immediately before its existing `eng.setInteract(false); eng.seekTo(...); eng.play(); rec.start()` sequence, so `Take.startPosition` (captured earlier, unaffected) ends up beat-aligned; the click stops the instant capture starts; clicking Record during the countdown cancels it via `cancelCountIn()`. The Record button shows the countdown for `"record"` counts only; a count-in before Play belongs to the Play button. See VPS's `wiki/components.md#recordbutton` for the shared design (same `countIn` slice from mps-core).
+
+- **CountInButton** — the ⏱ clock in the transport bar that cycles `countInBars` through `0 → 1 → 2 → 0` (headless `useCountInButton`). One setting for Play and Record. `countInPlan(get, startPos)` (`countInSlice.ts`) is where SPS differs from VPS: a song with a bar map (`meterMap`) is counted in the way its bars are counted (`countInMap` + `clickSequence`: the bar playing at the start position, its accents, its number of pulses, `metronome.startSequence`), otherwise it is `steadyCountIn` at `song.detectedBpm * playbackRate`.
 
 - **MicSelector** — input device picker; devices get real labels only after the first `getUserMedia` grant.
 
@@ -450,7 +454,9 @@ All of `tX`/`xToTime` (coordinate mapping), `modeForOffset` (handle hit-testing)
 
 
 
-Play/pause/stop buttons + current time display. Stop seeks to 0. Time is read from the player store's `currentTime` (updated at ~30 fps from the rAF loop).
+Play/pause/stop buttons + current time display. Stop seeks to 0 and cancels a count-in. Time is read from the player store's `currentTime` (updated at ~30 fps from the rAF loop).
+
+**Play with a count-in.** `togglePlay()` with `countInBars > 0` and a song loaded runs `runCountIn(countInPlan(get, punchIn ?? currentTime), "play")` first and calls `play()` only when the count finished; `isPlaying` stays `false` during the count, the Play button shows `countInBeatsRemaining` (`.transport__btn--counting-in`) and reads "Cancel count-in", and pressing Play (or Space) again cancels it. Resuming from a pause counts in too. `play()` itself never counts in (the chord editor's "With song" loop and the recording flow use it directly). `stop()`, `loadSong()` and `cleanup()` cancel a running count; a recording started during the count replaces it.
 
 
 

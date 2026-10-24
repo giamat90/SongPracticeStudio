@@ -1,5 +1,6 @@
 import { useTransportControls } from "@giamat90/mps-core/hooks";
 import { usePlayerStore } from "../../stores/player";
+import CountInButton from "./CountInButton";
 
 function TransportControls() {
   const transport = useTransportControls(usePlayerStore, { stopEndsRecording: false });
@@ -20,12 +21,12 @@ function TransportControls() {
           &#9632;
         </button>
         <button
-          className="transport__btn transport__btn--play"
+          className={`transport__btn transport__btn--play ${transport.isCountingIn ? "transport__btn--counting-in" : ""}`}
           onClick={transport.togglePlay}
           title={transport.playLabel}
           aria-label={transport.playLabel}
         >
-          {transport.isPlaying ? "❚❚" : "▶"}
+          {transport.isCountingIn ? transport.countInBeatsRemaining : transport.isPlaying ? "❚❚" : "▶"}
         </button>
         <button
           className="transport__btn"
@@ -36,6 +37,7 @@ function TransportControls() {
         >
           &#9197;
         </button>
+        <CountInButton />
         <span className="transport__time" role="timer" aria-label="Playback position">
           {transport.currentText} / {transport.durationText}
         </span>

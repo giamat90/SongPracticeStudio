@@ -1,12 +1,10 @@
-import { metronome } from "@giamat90/mps-core/metronome";
-import { countInDurationSeconds } from "@giamat90/mps-core/metronomeSync";
-import { clickSequence, countInMap, pulseTimes } from "@giamat90/mps-core/meter";
 import { showTake } from "@giamat90/mps-core/takes";
 import type { AudioEngine } from "../../audio/engine";
 import { saveTake } from "../../lib/tauri";
 import type { Song } from "../../lib/types";
 import { pushTakeAudio, selectionOf } from "./audioMix";
-import { countIn, getEngine, getRecorder, liveMonitorGate, recordingSession } from "./singletons";
+import { countInPlan } from "./countInSlice";
+import { getEngine, getRecorder, liveMonitorGate, recordingSession } from "./singletons";
 import type { Getter, RecordingSlice, Setter, Slice } from "./types";
 
 // Takes shorter than this carry too little accumulated drift to be worth logging.
@@ -29,70 +27,6 @@ async function openMic(set: Setter, get: Getter, eng: AudioEngine): Promise<numb
     eng.setInteract(true);
     throw new Error("Microphone unavailable: " + (e instanceof Error ? e.message : String(e)));
   }
-}
-
-function clearCountInTimers(): void {
-  if (countIn.timeoutId !== null) {
-    window.clearTimeout(countIn.timeoutId);
-    countIn.timeoutId = null;
-  }
-  if (countIn.intervalId !== null) {
-    window.clearInterval(countIn.intervalId);
-    countIn.intervalId = null;
-  }
-}
-
-// Count-in: play N bars of click at the song's tempo before capture
-// actually begins, so the performer can settle into the beat (tap or
-// mute-strum along) before the take starts — which also means the take
-// lands beat-aligned by construction, making the manual take-repositioning
-// drag afterward a simple constant shift instead of an arbitrary one.
-// Click stops the instant recording starts; a second Record click during
-// the countdown aborts it via cancelCountIn().
-function runCountIn(set: Setter, get: Getter, song: Song, bars: number): Promise<boolean> {
-  const rate = get().playbackRate;
-  const bpm = (song.detectedBpm ?? 120) * rate;
-  const meter = get().meterMap;
-  // A song with bars is counted in the way its bars are counted: its own accents, its own number of pulses.
-  const counted = meter ? countInMap(meter, recordingSession.startPos, bars) : null;
-  const sequence = counted ? clickSequence(counted, 0, rate) : null;
-  const beatIntervalMs = (60 / bpm) * 1000;
-  return new Promise<boolean>((resolve) => {
-    countIn.resolve = resolve;
-    const finish = () => {
-      countIn.timeoutId = null;
-      clearCountInTimers();
-      metronome.stop();
-      set({ isCountingIn: false, countInBeatsRemaining: 0 });
-      countIn.resolve = null;
-      resolve(true);
-    };
-    if (counted && sequence) {
-      const wallMs = counted.bars.flatMap((_, i) => pulseTimes(counted, i)).map((t) => (t / rate) * 1000);
-      const began = performance.now();
-      let remaining = wallMs.length;
-      set({ isCountingIn: true, countInBeatsRemaining: remaining });
-      metronome.startSequence({ ...sequence.first, wait: 0.05 }, sequence.next);
-      countIn.intervalId = window.setInterval(() => {
-        const elapsed = performance.now() - began;
-        const left = wallMs.filter((t) => t > elapsed).length;
-        if (left !== remaining) {
-          remaining = left;
-          set({ countInBeatsRemaining: left });
-        }
-      }, 40);
-      countIn.timeoutId = window.setTimeout(finish, (counted.end / rate) * 1000);
-      return;
-    }
-    let remaining = bars * 4;
-    set({ isCountingIn: true, countInBeatsRemaining: remaining });
-    metronome.start(bpm, 0.05, 0);
-    countIn.intervalId = window.setInterval(() => {
-      remaining -= 1;
-      set({ countInBeatsRemaining: Math.max(0, remaining) });
-    }, beatIntervalMs);
-    countIn.timeoutId = window.setTimeout(finish, countInDurationSeconds(bpm, bars) * 1000);
-  });
 }
 
 // Calibrated value takes full priority — skip AudioContext measurement when present.
@@ -178,9 +112,6 @@ async function saveRecordedTake(set: Setter, get: Getter, song: Song, takeDurati
 export const createRecordingSlice: Slice<RecordingSlice> = (set, get) => ({
   isRecording: false,
   isSavingTake: false,
-  countInBars: 0,
-  isCountingIn: false,
-  countInBeatsRemaining: 0,
 
   startRecording: async () => {
     const { song } = get();
@@ -208,7 +139,7 @@ export const createRecordingSlice: Slice<RecordingSlice> = (set, get) => ({
     const inputLatencyS = await openMic(set, get, eng);
 
     const bars = get().countInBars;
-    if (bars > 0 && !(await runCountIn(set, get, song, bars))) {
+    if (bars > 0 && !(await get().runCountIn(countInPlan(get, recordingSession.startPos), "record"))) {
       // Cancelled mid-count — abandon this recording attempt, releasing
       // the mic already opened above.
       getRecorder().releaseStream();
@@ -242,20 +173,5 @@ export const createRecordingSlice: Slice<RecordingSlice> = (set, get) => ({
       set({ isSavingTake: false, currentTime: 0 });
       throw e;
     }
-  },
-
-  setCountInBars: (bars) => {
-    if (get().isCountingIn || get().isRecording) return;
-    set({ countInBars: bars });
-  },
-
-  cancelCountIn: () => {
-    if (countIn.resolve === null) return;
-    clearCountInTimers();
-    metronome.stop();
-    set({ isCountingIn: false, countInBeatsRemaining: 0 });
-    const resolve = countIn.resolve;
-    countIn.resolve = null;
-    resolve(false);
   },
 });

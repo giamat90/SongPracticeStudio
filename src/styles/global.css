@@ -1127,6 +1127,12 @@ body,
   background: var(--accent-hover);
 }
 
+.transport__btn--counting-in {
+  font-weight: 700;
+  border-color: var(--warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
 .transport__btn:disabled {
   opacity: 0.4;
   cursor: default;
