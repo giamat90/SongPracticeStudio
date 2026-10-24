@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.74] - 2026-10-24
+
+### Changed
+- **Record moved into the transport bar**, right after Play (skip, Stop, Play, Record, skip). It is always red, not the amber of the rest of the app, so it is not mistaken for Play.
+- **The top bar reads like VPS's**: tempo, then Input and Output, then Transpose.
+- **Transpose is one row** like Speed and the devices, instead of a label stacked over its buttons.
+- A long error message in the bar is cut with an ellipsis; hover it to read the whole text.
+
 ## [0.0.73] - 2026-10-24
 
 ### Added
