@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isChordDetail, simplifyChord } from "./chordNames";
+import { CHORD_QUALITIES, formatChordName, isChordDetail, simplifyChord } from "./chordNames";
 
 describe("simplifyChord", () => {
   it("leaves everything alone at the advanced level", () => {
@@ -34,5 +34,36 @@ describe("isChordDetail", () => {
     expect(["easy", "medium", "advanced"].every(isChordDetail)).toBe(true);
     expect(isChordDetail("hard")).toBe(false);
     expect(isChordDetail(null)).toBe(false);
+  });
+});
+
+describe("chord qualities", () => {
+  it("offer the power chord, written E5", () => {
+    expect(CHORD_QUALITIES.map((q) => q.value)).toContain("5");
+    expect(formatChordName("E:5")).toBe("E5");
+    expect(formatChordName("E:5", "B")).toBe("E5/B");
+  });
+
+  it("keep a power chord as it is at every level of detail", () => {
+    expect(simplifyChord("E:5", "B", "easy")).toEqual({ chord: "E:5", bass: null });
+    expect(simplifyChord("E:5", "B", "medium")).toEqual({ chord: "E:5", bass: null });
+  });
+});
+
+describe("every chord quality the editor offers", () => {
+  it("is named, plays, and shows as a triad at the Easy level", async () => {
+    const { chordVoicing } = await import("./chordVoicing");
+    for (const q of CHORD_QUALITIES) {
+      expect(formatChordName(`C:${q.value}`)).toBe(`C${q.suffix}`);
+      expect(chordVoicing(`C:${q.value}`, null), q.value).not.toBeNull();
+    }
+    expect(simplifyChord("C:min7b5", null, "easy").chord).toBe("C:dim");
+    expect(simplifyChord("C:add9", null, "easy").chord).toBe("C:maj");
+    expect(simplifyChord("C:minmaj7", null, "easy").chord).toBe("C:min");
+  });
+
+  it("has no quality twice", () => {
+    const values = CHORD_QUALITIES.map((q) => q.value);
+    expect(new Set(values).size).toBe(values.length);
   });
 });

@@ -42,6 +42,8 @@ vi.mock("../components/player/CapoSelect", h.stub("capo"));
 vi.mock("../components/player/ExportChartButton", h.stub("exportChart"));
 vi.mock("../components/player/LoopsMenu", h.stub("loops"));
 vi.mock("../components/player/BassTabPanel", h.stub("bassTab"));
+vi.mock("../components/player/ChordRoll", h.stub("roll"));
+vi.mock("../components/player/MeterPanel", h.stub("meter"));
 vi.mock("../components/tab/TabPanel", h.stub("songTab"));
 vi.mock("../components/player/OutputSelector", h.stub("output"));
 vi.mock("../components/recording/MicSelector", h.stub("mic"));
@@ -156,13 +158,27 @@ describe("AnalyzerPage panels", () => {
     expect(html.indexOf('data-c="chords"')).toBeLessThan(html.indexOf("analyzer-page__body"));
   });
 
-  it("gives only lyrics and takes a movable slot", async () => {
-    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(2);
+  it("gives the roll, meter, lyrics and takes a movable slot", async () => {
+    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(4);
   });
 
   it("offers the menu every optional panel", async () => {
     const html = await render();
-    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,lyrics,takes");
+    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("chords,roll,meter,lyrics,takes");
+  });
+
+  it("shows the meter between the chord roll and the lyrics, and cannot be detached", async () => {
+    const html = await render();
+    const at = (c: string) => html.indexOf(`data-c="${c}"`);
+    expect(at("meter")).toBeGreaterThan(at("roll"));
+    expect(at("meter")).toBeLessThan(at("lyrics"));
+    expect(html).not.toContain('data-panel="meter"');
+  });
+
+  it("hiding the meter removes only that panel", async () => {
+    const html = await render({ meter: false });
+    expect(html).not.toContain('data-c="meter"');
+    for (const c of ["roll", "lyrics", "takes", "chords", "stems"]) expect(html).toContain(`data-c="${c}"`);
   });
 });
 

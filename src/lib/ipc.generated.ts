@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Song, Take, Folder, NamedLoop, ChordSegment, StemName, TabBar, TabRecord, TabSync } from "./types";
 import type { BassTabData } from "./bassTab";
+import type { BarMap } from "@giamat90/mps-core/meter";
 import type { MixSource, ZipExportEntry } from "./ipcTypes";
 
 /** Process a song file through the Python sidecar */
@@ -121,6 +122,16 @@ export async function readBassTab(songId: string): Promise<BassTabData | null> {
   return invoke<BassTabData | null>("read_bass_tab", { songId });
 }
 
+/** The chord roll's analysed notes for a song (the JSON text the frontend saved); null before the first analysis */
+export async function readNoteRoll(songId: string): Promise<string | null> {
+  return invoke<string | null>("read_note_roll", { songId });
+}
+
+/** Keep the chord roll's analysed notes (JSON text) with the song so the roll opens ready next time */
+export async function saveNoteRoll(songId: string, body: string): Promise<void> {
+  return invoke<void>("save_note_roll", { songId, body });
+}
+
 /** Offer a file the app built (a .txt or .mid) through a Save As dialog */
 export async function exportFile(data: number[], suggestedName: string): Promise<void> {
   return invoke<void>("export_file", { data, suggestedName });
@@ -188,6 +199,31 @@ export async function pitchShiftSong(
 /** Detect the song's chords again from its stems (sevenths, slash chords); resolves to the updated song */
 export async function redetectSongChords(songId: string): Promise<Song> {
   return invoke<Song>("redetect_song_chords", { songId });
+}
+
+/** A song's bars: the user's when there are any, otherwise what was detected; null for a song never analysed */
+export async function readSongMeter(songId: string): Promise<BarMap | null> {
+  return invoke<BarMap | null>("read_song_meter", { songId });
+}
+
+/** Whether a song's bars carry the user's corrections */
+export async function hasMeterEdits(songId: string): Promise<boolean> {
+  return invoke<boolean>("has_meter_edits", { songId });
+}
+
+/** Store the user's bar map; `read_song_meter` returns it from then on. */
+export async function saveMeterEdits(songId: string, doc: BarMap): Promise<BarMap> {
+  return invoke<BarMap>("save_meter_edits", { songId, doc });
+}
+
+/** Drop the user's bar map; the detected bars show again. */
+export async function clearMeterEdits(songId: string): Promise<void> {
+  return invoke<void>("clear_meter_edits", { songId });
+}
+
+/** Find the song's bars again from its stems (beats, bar lines, time signature); resolves to the bar map, replacing any corrections */
+export async function redetectSongMeter(songId: string): Promise<BarMap | null> {
+  return invoke<BarMap | null>("redetect_song_meter", { songId });
 }
 
 /**

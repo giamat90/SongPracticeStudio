@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { pushTakeAudio, takeAudioInputsChanged } from "./audioMix";
 import { createChordsSlice } from "./chordsSlice";
+import { createCountInSlice } from "./countInSlice";
 import { createDevicesSlice } from "./devicesSlice";
+import { createMeterSlice } from "./meterSlice";
 import { createMixerSlice } from "./mixerSlice";
 import { createRecordingSlice } from "./recordingSlice";
 import { createTakesSlice } from "./takesSlice";
@@ -19,9 +21,11 @@ export const usePlayerStore = create<PlayerStore>()((...a) => ({
   ...createMixerSlice(...a),
   ...createTimelineSlice(...a),
   ...createDevicesSlice(...a),
+  ...createCountInSlice(...a),
   ...createRecordingSlice(...a),
   ...createTakesSlice(...a),
   ...createChordsSlice(...a),
+  ...createMeterSlice(...a),
 }));
 
 usePlayerStore.subscribe((state, prev) => {

@@ -6,6 +6,79 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.73] - 2026-10-24
+
+### Added
+- **The count-in also counts in Play.** With the clock button set to 1 or 2 bars, Play clicks the bars in first and then starts the song (from the punch-in point if there is one); a song with bars is counted in the way its bars are counted. Resuming from a pause counts in again. The Play button shows the beats left; click Play, press Space or click Stop to cancel the count. Record counts in as before, and a recording started during the count takes over.
+
+### Changed
+- The clock button moved from beside the Record button to the transport bar, since it now counts in Play as well.
+- The count-in of a song with bars now counts down 4, 3, 2, 1 like the steady one (it dropped a number as the first pulse started).
+- Uses mps-core v0.17.0, which holds the count-in for both apps.
+
+## [0.0.72] - 2026-10-24
+
+### Added
+- **Every panel's name is a button that folds it**, like the Lyrics button always did. Click the name to fold the panel down to just that button, click it again to open it. It works on the Chords display in the top bar (folded, the bar gets shorter), Takes, the Bass tab and the Tab panel. The Bass tab and the Tab panel keep their buttons above their card, the way the Lyrics button sits above its card. A folded panel is only its button. Your choice is remembered, and a panel in a window of its own follows it.
+
+### Changed
+- Uses mps-core v0.16.0.
+
+## [0.0.71] - 2026-10-24
+
+### Changed
+- **The analyzer page scrolls as one page.** The stems or waveforms, lyrics and takes no longer have scroll boxes of their own: the whole page scrolls, so every panel is reachable with the wheel. The title, Panels menu and export buttons stay pinned with the transport bar, which is now more compact (speed, input and output sit in rows). Ctrl+wheel still zooms the timeline and Shift+wheel still pans it.
+
+## [0.0.70] - 2026-10-22
+
+### Fixed
+- **A long list of release notes no longer pushes the update buttons off screen.** The "Update available" window is now at most as tall as the window allows and the notes scroll inside it, so Install & Restart and Later stay visible.
+
+## [0.0.69] - 2026-10-21
+
+### Added
+- **Meter: count a song's bars, whatever its time signature.** SPS used to treat every bar as four beats. A new **Meter** panel (Panels menu, under the chord roll) gives each song a map of its bars: where each starts, how many pulses it has, and which note is one pulse, so 5/4, 7/8, 6/8, or a song that changes meter from bar to bar, can be seen, corrected and clicked along to. Like the chords, the app's guess is a starting point and your corrections are kept apart and win.
+  - **Find bars** listens to the song's beat and proposes the bars; new imports do it automatically. **Treat it as a first guess:** on the author's own test songs it found the right bar length about two times in three on steady songs and rarely on songs that change meter, and it often puts the first beat of the bar one beat off. The panel says where the bars came from and how sure it was, asks before replacing bars you edited, and has Undo.
+  - **Correct them with tools:** the song as coloured stretches by time signature; a lane of the bars around the playhead with the drums drawn under them, where you drag a bar line; pulses and note unit; accent groups (3+2+2, or your own); split, join, remove; count finer or coarser (4/4 as 8/8); **repeat a pattern** such as 5+7 at a chosen pulse rate over the rest of the song; move the first beat of every bar a pulse earlier or later; shift every bar by 10 or 50 ms.
+  - **Tap along:** press T on the first beat of each bar (and once more where the last bar ends), or on every beat, and the bars are built from your taps. Seven pulses between taps comes out as seven.
+  - **Start from the tempo** gives four beats to a bar at the detected tempo to correct from.
+  - **Everything follows the bars:** the metronome clicks the bars' own pulses with the first of each group louder and starts again when you seek or the loop wraps (choose to click every pulse, only the groups, or only the bars); the recording count-in counts the bar you start in; the time ruler draws bar lines with numbers and the signature where it changes; the Loops menu's bar sections are cut from the bars. A song with no bars works as before.
+  - Uses mps-core 0.15.0.
+
+### Fixed
+- The local-only test that reads a folder of real Guitar Pro files no longer times out on a busy machine.
+
+## [0.0.68] - 2026-10-21
+
+### Added
+- **Monitor: see what you play against the song.** A new **Monitor** switch in the chord roll's header listens to the input chosen in the mic menu (a guitar or keyboard through your interface, or a voice) and draws it in pink next to the song. Nothing is recorded.
+  - On the notes, thin pink bars show the notes you play over the song's own, so you can see at a glance whether you are on the same ones.
+  - On the spectrum, a pink curve for your input sits beside the song's curve and the chord you are trying.
+  - A **You play C** line above the spectrum says which notes of that chord it hears and which are missing, and names the strongest note you play that the chord does not have (play C minor against C major and it reports the E missing and the D sharp).
+  - A level meter and a short message tell you when there is no sound, when the input is clipping, or when the input is unplugged or could not be opened.
+  - While the song plays, the pink notes are placed using the latency calibrated for your input (the same one recording uses), so calibrate it for the best match. Use headphones: a song coming out of speakers is picked up too.
+  - The monitor stops by itself when you leave the song, hide the chord roll, or start a recording, and it follows you if you choose another input.
+
+### Fixed
+- The chord spectrum could stay empty (no orange curve for the song) when the page had just opened, until you moved the playhead. It now measures again as soon as the audio is ready.
+
+## [0.0.67] - 2026-10-20
+
+### Added
+- **Chord roll: the place to study and correct a song's harmony.** A new panel under the stems (Panels menu, *Chord roll*, on by default). It shows the notes each stem plays over ten seconds around the playhead, in the stem's colour, with the chords on a strip above them. The chord that is playing is lit, notes the chord does not have can be faded, and a piano on the left lights the notes sounding now. Choose which stems to show and the range of notes (default E1 to C5). The first time you open a song the notes are analysed (about 12 seconds for a four-minute song) and saved with it, so the next visit opens ready.
+- **Correct chords on the roll.** Click a chord's button to pick it; drag its amber handle to move where it starts; press the dashed **+** at the playhead to add a chord where there is none; click anywhere else to go there, drag to scrub.
+- **One spectrum, with the editing in it.** The short-term spectrum of the picked chord (or of the playhead) sits in the same panel, with a synthetic chord drawn over it to compare. Choose a root and a quality from two drop-downs, add a slash bass, press *Use* to make it the chord, or try a chord from the **In this key** and **Also heard** drop-downs. Hear, With song, Go to, Start here, End here, Split here, Join next, Delete and Done sit beside the stems.
+- **More chord kinds.** The quality menu now offers 22 kinds: the power chord (5), add9, minor 6, 9, minor 7♭5, diminished 7, 7sus4, minor/major 7, major 9, minor 9, 11 and 13 join the ones that were there. The detector still finds only major, minor, sevenths and sus; the others are for chords you set yourself.
+
+### Changed
+- **The chord row above the time ruler is gone.** Every chord is now shown and edited on the chord roll; the chord display in the top bar stays. If you hide the chord roll in the Panels menu you cannot correct chords until you show it again.
+- The chord editor no longer has its own *Spectrum* button; the roll's spectrum replaces it.
+
+## [0.0.66] - 2026-10-18
+
+### Added
+- **Chord spectrum: look at a chord before you decide.** In the chord editor, the new *Spectrum* button shows the spectrum of the song over the selected chord (the stems you tick; drums and vocals start off, like the detector reads) with the spectrum of a synthetic candidate chord drawn over it. Pick a root and a quality (Cm, Cm7, Csus2 ...) with one click and see whether the song's peaks line up; the chord now there is drawn dashed for comparison, and *Use* makes the candidate the chord. Under the plot, each note of the candidate shows how strong it is in the song (or that it is probably only an overtone of another note) and the strongest note the candidate does not have. Tick the vocals to see what the sung note adds. It is a tool for judging a chord, not a second detector.
+
 ## [0.0.65] - 2026-10-18
 
 ### Fixed

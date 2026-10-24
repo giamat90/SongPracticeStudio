@@ -1,6 +1,8 @@
 import { formatTakeDate, useTakeList } from "@giamat90/mps-core/hooks";
 import { usePlayerStore, takesSilenced } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
+import PanelTitle from "../panels/PanelTitle";
+import { usePanelCollapse } from "../../stores/collapsed";
 
 type PlayerState = ReturnType<typeof usePlayerStore.getState>;
 
@@ -13,20 +15,26 @@ function TakeList() {
     onMount: fetchTakes,
   });
   const { takes, editingId, editValue, setEditValue, exportingId } = list;
+  const collapse = usePanelCollapse("takes");
+  const title = (
+    <h3 className="take-list__title">
+      <PanelTitle collapse={collapse}>Takes</PanelTitle>
+    </h3>
+  );
 
   if (takes.length === 0) {
     return (
       <div className="take-list">
-        <h3 className="take-list__title">Takes</h3>
-        <p className="take-list__empty">No recordings yet.</p>
+        {title}
+        {collapse.open && <p className="take-list__empty">No recordings yet.</p>}
       </div>
     );
   }
 
   return (
     <div className="take-list">
-      <h3 className="take-list__title">Takes</h3>
-      {takes.map((take, i) => {
+      {title}
+      {collapse.open && takes.map((take, i) => {
         const isActive = list.isActive(take);
         const isShown = list.isShown(take);
         return (

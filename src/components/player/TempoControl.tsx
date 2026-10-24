@@ -6,7 +6,14 @@ interface Props {
 }
 
 function TempoControl({ detectedBpm }: Props) {
-  const tempo = useTempoControl(usePlayerStore, { detectedBpm, getCurrentTime: () => getEngine().getCurrentTime() });
+  const meterMap = usePlayerStore((s) => s.meterMap);
+  const clickDensity = usePlayerStore((s) => s.clickDensity);
+  const tempo = useTempoControl(usePlayerStore, {
+    detectedBpm,
+    getCurrentTime: () => getEngine().getCurrentTime(),
+    meterMap,
+    clickDensity,
+  });
 
   return (
     <div className="tempo-control">
@@ -20,7 +27,7 @@ function TempoControl({ detectedBpm }: Props) {
         <button
           className={`metronome-btn${tempo.metronomeEnabled ? " metronome-btn--active" : ""}`}
           onClick={tempo.toggleMetronome}
-          title={tempo.metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
+          title={tempo.metronomeEnabled ? "Disable metronome" : meterMap ? "Enable metronome (clicks the song's bars while playing)" : "Enable metronome (clicks while playing)"}
           aria-label={tempo.metronomeEnabled ? "Disable metronome" : "Enable metronome (clicks while playing)"}
         >
           🥁
@@ -59,7 +66,7 @@ function TempoControl({ detectedBpm }: Props) {
           />
           <span className="tempo-control__bpm-unit">×</span>
         </div>
-        {tempo.metronomeEnabled && (
+        {tempo.metronomeEnabled && !meterMap && (
           <div className="tempo-control__bpm-row">
             <span
               className="tempo-control__bpm-unit"

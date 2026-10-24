@@ -17,6 +17,7 @@
   --success: #4ade80;
   --warning: #fbbf24;
   --info: #4a9eff;
+  --live: #f472b6;
 
   --bg-raised: #1d2a4d;
   --border: rgba(255, 255, 255, 0.09);
@@ -998,85 +999,6 @@ body,
   min-width: 0;
 }
 
-/* Chord row above the time ruler */
-/* Positioned like the ruler/waveform tracks below it: chips sit at their
-   actual song-time offset via left/width computed from minPxPerSec/scrollTime,
-   so the strip scrolls and zooms in lockstep with the timeline. */
-.chord-row {
-  position: relative;
-  width: 100%;
-  height: 1.6rem;
-  overflow: hidden;
-}
-
-.chord-row__chip {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: transparent;
-  border: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  font-family: inherit;
-  padding: 0 0.3rem;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.chord-row__chip:hover {
-  background: rgba(255, 255, 255, 0.07);
-}
-
-/* The lists of other chords in the editor: hear one, double-click to use it. */
-.chord-editor__list {
-  flex: 1 1 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.chord-editor__list-label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-right: 0.2rem;
-}
-
-.chord-editor__chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.15rem 0.5rem;
-  font-family: inherit;
-  font-size: 0.75rem;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.8rem;
-  cursor: pointer;
-}
-
-.chord-editor__chip:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.chord-editor__chip--previewed {
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.chord-editor__fit {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
-
 .chord-editor__button--on {
   background: var(--accent);
   color: #fff;
@@ -1084,76 +1006,6 @@ body,
 
 .chord-editor__button--primary {
   border-color: var(--accent);
-}
-
-/* A detected chord the detector was not sure of: worth a second look. */
-.chord-row__chip--unsure {
-  color: var(--text-muted, var(--text-secondary));
-  opacity: 0.6;
-  font-style: italic;
-}
-
-.chord-row__chip--unsure.chord-row__chip--active,
-.chord-row__chip--unsure.chord-row__chip--selected {
-  opacity: 1;
-}
-
-/* The chord being corrected in the editor below the row. */
-.chord-row__chip--selected {
-  overflow: visible;
-  z-index: 2;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.12);
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
-  border-radius: 0.2rem;
-}
-
-/* Where a chord can be added: the playhead sits in a gap. */
-.chord-row__add {
-  position: absolute;
-  top: 0.15rem;
-  bottom: 0.15rem;
-  z-index: 3;
-  width: 1.4rem;
-  padding: 0;
-  border: 1px dashed var(--accent);
-  border-radius: 0.25rem;
-  background: transparent;
-  color: var(--accent);
-  font-family: inherit;
-  font-size: 0.9rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.chord-editor {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
-  margin-bottom: 0.25rem;
-  font-size: 0.78rem;
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border-radius: 0.25rem;
-}
-
-.chord-editor__name {
-  min-width: 2.5rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.chord-editor__select {
-  padding: 0.2rem 0.3rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--bg-surface);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.75rem;
 }
 
 .chord-editor__time {
@@ -1190,17 +1042,6 @@ body,
   flex-basis: 100%;
   font-size: 0.72rem;
   color: var(--accent);
-}
-
-/* The currently-playing chord always gets a legible label, even when its
-   own segment is too narrow to hold one at the current zoom level. */
-.chord-row__chip--active {
-  overflow: visible;
-  z-index: 1;
-  color: var(--text-primary);
-  border-left-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.14);
-  border-radius: 0.2rem;
 }
 
 /* Time ruler above the waveform tracks */
@@ -1284,6 +1125,12 @@ body,
 
 .transport__btn--play:hover {
   background: var(--accent-hover);
+}
+
+.transport__btn--counting-in {
+  font-weight: 700;
+  border-color: var(--warning);
+  animation: pulse 1s ease-in-out infinite;
 }
 
 .transport__btn:disabled {
@@ -2044,8 +1891,29 @@ body,
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0 1.5rem 1.25rem;
   min-height: 0;
+  overflow-y: auto;
+}
+
+/* The page is the one scroll region: sections keep their height instead of
+   being squeezed into the window, and the topbar stays pinned while they pass. */
+.analyzer-page > * {
+  flex-shrink: 0;
+}
+
+/* Header and topbar are pinned together. The page has no top padding: padding on a
+   scroll container leaves a gap above a pinned block that content scrolls through. */
+.analyzer-page__pinned {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1.25rem;
+  padding-bottom: 0.5rem;
+  background: var(--bg-primary);
 }
 
 .analyzer-page__header {
@@ -2094,17 +1962,13 @@ body,
 }
 
 .analyzer-page__body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  min-height: 0;
 }
 
 .analyzer-page__stems {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
+  flex-shrink: 0;
 }
 
 /* The stem area switched off in the Panels menu. Collapsed rather than
@@ -2116,34 +1980,53 @@ body,
   pointer-events: none;
 }
 
-.analyzer-page__lyrics {
-  flex-shrink: 0;
-  max-height: 35%;
-  overflow-y: auto;
-}
-
+.analyzer-page__lyrics,
 .analyzer-page__takes {
   flex-shrink: 0;
-  max-height: 30%;
-  overflow-y: auto;
 }
 
 .analyzer-page__topbar {
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  background: var(--bg-primary);
+  gap: 0.5rem 1rem;
 }
 
 .analyzer-page__io-group {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+/* Compact pinned bar: speed, devices and transport sit in rows, not stacks,
+   so the pinned block stays about two rows tall. */
+.analyzer-page__topbar .transport {
+  padding: 0.4rem 0.75rem;
+  gap: 1rem;
+}
+
+.analyzer-page__topbar .tempo-control {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.analyzer-page__topbar .tempo-control__bpm-group {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.analyzer-page__topbar .analyzer-page__io-group {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+
+.analyzer-page__topbar .mic-selector__label,
+.analyzer-page__topbar .output-selector__label {
+  min-width: 0;
 }
 
 /* Chord carousel, sitting in the sticky topbar so it stays visible regardless
@@ -2611,6 +2494,7 @@ body,
 .update-dialog__panel {
   width: 90%;
   max-width: 28rem;
+  max-height: 85vh;
   padding: 1.5rem;
   border-radius: 8px;
   background: var(--bg-secondary);
@@ -2629,6 +2513,18 @@ body,
   color: var(--text-secondary);
   font-size: 0.9rem;
   white-space: pre-wrap;
+}
+
+.update-dialog__notes {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.update-dialog__title,
+.update-dialog__version,
+.update-dialog__actions {
+  flex-shrink: 0;
 }
 
 .update-dialog__actions {
@@ -3942,8 +3838,21 @@ button.stem-track__take-name {
 }
 
 /* Bass tab */
+/* A panel whose content sits in a card keeps its title button outside the card, like the Lyrics button. */
+.panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .bass-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.bass-tab__body {
   border: 1px solid var(--bg-surface);
   border-radius: 0.5rem;
   background: var(--bg-secondary);
@@ -3955,11 +3864,6 @@ button.stem-track__take-name {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.4rem;
-}
-
-.bass-tab__title {
-  font-size: 0.85rem;
-  font-weight: 700;
 }
 
 .bass-tab__strings {
@@ -4229,6 +4133,12 @@ button.stem-track__take-name {
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.tab-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   background: var(--bg-secondary);
   border: 0.0625rem solid var(--border);
   border-radius: var(--radius-md);
@@ -4393,4 +4303,705 @@ button.stem-track__take-name {
   border: 0.125rem solid var(--info);
   background: rgba(74, 158, 255, 0.12);
   pointer-events: none;
+}
+/* Chord spectrum: the song's spectrum over a chord's stretch and a synthetic candidate chord drawn on it. */
+.chord-spectrum {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.chord-spectrum__row,
+.chord-spectrum__legend,
+.chord-spectrum__readings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.chord-spectrum__label {
+  color: var(--text-secondary);
+}
+
+.chord-spectrum__canvas {
+  width: 100%;
+  height: 12rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 0.3rem;
+}
+
+.chord-spectrum__tone {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.chord-spectrum__tone--present {
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--text-primary);
+}
+
+.chord-spectrum__extra,
+.chord-spectrum__note {
+  color: var(--text-secondary);
+}
+
+/* ── Chord roll ───────────────────────────────────────────────────────────
+   One card: a header (title, view switch, status), a row of options for the
+   notes, the notes themselves, then the spectrum section with its controls. */
+.analyzer-page__roll {
+  flex-shrink: 0;
+  max-height: 60%;
+  overflow-y: auto;
+}
+
+.chord-roll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.chord-roll__head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.chord-roll__headline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 1.9rem;
+}
+
+.chord-roll__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.chord-roll__status {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.chord-roll__error {
+  font-size: 0.75rem;
+  color: #f87171;
+}
+
+.chord-roll__options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.chord-roll__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35rem;
+  height: 0.15rem;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.chord-roll__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent-hover);
+  transition: width var(--dur) var(--ease);
+}
+
+.chord-roll__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chord-roll__canvas {
+  touch-action: none;
+  display: block;
+  width: 100%;
+  height: clamp(10rem, 30vh, 18rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #0f0f1e;
+}
+
+.chord-roll__hint {
+  margin: -0.2rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.chord-roll__spectrum {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+
+.chord-roll__spectrum .chord-spectrum {
+  margin-top: 0;
+}
+
+.chord-roll__spectrum .chord-spectrum__canvas {
+  height: clamp(8rem, 22vh, 12rem);
+  border: 1px solid var(--border);
+}
+
+/* Controls shared by the header and the spectrum section */
+.roll-seg {
+  display: inline-flex;
+  padding: 0.12rem;
+  gap: 0.12rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.roll-seg__btn {
+  padding: 0.18rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.roll-seg__btn:hover {
+  color: var(--text-primary);
+}
+
+.roll-seg__btn[aria-pressed="true"] {
+  color: #fff;
+  background: var(--accent);
+}
+
+.roll-icon-btn {
+  margin-left: auto;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.roll-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* The monitor: a switch for listening to the input, its level, and what is wrong with it */
+.roll-monitor {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.roll-monitor__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.18rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.roll-monitor__button:hover {
+  color: var(--text-primary);
+  border-color: var(--live);
+}
+
+.roll-monitor__button[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: rgba(244, 114, 182, 0.16);
+  border-color: var(--live);
+}
+
+.roll-monitor__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--live);
+  opacity: 0.45;
+}
+
+.roll-monitor__button[aria-pressed="true"] .roll-monitor__dot {
+  opacity: 1;
+  box-shadow: 0 0 0.4rem var(--live);
+}
+
+.roll-monitor__note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.roll-monitor__note--bad {
+  color: var(--warning);
+}
+
+.roll-meter {
+  position: relative;
+  width: 5rem;
+  height: 0.45rem;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.roll-meter__fill {
+  display: block;
+  height: 100%;
+  background: var(--live);
+}
+
+.roll-meter__fill--clip {
+  background: var(--warning);
+}
+
+.roll-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.roll-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.roll-chip[style*="--dot"]::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--dot);
+  opacity: 0.35;
+}
+
+.roll-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.roll-chip[aria-pressed="true"] {
+  color: var(--text-primary);
+  background: var(--accent-soft);
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.roll-chip[aria-pressed="true"]::before {
+  opacity: 1;
+}
+
+.roll-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.roll-field__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.roll-select {
+  padding: 0.15rem 0.3rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.roll-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+/* The spectrum section: rows with a label column, then the plot */
+.chord-spectrum__row {
+  gap: 0.45rem 0.6rem;
+}
+
+.chord-spectrum__label {
+  min-width: 3.6rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.chord-spectrum__legend {
+  font-size: 0.75rem;
+}
+
+.chord-spectrum__readings {
+  padding: 0.4rem 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.chord-spectrum__tone {
+  border: 1px solid var(--border);
+}
+
+.chord-spectrum__tone--present {
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+/* The candidate's notes in what the player plays: what to add is called out, what is right is not shouted */
+.chord-spectrum__readings--you {
+  border-left: 0.2rem solid var(--live);
+}
+
+.chord-spectrum__tone--missing {
+  color: var(--warning);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+/* The editing rows inside the spectrum section */
+.chord-editor__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-right: 0.6rem;
+  border-right: 1px solid var(--border);
+}
+
+.chord-editor__done {
+  margin-left: auto;
+}
+
+.chord-editor__button {
+  padding: 0.2rem 0.65rem;
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.chord-editor__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-strong);
+}
+
+.chord-editor__button--primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.chord-editor__button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.chord-editor__button--danger {
+  color: #fca5a5;
+}
+
+.chord-editor__button--danger:hover:not(:disabled) {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* The editing buttons, at the end of the Stems row */
+.chord-editor__actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--border);
+}
+
+/* ── Meter panel ───────────────────────────────────────────────────────────
+   The song's bars: a summary, the whole song coloured by signature, the bars
+   around the playhead to drag and pick, and the tools to count them anew. */
+.analyzer-page__meter {
+  flex-shrink: 0;
+  max-height: 70%;
+  overflow-y: auto;
+}
+
+.meter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.7rem 0.8rem 0.8rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.meter-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.meter-panel__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.meter-panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.meter-panel__source {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+.meter-panel__readout {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-panel__actions,
+.meter-panel__options,
+.meter-panel__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.meter-panel__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #f87171;
+}
+
+.meter-panel__hint {
+  margin: -0.2rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.meter-pill {
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.meter-pill small {
+  color: var(--text-secondary);
+}
+
+.meter-pill--pattern {
+  color: var(--accent-hover);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.meter-pill--more {
+  color: var(--text-secondary);
+}
+
+.meter-btn {
+  padding: 0.28rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.meter-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.meter-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.meter-btn--primary {
+  color: #1a1a2e;
+  font-weight: 600;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.meter-btn--primary:hover:not(:disabled) {
+  background: var(--accent-ring);
+}
+
+.meter-link {
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--accent-hover);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.meter-lane {
+  touch-action: none;
+  display: block;
+  width: 100%;
+  height: clamp(8rem, 24vh, 13rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #0f0f1e;
+}
+
+.meter-overview {
+  display: block;
+  width: 100%;
+  height: 1.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #0f0f1e;
+  cursor: pointer;
+}
+
+.meter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.meter-editor__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.meter-editor__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-editor__head strong {
+  color: var(--text-primary);
+}
+
+.meter-editor__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.meter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+}
+
+.meter-input {
+  width: 4.2rem;
+  padding: 0.22rem 0.4rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.meter-input--wide {
+  width: 7rem;
+}
+
+.meter-input:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.meter-tap {
+  min-width: 7rem;
+  padding: 0.7rem 1.4rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 650;
+  color: #1a1a2e;
+  background: var(--accent-hover);
+  border: 0;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+}
+
+.meter-tap:active {
+  transform: scale(0.97);
 }

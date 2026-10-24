@@ -1,6 +1,7 @@
 mod commands;
 mod library;
 mod lyrics;
+mod meter;
 mod sidecar;
 mod storage;
 mod tab;
@@ -44,10 +45,17 @@ pub fn run() {
         commands::read_song_chords,
         commands::read_chord_tuning,
         commands::redetect_song_chords,
+        commands::read_song_meter,
+        commands::has_meter_edits,
+        commands::save_meter_edits,
+        commands::clear_meter_edits,
+        commands::redetect_song_meter,
         commands::save_chord_edits,
         commands::clear_chord_edits,
         commands::has_chord_edits,
         commands::read_bass_tab,
+        commands::read_note_roll,
+        commands::save_note_roll,
         commands::export_file,
         commands::pitch_shift_song,
         commands::load_lyrics,

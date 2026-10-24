@@ -1162,3 +1162,32 @@ describe("zoom and scroll while an instance is still decoding", () => {
     await loading;
   });
 });
+
+describe("getStemSamples", () => {
+  const buffer = (values: number[], channels = 1, sampleRate = 10) => ({
+    sampleRate,
+    length: values.length,
+    numberOfChannels: channels,
+    getChannelData: () => Float32Array.from(values),
+  });
+
+  it("sums the named stems between two song times", async () => {
+    const { engine, vocals, bass } = await loadedEngine();
+    vocals.decoded = buffer([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    bass.decoded = buffer([0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0, 0, 0]);
+    const got = engine.getStemSamples(["vocals", "bass"], 0.2, 0.7)!;
+    expect(got.sampleRate).toBe(10);
+    expect([...got.samples]).toEqual([1, 1.5, 1.5, 1.5, 1.5]);
+  });
+
+  it("averages the channels of a stereo stem", async () => {
+    const { engine, vocals } = await loadedEngine();
+    vocals.decoded = buffer([2, 2, 2, 2], 2);
+    expect([...engine.getStemSamples(["vocals"], 0, 0.4)!.samples]).toEqual([2, 2, 2, 2]);
+  });
+
+  it("is null when no named stem is decoded", async () => {
+    const { engine } = await loadedEngine();
+    expect(engine.getStemSamples(["nothing"], 0, 1)).toBeNull();
+  });
+});

@@ -4,6 +4,8 @@ import { createPanelStore } from "@giamat90/mps-core/panels";
 // how the page looked before the menu, and the user hides what they do not need.
 export const ANALYZER_PANELS = [
   { id: "chords", label: "Chords", defaultVisible: true },
+  { id: "roll", label: "Chord roll", defaultVisible: true },
+  { id: "meter", label: "Meter", defaultVisible: true },
   { id: "lyrics", label: "Lyrics", defaultVisible: true },
   { id: "takes", label: "Takes", defaultVisible: true },
 ] as const;

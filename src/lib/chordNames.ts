@@ -26,7 +26,7 @@ export function transposeKey(key: string, semitones: number): string {
   return shifted === null ? key : [shifted, ...rest].join(" ");
 }
 
-/** The chord qualities the editor offers, in the order it lists them. The detector writes the first five. */
+/** The chord qualities the editor offers, in the order it lists them. The detector writes the first five (seven with sus2 and sus4). */
 export const CHORD_QUALITIES: { value: string; label: string; suffix: string }[] = [
   { value: "maj", label: "major", suffix: "" },
   { value: "min", label: "minor", suffix: "m" },
@@ -38,6 +38,18 @@ export const CHORD_QUALITIES: { value: string; label: string; suffix: string }[]
   { value: "dim", label: "diminished", suffix: "dim" },
   { value: "aug", label: "augmented", suffix: "aug" },
   { value: "6", label: "sixth", suffix: "6" },
+  { value: "5", label: "power chord (5)", suffix: "5" },
+  { value: "add9", label: "add9", suffix: "add9" },
+  { value: "min6", label: "minor 6", suffix: "m6" },
+  { value: "9", label: "dominant 9", suffix: "9" },
+  { value: "min7b5", label: "minor 7♭5", suffix: "m7♭5" },
+  { value: "dim7", label: "diminished 7", suffix: "dim7" },
+  { value: "7sus4", label: "7sus4", suffix: "7sus4" },
+  { value: "minmaj7", label: "minor/major 7", suffix: "m(maj7)" },
+  { value: "maj9", label: "major 9", suffix: "maj9" },
+  { value: "min9", label: "minor 9", suffix: "m9" },
+  { value: "11", label: "dominant 11", suffix: "11" },
+  { value: "13", label: "dominant 13", suffix: "13" },
 ];
 
 /** The twelve root / bass note names, sharp-spelled like the detector writes them. */
@@ -63,7 +75,10 @@ export function isChordDetail(value: unknown): value is ChordDetail {
   return CHORD_DETAILS.some((d) => d.value === value);
 }
 
-const TRIAD_OF: Record<string, string> = { "7": "maj", maj7: "maj", "6": "maj", min7: "min" };
+const TRIAD_OF: Record<string, string> = {
+  "7": "maj", maj7: "maj", "6": "maj", min7: "min",
+  add9: "maj", min6: "min", "9": "maj", min7b5: "dim", dim7: "dim", "7sus4": "sus4", minmaj7: "min", maj9: "maj", min9: "min", "11": "maj", "13": "maj",
+};
 
 /** The chord and bass note as shown at `detail`; the chord's root and its triad are never changed. */
 export function simplifyChord(

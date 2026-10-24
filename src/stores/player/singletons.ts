@@ -23,11 +23,6 @@ export function disposeRecorder(): void {
 // input) measured at rec.start(), applied when the take is saved.
 export const recordingSession = { startPos: 0, latencyS: 0 };
 
-// Count-in scheduling handles — module-level so cancelCountIn (a separate
-// store action) can reach across and abort the setTimeout/interval that
-// startRecording's in-flight promise is awaiting.
-export const countIn: {
-  timeoutId: number | null;
-  intervalId: number | null;
-  resolve: ((completed: boolean) => void) | null;
-} = { timeoutId: null, intervalId: null, resolve: null };
+// The live monitor (stores/liveInput) registers how to stop itself here: startRecording gives the input back
+// before it opens its own, and the player store cannot import the monitor's store (which imports the player store).
+export const liveMonitorGate: { stop: (() => void) | null } = { stop: null };
