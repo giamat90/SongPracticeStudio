@@ -22,3 +22,4 @@
 | [Meter](meter.md) | The song's bars (time signature per bar): the data, the panel (drag, count, split, repeat a pattern, tap along), what follows them (metronome, count-in, ruler, bar sections), the bar finder and its limits |
 | [Meter detection](meter-detection.md) | Design record and pre-registered measurement protocol for time-signature detection (tick-tack): reference songs, metrics, thresholds, decision rule |
 | [Testing](testing.md) | The three test suites (vitest, cargo, pytest), their fakes, what the cross-language tests assert, how to run them |
+| [UML diagrams](uml.md) | Fifteen Mermaid diagrams: layers, screens, domain model, stems engine, chord and tab-sync data flows, Rust backend, sidecar, sequences |
