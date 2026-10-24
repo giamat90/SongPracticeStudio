@@ -2,7 +2,7 @@ import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } f
 import { usePlayerStore } from "../../stores/player";
 import bravuraWoff2 from "@coderline/alphatab/font/Bravura.woff2?url";
 import { loadAlphaTab, tabTracks, type TabTrackInfo } from "../../lib/tabScore";
-import type { TabNoteModel } from "../../lib/tabEdit";
+import { firstNoteOfBar, type TabNoteModel } from "../../lib/tabEdit";
 import { barSpans, cursorX, locate, timeAt, type BeatStop } from "../../lib/tabSync";
 import type { TabBar } from "../../lib/types";
 
@@ -16,6 +16,8 @@ interface TabScoreViewProps {
   track: number | null;
   /** Play order of the bar the user picked to correct, if any. */
   selectedOrder: number | null;
+  /** While true a click on a note picks it for editing (a click always seeks). */
+  editing: boolean;
   selectedNote: TabNoteModel | null;
   /** What the panel can ask of the view: draw the (edited) score again, hand over the live score. */
   handleRef: Ref<TabViewHandle>;
@@ -31,8 +33,11 @@ export interface TabViewHandle {
   rerender(): void;
   /** The live score, the one the user is editing. */
   getScore(): AlphaScore | null;
-  /** Put the playhead and the selected bar on a note, as a click on it does. */
-  follow(note: TabNoteModel): void;
+  /**
+   * Move the playhead to the start of the next or previous bar in play order (repeats count again) and select that
+   * bar. Returns the bar's first note, or null at the ends of the tab and for a bar of rests.
+   */
+  stepBar(direction: "previous" | "next", near: TabNoteModel | null): TabNoteModel | null;
 }
 
 type AlphaScore = import("@coderline/alphatab").model.Score;
@@ -55,11 +60,13 @@ const FOLLOW_SHARE = 0.3;
  * so the position comes from the stored bar lines and the app's playback clock.
  */
 export default function TabScoreView({
-  bytes, source, bars, duration, track, selectedOrder, selectedNote, handleRef, onPickNote, onTracks, onSeek,
+  bytes, source, bars, duration, track, selectedOrder, editing, selectedNote, handleRef, onPickNote, onTracks, onSeek,
   onSelectBar, onError,
 }: TabScoreViewProps) {
   // Read here, not in the panel, so only the cursor re-renders at the clock's rate.
   const currentTime = usePlayerStore((s) => s.currentTime);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
   const bytesRef = useRef(bytes);
   bytesRef.current = bytes;
   const hostRef = useRef<HTMLDivElement>(null);
@@ -92,16 +99,17 @@ export default function TabScoreView({
       api.renderTracks([tracks[shown]]);
     },
     getScore: () => apiRef.current?.score ?? null,
-    follow(note) {
-      const bar = note.beat.voice.bar.masterBar;
-      const current = locate(positionRef.current, spansRef.current);
-      const occurrence = current && current.index === bar.index ? current.occurrence : 0;
-      const length = bar.calculateDuration();
-      const time = timeAt(bar.index, occurrence, length > 0 ? note.beat.playbackStart / length : 0, spansRef.current);
-      if (time === null) return;
-      const picked = locate(time, spansRef.current);
-      if (picked) callbacks.current.onSelectBar(picked.order);
-      callbacks.current.onSeek(time);
+    stepBar(direction, near) {
+      const spans = spansRef.current;
+      const current = locate(positionRef.current, spans);
+      const from = current ? current.order : direction === "next" ? -1 : spans.length;
+      const target = spans[from + (direction === "next" ? 1 : -1)];
+      if (!target) return null;
+      callbacks.current.onSeek(target.start);
+      callbacks.current.onSelectBar(target.order);
+      const shown = trackRef.current;
+      const bar = shown === null ? undefined : apiRef.current?.score?.tracks[shown]?.staves[0]?.bars[target.index];
+      return bar ? firstNoteOfBar(bar, near) : null;
     },
   }), []);
 
@@ -136,7 +144,7 @@ export default function TabScoreView({
         setReady((n) => n + 1);
       });
       instance.noteMouseDown.on((note) => {
-        callbacks.current.onPickNote(note);
+        if (editingRef.current) callbacks.current.onPickNote(note);
       });
       instance.beatMouseDown.on((beat) => {
         const bar = beat.voice.bar.masterBar;

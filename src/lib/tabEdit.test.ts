@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildTabScore, loadAlphaTab, readScore } from "./tabScore";
 import {
-  exportTab, linkedNotes, movability, moveToString, neighbourNote, playerString, restore, stepString, type TabNoteModel,
+  exportTab, firstNoteOfBar, linkedNotes, movability, moveToString, playerString, restore, stepString, type TabNoteModel,
 } from "./tabEdit";
 
 // Standard guitar tuning. alphaTex writes `fret.string` with string 1 the thinnest; the model counts from the lowest.
@@ -186,28 +186,26 @@ describe("stepString", () => {
   });
 });
 
-describe("neighbourNote", () => {
-  it("walks forward and back through the track, across bars", async () => {
-    const { notes } = await load();
-    expect(neighbourNote(notes[0], "next")).toBe(notes[1]);
-    expect(neighbourNote(notes[1], "previous")).toBe(notes[0]);
-    const lastOfBarOne = notes[3];
-    const firstOfBarTwo = notes[4];
-    expect(neighbourNote(lastOfBarOne, "next")).toBe(firstOfBarTwo);
+describe("firstNoteOfBar", () => {
+  const bars = async () => {
+    const { score, notes } = await load();
+    return { bars: score.tracks[0].staves[0].bars, notes };
+  };
+
+  it("is the first note played in the bar", async () => {
+    const { bars: all, notes } = await bars();
+    expect(firstNoteOfBar(all[0])).toBe(notes[0]);
+    expect(firstNoteOfBar(all[1])).toBe(notes[4]);
   });
 
-  it("stays on the same string when the next beat has a chord", async () => {
-    const { notes } = await load();
-    const before = notes.find((n) => n.fret === 3 && n.string === 5 && n.beat.notes.length === 1) as TabNoteModel;
-    const chord = before.beat.nextBeat?.notes ?? [];
+  it("takes the note of a chord nearest to the string the user was on", async () => {
+    const { bars: all, notes } = await bars();
+    const chord = all[2].voices[0].beats[0].notes;
     expect(chord.length).toBe(2);
-    expect(neighbourNote(before, "next")?.string).toBe(5);
-  });
-
-  it("ends at the first and the last note", async () => {
-    const { notes } = await load();
-    expect(neighbourNote(notes[0], "previous")).toBeNull();
-    expect(neighbourNote(notes[notes.length - 1], "next")).toBeNull();
+    const thin = notes.find((n) => n.string === 6) as TabNoteModel;
+    const thick = notes.find((n) => n.string === 1) as TabNoteModel;
+    expect(firstNoteOfBar(all[2], thin)?.string).toBe(Math.max(...chord.map((n) => n.string)));
+    expect(firstNoteOfBar(all[2], thick)?.string).toBe(Math.min(...chord.map((n) => n.string)));
   });
 });
 

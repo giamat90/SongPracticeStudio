@@ -369,7 +369,7 @@ flowchart LR
     SY --> TR["TabRecord / TabSync"]
     TR --> UI["TabPanel, TabScoreView<br/>bar lines over the stems"]
     UI -- "drag a bar" --> SB["save_tab_bars -> edited = true"]
-    UI -- "click a note, Alt+Up / Alt+Down" --> TE["tabEdit.ts on the live alphaTab score<br/>exportTab -> Gp7Exporter"]
+    UI -- "Edit: click a note, Shift+Up / Shift+Down" --> TE["tabEdit.ts on the live alphaTab score<br/>exportTab -> Gp7Exporter"]
     TE --> SE["save_edited_tab -> tab.gp + tab.original.EXT"]
     SB --> SY
     PY -. "event tab-progress" .-> UI
@@ -537,7 +537,7 @@ sequenceDiagram
     TP->>TS: saveBars(bars)
     TS->>R: invoke("save_tab_bars")
     R-->>TS: TabSync (edited = true)
-    U->>TP: click a note, Alt+Up / Alt+Down
+    U->>TP: Edit, click a note, Shift+Up / Shift+Down
     TP->>TP: stepString + moveToString (same pitch), redraw the view
     Note over TP: 600 ms after the last edit, or on fold, song change, Re-align
     TP->>AT: exportTab (Gp7Exporter)

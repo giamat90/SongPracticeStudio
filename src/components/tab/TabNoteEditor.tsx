@@ -8,18 +8,19 @@ interface TabNoteEditorProps {
   hasOriginal: boolean;
   disabled: boolean;
   onStep: (direction: "up" | "down") => void;
-  onNeighbour: (direction: "previous" | "next") => void;
+  onBar: (direction: "previous" | "next") => void;
   onUndo: () => void;
   onRedo: () => void;
   onRevert: () => void;
 }
 
 /**
- * The row under the tab. Like Guitar Pro: pick a note, then move it to the string above or below with the buttons
- * or Alt+Up / Alt+Down, and step to the previous or next note with Alt+Left / Alt+Right. No mode to switch on.
+ * The row under the tab while editing, with TuxGuitar's keys: Shift+Up / Shift+Down move the picked note to the
+ * string above / below (at the same pitch), Alt+Left / Alt+Right go to the previous / next bar, Ctrl+Z undoes.
+ * Every key has a button here.
  */
 export default function TabNoteEditor({
-  note, canUndo, canRedo, hasOriginal, disabled, onStep, onNeighbour, onUndo, onRedo, onRevert,
+  note, canUndo, canRedo, hasOriginal, disabled, onStep, onBar, onUndo, onRedo, onRevert,
 }: TabNoteEditorProps) {
   const [confirming, setConfirming] = useState(false);
   const up = note ? stepString(note, "up") : null;
@@ -31,13 +32,13 @@ export default function TabNoteEditor({
 
   return (
     <div className="tab-panel__fix tab-panel__edit">
-      <button className="tab-panel__btn" onClick={() => onNeighbour("previous")} disabled={disabled || !note} title="Previous note (Alt+Left)">◀</button>
-      <button className="tab-panel__btn" onClick={() => onNeighbour("next")} disabled={disabled || !note} title="Next note (Alt+Right)">▶</button>
+      <button className="tab-panel__btn" onClick={() => onBar("previous")} disabled={disabled} title="Previous bar (Alt+Left)">◀ Bar</button>
+      <button className="tab-panel__btn" onClick={() => onBar("next")} disabled={disabled} title="Next bar (Alt+Right)">Bar ▶</button>
       <button
         className="tab-panel__btn"
         onClick={() => onStep("up")}
         disabled={disabled || !up}
-        title="Same note on the string above, toward the thin string (Alt+Up)"
+        title="Same note on the string above, toward the thin string (Shift+Up)"
       >
         ▲ {label(up, "String above")}
       </button>
@@ -45,18 +46,18 @@ export default function TabNoteEditor({
         className="tab-panel__btn"
         onClick={() => onStep("down")}
         disabled={disabled || !down}
-        title="Same note on the string below, toward the thick string (Alt+Down)"
+        title="Same note on the string below, toward the thick string (Shift+Down)"
       >
         ▼ {label(down, "String below")}
       </button>
       <span className="tab-panel__fixhint">
         {note
           ? `Bar ${note.beat.voice.bar.index + 1}, string ${playerString(note, note.string)}, fret ${note.fret}`
-          : "Click a note to move it to another string (Alt+Up / Alt+Down)."}
+          : "Click a note. Shift+Up / Down: string. Alt+Left / Right: bar. Ctrl+Z: undo."}
       </span>
       <span className="tab-panel__spacer" />
-      <button className="tab-panel__btn" onClick={onUndo} disabled={disabled || !canUndo}>Undo</button>
-      <button className="tab-panel__btn" onClick={onRedo} disabled={disabled || !canRedo}>Redo</button>
+      <button className="tab-panel__btn" onClick={onUndo} disabled={disabled || !canUndo} title="Undo (Ctrl+Z)">Undo</button>
+      <button className="tab-panel__btn" onClick={onRedo} disabled={disabled || !canRedo} title="Redo (Ctrl+Y)">Redo</button>
       {hasOriginal && !confirming && (
         <button
           className="tab-panel__btn"

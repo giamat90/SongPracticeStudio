@@ -2,6 +2,7 @@ import type * as AlphaTabModule from "@coderline/alphatab";
 
 type AlphaTab = typeof AlphaTabModule;
 export type TabNoteModel = AlphaTabModule.model.Note;
+export type TabBarModel = AlphaTabModule.model.Bar;
 
 /** The highest fret offered when a note is moved to another string. */
 export const MAX_FRET = 24;
@@ -102,14 +103,14 @@ export function stepString(note: TabNoteModel, direction: "up" | "down"): String
 }
 
 /**
- * The note to select after this one in the track, or before it: the next beat that has notes, on the same string
- * when it has one there, else on the nearest string. Crosses bars.
+ * The first note played in a bar, or null for a bar of rests. When a chord starts the bar, the note on the string
+ * nearest to `near`'s, so stepping from bar to bar stays on the line the user was working on.
  */
-export function neighbourNote(note: TabNoteModel, direction: "previous" | "next"): TabNoteModel | null {
-  let beat = direction === "next" ? note.beat.nextBeat : note.beat.previousBeat;
-  while (beat && beat.notes.length === 0) beat = direction === "next" ? beat.nextBeat : beat.previousBeat;
+export function firstNoteOfBar(bar: TabBarModel, near?: TabNoteModel | null): TabNoteModel | null {
+  const beat = bar.voices[0]?.beats.find((b) => b.notes.length > 0);
   if (!beat) return null;
-  const distance = (n: TabNoteModel) => Math.abs(n.string - note.string);
+  if (!near) return beat.notes[0];
+  const distance = (n: TabNoteModel) => Math.abs(n.string - near.string);
   return beat.notes.reduce((best, n) => (distance(n) < distance(best) ? n : best));
 }
 

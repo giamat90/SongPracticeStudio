@@ -4,7 +4,7 @@ import { usePlayerStore } from "../../stores/player";
 import { fetchTabBytes, useTabStore } from "../../stores/tab";
 import { onTabProgress } from "../../lib/tauri";
 import { defaultTrack, loadAlphaTab, type TabTrackInfo } from "../../lib/tabScore";
-import { exportTab, moveToString, neighbourNote, restore, stepString, type Placement, type TabNoteModel } from "../../lib/tabEdit";
+import { exportTab, moveToString, restore, stepString, type Placement, type TabNoteModel } from "../../lib/tabEdit";
 import { alignmentNotes, moveBar, qualityText } from "../../lib/tabSync";
 import type { Song } from "../../lib/types";
 import TabNoteEditor from "./TabNoteEditor";
@@ -57,6 +57,7 @@ export default function TabPanel({ song }: TabPanelProps) {
   const [following, setFollowing] = useState(true);
   const [viewError, setViewError] = useState<string | null>(null);
   const [source, setSource] = useState(0);
+  const [editing, setEditing] = useState(false);
   const [pickedNote, setPickedNote] = useState<TabNoteModel | null>(null);
   const [undoStack, setUndoStack] = useState<Placement[][]>([]);
   const [redoStack, setRedoStack] = useState<Placement[][]>([]);
@@ -104,6 +105,7 @@ export default function TabPanel({ song }: TabPanelProps) {
     setTrack(null);
     setSelectedOrder(null);
     setViewError(null);
+    setEditing(false);
     resetEditing();
     load(songId);
     return () => { void flushEdits(); };
@@ -199,11 +201,14 @@ export default function TabPanel({ song }: TabPanelProps) {
     }
   };
 
-  const goToNeighbour = (direction: "previous" | "next") => {
-    if (!pickedNote) return;
-    const next = neighbourNote(pickedNote, direction) ?? pickedNote;
-    setPickedNote(next);
-    viewRef.current?.follow(next);
+  const goToBar = (direction: "previous" | "next") => {
+    const first = viewRef.current?.stepBar(direction, pickedNote);
+    if (first) setPickedNote(first);
+  };
+
+  const toggleEditing = () => {
+    setEditing(!editing);
+    setPickedNote(null);
   };
 
   const undo = () => {
@@ -234,27 +239,36 @@ export default function TabPanel({ song }: TabPanelProps) {
     await align(song.id);
   };
 
-  // Guitar Pro's keys: Alt+Up / Alt+Down move the picked note to the string above / below, Alt+Left / Alt+Right
-  // pick the previous / next note. Alt combinations are left alone by the app's own shortcuts.
-  const keyActions = useRef({ stepNote, goToNeighbour });
-  keyActions.current = { stepNote, goToNeighbour };
+  // TuxGuitar's keys while editing: Shift+Up / Shift+Down move the picked note to the string above / below,
+  // Alt+Left / Alt+Right go to the previous / next bar, Ctrl+Z undoes (Ctrl+Y or Ctrl+Shift+Z redoes). Listened for
+  // in the capture phase and stopped, so the app's own shortcuts and the meter's undo never see them.
+  const keyActions = useRef({ stepNote, goToBar, undo, redo });
+  keyActions.current = { stepNote, goToBar, undo, redo };
   useEffect(() => {
-    if (!pickedNote) return;
+    if (!editing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
-      const { stepNote: step, goToNeighbour: go } = keyActions.current;
-      if (e.key === "ArrowUp") step("up");
-      else if (e.key === "ArrowDown") step("down");
-      else if (e.key === "ArrowLeft") go("previous");
-      else if (e.key === "ArrowRight") go("next");
-      else return;
+      const a = keyActions.current;
+      const key = e.key.toLowerCase();
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        a.stepNote(e.key === "ArrowUp" ? "up" : "down");
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        a.goToBar(e.key === "ArrowLeft" ? "previous" : "next");
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && key === "z") {
+        if (e.shiftKey) a.redo();
+        else a.undo();
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && key === "y") {
+        a.redo();
+      } else {
+        return;
+      }
       e.preventDefault();
+      e.stopPropagation();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pickedNote]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [editing]);
 
   const handleTracks = (found: TabTrackInfo[]) => {
     setTracks(found);
@@ -298,6 +312,16 @@ export default function TabPanel({ song }: TabPanelProps) {
             </button>
             {record && (
               <>
+                {aligned && (
+                  <button
+                    className={`tab-panel__btn${editing ? " tab-panel__btn--on" : ""}`}
+                    onClick={toggleEditing}
+                    aria-pressed={editing}
+                    title="Edit the tab: move notes between strings (Shift+Up / Shift+Down)"
+                  >
+                    Edit
+                  </button>
+                )}
                 <button
                   className="tab-panel__btn"
                   onClick={realign}
@@ -361,6 +385,7 @@ export default function TabPanel({ song }: TabPanelProps) {
                 duration={song.duration}
                 track={track}
                 selectedOrder={selectedOrder}
+                editing={editing}
                 selectedNote={pickedNote}
                 handleRef={viewRef}
                 onPickNote={setPickedNote}
@@ -369,6 +394,7 @@ export default function TabPanel({ song }: TabPanelProps) {
                 onSelectBar={setSelectedOrder}
                 onError={setViewError}
               />
+              {editing && (
               <TabNoteEditor
                 note={pickedNote}
                 canUndo={undoStack.length > 0}
@@ -376,11 +402,12 @@ export default function TabPanel({ song }: TabPanelProps) {
                 hasOriginal={record?.hasOriginal ?? false}
                 disabled={busy}
                 onStep={stepNote}
-                onNeighbour={goToNeighbour}
+                onBar={goToBar}
                 onUndo={undo}
                 onRedo={redo}
                 onRevert={revert}
               />
+              )}
               <div className="tab-panel__fix">
                 <span className="tab-panel__fixhint">
                   {selectedBar ? `Bar ${selectedBar.index + 1} selected.` : "Click a bar to correct its position."}

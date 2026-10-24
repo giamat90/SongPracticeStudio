@@ -155,7 +155,7 @@ SongPracticeStudio/
 │   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
 │   ├── lib/ipc.generated.ts    ← GENERATED IPC wrappers (scripts/gen-ipc.mjs, `npm run gen:ipc`); never edit by hand
 │   ├── lib/ipcTypes.ts         ← shapes that cross IPC and are not Rust-derived (MixSource, ZipExportEntry)
-│   ├── lib/tabEdit.ts          ← pure edit logic on alphaTab's score: other strings at the same pitch, the string above / below, the next / previous note, linked notes (tie / hammer-on / slide) move together, undo, `exportTab` (Guitar Pro 7 bytes)
+│   ├── lib/tabEdit.ts          ← pure edit logic on alphaTab's score: other strings at the same pitch, the string above / below, the first note of a bar, linked notes (tie / hammer-on / slide) move together, undo, `exportTab` (Guitar Pro 7 bytes)
 │   ├── lib/liveInput.ts        ← the Monitor's pure part: LiveAnalyser (spectrum + note strengths of a window), LiveTrace, liveFrameTime, describeInput
 │   ├── lib/meterView.ts        ← the Meter panel's pure helpers: what a press on the lane hits, which bars an edit reaches, accent presets, parsing typed groups and patterns, the drums' hit envelope
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
@@ -199,7 +199,7 @@ SongPracticeStudio/
 │   │   ├── tab/
 │   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
 │   │   │   ├── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek (a click picks a note while editing)
-│   │   │   └── TabNoteEditor.tsx  ← the row under the tab: previous / next note, the string above / below for the picked note (Alt+arrows like Guitar Pro), undo / redo, revert to imported
+│   │   │   └── TabNoteEditor.tsx  ← the row under the tab while Edit is on: previous / next bar, the string above / below for the picked note, undo / redo, revert to imported (TuxGuitar's keys: Shift+Up/Down, Alt+Left/Right, Ctrl+Z)
 │   │   ├── lyrics/
 │   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, below the stems)
 │   │   ├── updater/
@@ -314,7 +314,7 @@ Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is forc
 
 ## Tab sync (SPS only)
 
-Import a Guitar Pro tab (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the **Tab** panel under the stems; its bars are placed on the recording using the separated stems, and the tab follows the playhead (click a bar to seek, *Set bar to playhead* to correct one). alphaTab (`@coderline/alphatab`, MPL-2.0, pinned exact) reads and draws the file in the webview; the sidecar's `tab_sync.align_tab_to_stems` is the replaceable algorithm. Not in VPS (no guitar stems): see `MPS/wiki/feature-parity.md`. **Editing:** click a note, then Alt+Up / Alt+Down moves it to the string above / below at the same pitch, Alt+Left / Alt+Right pick the previous / next note, as in Guitar Pro (ties, hammer-ons and slides move with it; harmonics stay), saved as `tab.gp` with the imported file kept as `tab.original.<ext>` for *Revert to imported*; the pitch never changes, so the alignment stays. Full detail, measured accuracy and limits: `wiki/tab-sync.md`; why only strings: `wiki/tab-edit-spike.md`.
+Import a Guitar Pro tab (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the **Tab** panel under the stems; its bars are placed on the recording using the separated stems, and the tab follows the playhead (click a bar to seek, *Set bar to playhead* to correct one). alphaTab (`@coderline/alphatab`, MPL-2.0, pinned exact) reads and draws the file in the webview; the sidecar's `tab_sync.align_tab_to_stems` is the replaceable algorithm. Not in VPS (no guitar stems): see `MPS/wiki/feature-parity.md`. **Editing:** the **Edit** button, click a note, then Shift+Up / Shift+Down moves it to the string above / below at the same pitch, Alt+Left / Alt+Right go to the previous / next bar, Ctrl+Z undoes, as in TuxGuitar (ties, hammer-ons and slides move with it; harmonics stay), saved as `tab.gp` with the imported file kept as `tab.original.<ext>` for *Revert to imported*; the pitch never changes, so the alignment stays. Full detail, measured accuracy and limits: `wiki/tab-sync.md`; why only strings: `wiki/tab-edit-spike.md`.
 
 ---
 
