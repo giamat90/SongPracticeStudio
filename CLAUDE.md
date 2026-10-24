@@ -232,10 +232,6 @@ SongPracticeStudio/
 
 **All dimensions must use relative units** (`%`, `rem`, `vw`, `vh`, `fr`). Never fixed `px` for layout. This is inherited from VPS and must be followed strictly.
 
-## Docs rule
-
-Every pull request updates the docs in the same PR: `CLAUDE.md`, the wiki pages it touches and `wiki/uml.md` (and `MPS/wiki/uml-architecture.md` / `shared-architecture.md` when the shared shape changed). If no diagram is affected, the PR description says "UML: no change, because ...". MPS rule 22 (`MPS/wiki/conventions.md`).
-
 ---
 
 ## App palette
