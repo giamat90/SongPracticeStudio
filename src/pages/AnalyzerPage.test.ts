@@ -41,7 +41,6 @@ vi.mock("../components/player/ChordCarousel", h.stub("chords"));
 vi.mock("../components/player/CapoSelect", h.stub("capo"));
 vi.mock("../components/player/ExportChartButton", h.stub("exportChart"));
 vi.mock("../components/player/LoopsMenu", h.stub("loops"));
-vi.mock("../components/player/BassTabPanel", h.stub("bassTab"));
 vi.mock("../components/player/ChordRoll", h.stub("roll"));
 vi.mock("../components/player/MeterPanel", h.stub("meter"));
 vi.mock("../components/tab/TabPanel", h.stub("songTab"));
@@ -210,15 +209,14 @@ describe("AnalyzerPage panels", () => {
     const body = (await render()).split("analyzer-page__body")[1];
     const at = (c: string) => body.indexOf(`data-c="${c}"`);
     expect(at("stems")).toBeGreaterThan(-1);
-    expect(at("stems")).toBeLessThan(at("bassTab"));
-    expect(at("bassTab")).toBeLessThan(at("lyrics"));
+    expect(at("stems")).toBeLessThan(at("lyrics"));
     expect(at("lyrics")).toBeLessThan(at("takes"));
   });
 
   it("draws takes above lyrics when the user moved them, still under the tracks", async () => {
     const body = (await render({}, ["takes", "lyrics"])).split("analyzer-page__body")[1];
     const at = (c: string) => body.indexOf(`data-c="${c}"`);
-    expect(at("bassTab")).toBeLessThan(at("takes"));
+    expect(at("stems")).toBeLessThan(at("takes"));
     expect(at("takes")).toBeLessThan(at("lyrics"));
   });
 
@@ -329,15 +327,7 @@ describe("AnalyzerPage waveform area", () => {
     const fixed = (html: string) => /data-fixed="([^"]*)"/.exec(html)?.[1];
     expect(fixed(await render())).toBe("waveforms,vocals,drums,songTab");
     withBass();
-    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,bassTab,songTab");
-  });
-
-  it("hides the bass tab on its own, leaving the stems and the rest alone", async () => {
-    withBass();
-    const before = shown(await render());
-    const after = shown(await render({}, undefined, { bassTab: false }));
-    expect(before.filter((c) => !after.includes(c))).toEqual(["bassTab"]);
-    expect(await render({}, undefined, { bassTab: false })).not.toContain(COLLAPSED);
+    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,songTab");
   });
 
   it("tells the menu which hidden stem is muted or soloed", async () => {
