@@ -248,6 +248,16 @@ export async function saveTabBars(songId: string, bars: TabBar[]): Promise<TabSy
   return invoke<TabSync>("save_tab_bars", { songId, bars });
 }
 
+/** Store the tab the user edited (a Guitar Pro 7 file) beside the song; the imported file is kept for revert */
+export async function saveEditedTab(songId: string, data: number[]): Promise<TabRecord> {
+  return invoke<TabRecord>("save_edited_tab", { songId, data });
+}
+
+/** Put the imported tab back, dropping the user's edits */
+export async function revertTabEdits(songId: string): Promise<TabRecord> {
+  return invoke<TabRecord>("revert_tab_edits", { songId });
+}
+
 /** Remove the song's tab and its alignment */
 export async function deleteSongTab(songId: string): Promise<void> {
   return invoke<void>("delete_song_tab", { songId });

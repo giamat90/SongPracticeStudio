@@ -1,26 +1,47 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { usePlayerStore } from "../../stores/player";
 import bravuraWoff2 from "@coderline/alphatab/font/Bravura.woff2?url";
 import { loadAlphaTab, tabTracks, type TabTrackInfo } from "../../lib/tabScore";
+import type { TabNoteModel } from "../../lib/tabEdit";
 import { barSpans, locate, timeAt } from "../../lib/tabSync";
 import type { TabBar } from "../../lib/types";
 
 interface TabScoreViewProps {
   bytes: Uint8Array;
+  /** The view reads `bytes` again only when this changes; edits made in the view must not reload it. */
+  source: number;
   bars: readonly TabBar[];
   duration: number;
   /** Track index to show; the view reports the tracks it found through `onTracks`. */
   track: number | null;
   /** Play order of the bar the user picked to correct, if any. */
   selectedOrder: number | null;
+  /** While true a click picks a note to edit instead of seeking. */
+  editing: boolean;
+  selectedNote: TabNoteModel | null;
+  /** What the panel can ask of the view: draw the (edited) score again, hand over the live score. */
+  handleRef: Ref<TabViewHandle>;
+  onPickNote: (note: TabNoteModel) => void;
   onTracks: (tracks: TabTrackInfo[]) => void;
   onSeek: (time: number) => void;
   onSelectBar: (order: number) => void;
   onError: (message: string) => void;
 }
 
+export interface TabViewHandle {
+  /** Draw the score again after a note was changed in the model. */
+  rerender(): void;
+  /** The live score, the one the user is editing. */
+  getScore(): AlphaScore | null;
+}
+
+type AlphaScore = import("@coderline/alphatab").model.Score;
+
 interface Bounds { x: number; y: number; w: number; h: number }
-interface BarsLookup { findMasterBarByIndex(index: number): { realBounds: Bounds } | null }
+interface BarsLookup {
+  findMasterBarByIndex(index: number): { realBounds: Bounds } | null;
+  findBeat(beat: unknown): { notes: { note: unknown; noteHeadBounds: Bounds }[] | null } | null;
+}
 interface AlphaApi {
   boundsLookup?: BarsLookup | null;
   destroy(): void;
@@ -34,13 +55,22 @@ const FOLLOW_SHARE = 0.3;
  * so the position comes from the stored bar lines and the app's playback clock.
  */
 export default function TabScoreView({
-  bytes, bars, duration, track, selectedOrder, onTracks, onSeek, onSelectBar, onError,
+  bytes, source, bars, duration, track, selectedOrder, editing, selectedNote, handleRef, onPickNote, onTracks, onSeek,
+  onSelectBar, onError,
 }: TabScoreViewProps) {
   // Read here, not in the panel, so only the cursor re-renders at the clock's rate.
   const currentTime = usePlayerStore((s) => s.currentTime);
+  const bytesRef = useRef(bytes);
+  bytesRef.current = bytes;
   const hostRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<(AlphaApi & { renderTracks(t: unknown[]): void; score?: { tracks: unknown[] } }) | null>(null);
+  const apiRef = useRef<(AlphaApi & { renderTracks(t: unknown[]): void; score?: AlphaScore }) | null>(null);
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  /** Scroll position to put back once a redraw of an edited score finishes. */
+  const scrollBack = useRef<number | null>(null);
   const [ready, setReady] = useState(0);
   const [scoreVersion, setScoreVersion] = useState(0);
   const spans = useMemo(() => barSpans(bars, duration), [bars, duration]);
@@ -48,10 +78,23 @@ export default function TabScoreView({
   spansRef.current = spans;
   const positionRef = useRef(currentTime);
   positionRef.current = currentTime;
-  const callbacks = useRef({ onTracks, onSeek, onSelectBar, onError });
-  callbacks.current = { onTracks, onSeek, onSelectBar, onError };
+  const callbacks = useRef({ onTracks, onSeek, onSelectBar, onError, onPickNote });
+  callbacks.current = { onTracks, onSeek, onSelectBar, onError, onPickNote };
   const [cursor, setCursor] = useState<Bounds | null>(null);
   const [selected, setSelected] = useState<Bounds | null>(null);
+  const [noteBox, setNoteBox] = useState<Bounds | null>(null);
+
+  useImperativeHandle(handleRef, () => ({
+    rerender() {
+      const api = apiRef.current;
+      const tracks = api?.score?.tracks;
+      const shown = trackRef.current;
+      if (!api || !tracks || shown === null || !tracks[shown]) return;
+      scrollBack.current = scrollRef.current?.scrollLeft ?? null;
+      api.renderTracks([tracks[shown]]);
+    },
+    getScore: () => apiRef.current?.score ?? null,
+  }), []);
 
   useEffect(() => {
     let disposed = false;
@@ -64,6 +107,7 @@ export default function TabScoreView({
       if (disposed) return;
       const settings = new at.Settings();
       settings.core.useWorkers = false;
+      settings.core.includeNoteBounds = true;
       settings.core.smuflFontSources = new Map([[at.FontFileFormat.Woff2, bravuraWoff2]]);
       settings.player.playerMode = at.PlayerMode.Disabled;
       settings.display.layoutMode = at.LayoutMode.Horizontal;
@@ -77,7 +121,14 @@ export default function TabScoreView({
         setScoreVersion((n) => n + 1);
       });
       instance.error.on((e) => callbacks.current.onError(e instanceof Error ? e.message : String(e)));
-      instance.postRenderFinished.on(() => setReady((n) => n + 1));
+      instance.postRenderFinished.on(() => {
+        if (scrollBack.current !== null && scrollRef.current) scrollRef.current.scrollLeft = scrollBack.current;
+        scrollBack.current = null;
+        setReady((n) => n + 1);
+      });
+      instance.noteMouseDown.on((note) => {
+        if (editingRef.current) callbacks.current.onPickNote(note);
+      });
       instance.beatMouseDown.on((beat) => {
         const bar = beat.voice.bar.masterBar;
         const current = locate(positionRef.current, spansRef.current);
@@ -87,9 +138,9 @@ export default function TabScoreView({
         if (time === null) return;
         const picked = locate(time, spansRef.current);
         if (picked) callbacks.current.onSelectBar(picked.order);
-        callbacks.current.onSeek(time);
+        if (!editingRef.current) callbacks.current.onSeek(time);
       });
-      instance.load(bytes);
+      instance.load(bytesRef.current);
     })().catch((e: unknown) => {
       console.error("[TabScoreView] could not start alphaTab:", e);
       callbacks.current.onError(e instanceof Error ? e.message : String(e));
@@ -100,7 +151,7 @@ export default function TabScoreView({
       apiRef.current = null;
       if (api) api.destroy();
     };
-  }, [bytes]);
+  }, [source]);
 
   useEffect(() => {
     const api = apiRef.current;
@@ -136,6 +187,14 @@ export default function TabScoreView({
     setSelected(bounds ?? null);
   }, [selectedOrder, spans, ready]);
 
+  useEffect(() => {
+    const lookup = apiRef.current?.boundsLookup;
+    const box = selectedNote && lookup
+      ? lookup.findBeat(selectedNote.beat)?.notes?.find((n) => n.note === selectedNote)?.noteHeadBounds
+      : null;
+    setNoteBox(box ?? null);
+  }, [selectedNote, ready]);
+
   return (
     <div className="tab-score" ref={scrollRef}>
       <div className="tab-score__host" ref={hostRef} />
@@ -143,6 +202,12 @@ export default function TabScoreView({
         <div
           className="tab-score__selected"
           style={{ left: selected.x, top: selected.y, width: selected.w, height: selected.h }}
+        />
+      )}
+      {noteBox && (
+        <div
+          className="tab-score__note"
+          style={{ left: noteBox.x, top: noteBox.y, width: noteBox.w, height: noteBox.h }}
         />
       )}
       {cursor && <div className="tab-score__cursor" style={{ left: cursor.x, top: cursor.y, height: cursor.h }} />}

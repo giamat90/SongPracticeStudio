@@ -5,6 +5,8 @@ const readSongTab = vi.fn();
 const importSongTab = vi.fn();
 const alignSongTab = vi.fn();
 const saveTabBars = vi.fn();
+const saveEditedTab = vi.fn();
+const revertTabEdits = vi.fn();
 const deleteSongTab = vi.fn();
 const buildTabScore = vi.fn();
 
@@ -14,6 +16,8 @@ vi.mock("../lib/tauri", () => ({
   importSongTab: (...a: unknown[]) => importSongTab(...a),
   alignSongTab: (...a: unknown[]) => alignSongTab(...a),
   saveTabBars: (...a: unknown[]) => saveTabBars(...a),
+  saveEditedTab: (...a: unknown[]) => saveEditedTab(...a),
+  revertTabEdits: (...a: unknown[]) => revertTabEdits(...a),
   deleteSongTab: (...a: unknown[]) => deleteSongTab(...a),
 }));
 vi.mock("../lib/tabScore", () => ({
@@ -29,7 +33,7 @@ const sync = (quality = "good"): TabSync => ({
   meanCost: 0.3, steadiness: 1, quality, edited: false,
   bars: [{ index: 0, occurrence: 0, time: 1 }, { index: 1, occurrence: 0, time: 3 }],
 });
-const record = (s: TabSync | null = null): TabRecord => ({ fileName: "tab.gp", originalName: "a.gp", path: "/t/tab.gp", sync: s });
+const record = (s: TabSync | null = null): TabRecord => ({ fileName: "tab.gp", originalName: "a.gp", path: "/t/tab.gp", hasOriginal: false, sync: s });
 
 function defer<T>() {
   let resolve!: (v: T) => void;
@@ -38,8 +42,8 @@ function defer<T>() {
 }
 
 beforeEach(() => {
-  for (const f of [readSongTab, importSongTab, alignSongTab, saveTabBars, deleteSongTab, buildTabScore]) f.mockReset();
-  useTabStore.setState({ songId: null, record: null, status: "idle", progress: 0, stage: "", error: null });
+  for (const f of [readSongTab, importSongTab, alignSongTab, saveTabBars, saveEditedTab, revertTabEdits, deleteSongTab, buildTabScore]) f.mockReset();
+  useTabStore.setState({ songId: null, record: null, status: "idle", progress: 0, stage: "", error: null, reloadKey: 0 });
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) })));
   buildTabScore.mockReturnValue({ version: 1, bars: [{ tick: 0 }], notes: [] });
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -175,6 +179,49 @@ describe("saveBars / remove / progress", () => {
     await useTabStore.getState().saveBars("s1", sync().bars);
     expect(useTabStore.getState().error).toBe("Bar lines cannot run backwards.");
     expect(useTabStore.getState().record?.sync?.edited).toBe(false);
+  });
+
+  it("stores the edited tab and shows the record it returns", async () => {
+    useTabStore.setState({ songId: "s1", record: record(sync()) });
+    saveEditedTab.mockResolvedValue({ ...record(sync()), hasOriginal: true });
+    await useTabStore.getState().saveEdited("s1", new Uint8Array([1, 2, 3]));
+    expect(saveEditedTab).toHaveBeenCalledWith("s1", [1, 2, 3]);
+    const s = useTabStore.getState();
+    expect(s.record?.hasOriginal).toBe(true);
+    expect(s.record?.sync?.quality).toBe("good");
+    expect(s.reloadKey).toBe(0);
+  });
+
+  it("saves edits one after another so the last one is what stays", async () => {
+    useTabStore.setState({ songId: "s1", record: record(sync()) });
+    const first = defer<TabRecord>();
+    saveEditedTab.mockReturnValueOnce(first.promise).mockResolvedValueOnce({ ...record(sync()), hasOriginal: true });
+    const a = useTabStore.getState().saveEdited("s1", new Uint8Array([1]));
+    const b = useTabStore.getState().saveEdited("s1", new Uint8Array([2]));
+    await Promise.resolve();
+    expect(saveEditedTab).toHaveBeenCalledTimes(1);
+    first.resolve(record(sync()));
+    await Promise.all([a, b]);
+    expect(saveEditedTab.mock.calls.map((c) => c[1])).toEqual([[1], [2]]);
+    expect(useTabStore.getState().record?.hasOriginal).toBe(true);
+  });
+
+  it("shows why an edit could not be saved and keeps working afterwards", async () => {
+    useTabStore.setState({ songId: "s1", record: record(sync()) });
+    saveEditedTab.mockRejectedValueOnce("The edited tab is empty.").mockResolvedValueOnce(record(sync()));
+    await useTabStore.getState().saveEdited("s1", new Uint8Array([1]));
+    expect(useTabStore.getState()).toMatchObject({ status: "error", error: "The edited tab is empty." });
+    await useTabStore.getState().saveEdited("s1", new Uint8Array([2]));
+    expect(useTabStore.getState().error).toBeNull();
+  });
+
+  it("reverts the edits and tells the panel to read the file again", async () => {
+    useTabStore.setState({ songId: "s1", record: { ...record(sync()), hasOriginal: true } });
+    revertTabEdits.mockResolvedValue(record(sync()));
+    await useTabStore.getState().revertEdits("s1");
+    const s = useTabStore.getState();
+    expect(s.record?.hasOriginal).toBe(false);
+    expect(s.reloadKey).toBe(1);
   });
 
   it("removes the tab", async () => {

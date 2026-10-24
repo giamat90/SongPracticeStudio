@@ -1,0 +1,65 @@
+import { useState } from "react";
+import { movability, playerString, type TabNoteModel } from "../../lib/tabEdit";
+
+interface TabNoteEditorProps {
+  note: TabNoteModel | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  hasOriginal: boolean;
+  disabled: boolean;
+  onMove: (string: number) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onRevert: () => void;
+}
+
+/** The row under the tab while editing: where the picked note can go, undo / redo, and revert to the imported file. */
+export default function TabNoteEditor({
+  note, canUndo, canRedo, hasOriginal, disabled, onMove, onUndo, onRedo, onRevert,
+}: TabNoteEditorProps) {
+  const [confirming, setConfirming] = useState(false);
+  const result = note ? movability(note) : null;
+
+  return (
+    <div className="tab-panel__fix tab-panel__edit">
+      {!note && <span className="tab-panel__fixhint">Click a note to move it to another string.</span>}
+      {note && (
+        <span className="tab-panel__fixhint">
+          Bar {note.beat.voice.bar.index + 1}, string {playerString(note, note.string)}, fret {note.fret}
+          {result?.ok ? ": move to" : ` (${result?.reason})`}
+        </span>
+      )}
+      {result?.ok && result.choices.map((c) => (
+        <button
+          key={c.string}
+          className="tab-panel__btn"
+          onClick={() => onMove(c.string)}
+          disabled={disabled}
+          title="Same note, played on another string"
+        >
+          String {playerString(note as TabNoteModel, c.string)} · fret {c.fret}
+        </button>
+      ))}
+      <span className="tab-panel__spacer" />
+      <button className="tab-panel__btn" onClick={onUndo} disabled={disabled || !canUndo}>Undo</button>
+      <button className="tab-panel__btn" onClick={onRedo} disabled={disabled || !canRedo}>Redo</button>
+      {hasOriginal && !confirming && (
+        <button
+          className="tab-panel__btn"
+          onClick={() => setConfirming(true)}
+          disabled={disabled}
+          title="Go back to the file as it was imported"
+        >
+          Revert to imported
+        </button>
+      )}
+      {hasOriginal && confirming && (
+        <>
+          <span className="tab-panel__fixhint">Drop every edit?</span>
+          <button className="tab-panel__btn" onClick={() => { setConfirming(false); onRevert(); }}>Revert</button>
+          <button className="tab-panel__btn" onClick={() => setConfirming(false)}>Keep edits</button>
+        </>
+      )}
+    </div>
+  );
+}

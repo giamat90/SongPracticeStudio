@@ -108,5 +108,7 @@ export interface TabRecord {
   originalName: string;
   /** Absolute path of the stored file. */
   path: string;
+  /** True once the tab has been edited: the imported file is kept so the edits can be reverted. */
+  hasOriginal: boolean;
   sync: TabSync | null;
 }

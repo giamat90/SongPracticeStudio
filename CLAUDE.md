@@ -155,6 +155,7 @@ SongPracticeStudio/
 │   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
 │   ├── lib/ipc.generated.ts    ← GENERATED IPC wrappers (scripts/gen-ipc.mjs, `npm run gen:ipc`); never edit by hand
 │   ├── lib/ipcTypes.ts         ← shapes that cross IPC and are not Rust-derived (MixSource, ZipExportEntry)
+│   ├── lib/tabEdit.ts          ← pure edit logic on alphaTab's score: other strings at the same pitch, linked notes (tie / hammer-on / slide) move together, undo, `exportTab` (Guitar Pro 7 bytes)
 │   ├── lib/liveInput.ts        ← the Monitor's pure part: LiveAnalyser (spectrum + note strengths of a window), LiveTrace, liveFrameTime, describeInput
 │   ├── lib/meterView.ts        ← the Meter panel's pure helpers: what a press on the lane hits, which bars an edit reaches, accent presets, parsing typed groups and patterns, the drums' hit envelope
 │   ├── lib/chords.ts           ← useChordSegments hook + formatChordName/findActiveChordIndex helpers
@@ -197,7 +198,8 @@ SongPracticeStudio/
 │   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the Tab panel first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
 │   │   ├── tab/
 │   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
-│   │   │   └── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek
+│   │   │   ├── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek (a click picks a note while editing)
+│   │   │   └── TabNoteEditor.tsx  ← the row under the tab while editing strings: the other strings for the picked note, undo / redo, revert to imported
 │   │   ├── lyrics/
 │   │   │   └── LyricsPanel.tsx    ← paste / find online / sync lyrics, karaoke view, click a line to seek (AnalyzerPage, below the stems)
 │   │   ├── updater/
@@ -213,7 +215,7 @@ SongPracticeStudio/
 │   │   └── AnalyzerPage.tsx   ← Header + StemView + transport/tempo footer
 │   └── App.tsx                ← Two-page router: library ↔ analyzer
 └── src-tauri/src/
-    ├── commands.rs   ← read_song_meter, has_meter_edits, save_meter_edits, clear_meter_edits, redetect_song_meter, process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_identity, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, search_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, delete_song_tab
+    ├── commands.rs   ← read_song_meter, has_meter_edits, save_meter_edits, clear_meter_edits, redetect_song_meter, process_song, import_youtube, read_song_chords, redetect_song_chords, cancel_lyrics_sync, export_file, export_stem, export_all, export_take, export_mix, save_take, list_takes, delete_take, rename_take, set_take_manual_offset, list_songs, delete_song, rename_song, set_song_identity, set_song_loops, set_metronome_offset, list_folders, create_folder, rename_folder, delete_folder, reorder_folders, move_songs, pitch_shift_song, load_lyrics, sync_lyrics, find_lyrics, search_lyrics, delete_lyrics, read_song_tab, import_song_tab, align_song_tab, save_tab_bars, save_edited_tab, revert_tab_edits, delete_song_tab
     ├── meter.rs      ← the song's bars: meter.json (detected) and meter_edited.json (the user's, wins), validation that mirrors core's `validateMap`, atomic writes
     ├── tab.rs        ← tab sync: the stored tab file, tab_sync.json (atomic), validation of hand-corrected bar lines, the align_tab round trip
     ├── lyrics.rs     ← Lyrics structs, lyrics.json load/save/delete (atomic), sync_impl / find_impl (validate, then one sidecar round trip)
@@ -312,7 +314,7 @@ Paste lyrics or **Find online** (LRCLIB), then **Sync lyrics**: the text is forc
 
 ## Tab sync (SPS only)
 
-Import a Guitar Pro tab (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the **Tab** panel under the stems; its bars are placed on the recording using the separated stems, and the tab follows the playhead (click a bar to seek, *Set bar to playhead* to correct one). alphaTab (`@coderline/alphatab`, MPL-2.0, pinned exact) reads and draws the file in the webview; the sidecar's `tab_sync.align_tab_to_stems` is the replaceable algorithm. Not in VPS (no guitar stems): see `MPS/wiki/feature-parity.md`. Full detail, measured accuracy and limits: `wiki/tab-sync.md`.
+Import a Guitar Pro tab (`.gp`, `.gp3`-`.gp5`, `.gpx`, MusicXML) in the **Tab** panel under the stems; its bars are placed on the recording using the separated stems, and the tab follows the playhead (click a bar to seek, *Set bar to playhead* to correct one). alphaTab (`@coderline/alphatab`, MPL-2.0, pinned exact) reads and draws the file in the webview; the sidecar's `tab_sync.align_tab_to_stems` is the replaceable algorithm. Not in VPS (no guitar stems): see `MPS/wiki/feature-parity.md`. **Editing:** *Edit strings* moves a note to another string at the same pitch (ties, hammer-ons and slides move with it; harmonics stay), saved as `tab.gp` with the imported file kept as `tab.original.<ext>` for *Revert to imported*; the pitch never changes, so the alignment stays. Full detail, measured accuracy and limits: `wiki/tab-sync.md`; why only strings: `wiki/tab-edit-spike.md`.
 
 ---
 

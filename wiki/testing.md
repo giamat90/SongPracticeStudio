@@ -60,7 +60,7 @@ Details in [Lyrics Sync](lyrics.md#tests). In short: the alignment algorithm is 
 
 ## Tab sync tests
 
-Details in [Tab sync](tab-sync.md#tests). The alignment is tested on synthetic tabs and stems with a known drifting timeline (no fixtures); `tests/tabs/realTabs.test.ts` reads the maintainer's local folder of copyrighted `.gp` files and skips without it. The score builder is tested with alphaTex strings, so repeats and tracks need no files. `integration_tests.rs` drives `align_impl` through the real sidecar.
+Details in [Tab sync](tab-sync.md#tests). The alignment is tested on synthetic tabs and stems with a known drifting timeline (no fixtures); `tests/tabs/realTabs.test.ts` reads the maintainer's local folder of copyrighted `.gp` files and skips without it. The score builder is tested with alphaTex strings, so repeats and tracks need no files. `integration_tests.rs` drives `align_impl` through the real sidecar. Editing is covered by `src/lib/tabEdit.test.ts` (alphaTex scores, no files) and, with the local folder, a real-tab test that moves a note on every tab and checks the exported file plays the same.
 
 ## Meter tests
 

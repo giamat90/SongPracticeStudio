@@ -12,6 +12,10 @@ const FORMAT_VERSION: u32 = 1;
 const SYNC_FILE: &str = "tab_sync.json";
 const SCORE_FILE: &str = "tab_score.json";
 const TAB_STEM: &str = "tab";
+/// The file as it was imported, kept once the user edits the tab so the edits can be undone.
+const ORIGINAL_STEM: &str = "tab.original";
+/// What an edited tab is saved as, whatever format it was imported in.
+const EDITED_EXT: &str = "gp";
 const MAX_TAB_BYTES: u64 = 20 * 1024 * 1024;
 const MAX_SCORE_BYTES: usize = 64 * 1024 * 1024;
 const ALIGN_TIMEOUT: Duration = Duration::from_secs(300);
@@ -63,6 +67,8 @@ pub struct TabRecord {
     pub original_name: String,
     /// Absolute path of the stored tab (served through the asset protocol).
     pub path: String,
+    /// True once the tab has been edited: the imported file is kept for "revert".
+    pub has_original: bool,
     pub sync: Option<TabSync>,
 }
 
@@ -104,6 +110,14 @@ fn tab_file(song: &Song) -> Result<Option<PathBuf>, String> {
         }
     }
     Ok(None)
+}
+
+/// The imported file kept beside an edited tab, or `None` while the tab is as imported.
+fn original_file(song: &Song) -> Option<PathBuf> {
+    EXTENSIONS
+        .iter()
+        .map(|ext| song_dir(song).join(format!("{ORIGINAL_STEM}.{ext}")))
+        .find(|candidate| candidate.is_file())
 }
 
 fn write_atomic(path: &Path, data: &[u8], what: &str) -> Result<(), String> {
@@ -157,6 +171,7 @@ pub fn read(song_id: &str) -> Result<Option<TabRecord>, String> {
         file_name: path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
         original_name: original_name(&song, &path),
         path: path.to_string_lossy().to_string(),
+        has_original: original_file(&song).is_some(),
         sync: load_sync(&song)?,
     }))
 }
@@ -192,9 +207,49 @@ pub fn import(song_id: &str, source: &Path) -> Result<TabRecord, String> {
     read(song_id)?.ok_or_else(|| "The tab could not be stored.".to_string())
 }
 
+/// Store the tab the user edited as `tab.gp`. The file as imported is kept once
+/// (`tab.original.<ext>`), and the alignment stays: an edit that keeps every
+/// pitch cannot move a bar line.
+pub fn save_edited(song_id: &str, data: &[u8]) -> Result<TabRecord, String> {
+    let song = find_song(song_id)?;
+    if data.is_empty() {
+        return Err("The edited tab is empty.".to_string());
+    }
+    if data.len() as u64 > MAX_TAB_BYTES {
+        return Err("The edited tab is larger than 20 MB.".to_string());
+    }
+    let current = tab_file(&song)?.ok_or_else(|| "This song has no tab to edit.".to_string())?;
+    if original_file(&song).is_none() {
+        let ext = current.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+        let kept = std::fs::read(&current).map_err(|e| format!("Read tab: {e}"))?;
+        write_atomic(&song_dir(&song).join(format!("{ORIGINAL_STEM}.{ext}")), &kept, "tab")?;
+    }
+    write_atomic(&song_dir(&song).join(format!("{TAB_STEM}.{EDITED_EXT}")), data, "tab")?;
+    if current.extension().is_some_and(|e| e != EDITED_EXT) {
+        remove_if_present(&current, "tab")?;
+    }
+    read(song_id)?.ok_or_else(|| "The tab could not be stored.".to_string())
+}
+
+/// Put the imported file back and drop the edited one. The alignment is kept:
+/// it was made from the imported file.
+pub fn revert_edits(song_id: &str) -> Result<TabRecord, String> {
+    let song = find_song(song_id)?;
+    let original = original_file(&song).ok_or_else(|| "This tab has not been edited.".to_string())?;
+    let ext = original.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+    let data = std::fs::read(&original).map_err(|e| format!("Read tab: {e}"))?;
+    write_atomic(&song_dir(&song).join(format!("{TAB_STEM}.{ext}")), &data, "tab")?;
+    if ext != EDITED_EXT {
+        remove_if_present(&song_dir(&song).join(format!("{TAB_STEM}.{EDITED_EXT}")), "tab")?;
+    }
+    remove_if_present(&original, "tab")?;
+    read(song_id)?.ok_or_else(|| "The tab could not be restored.".to_string())
+}
+
 fn delete_files(song: &Song) -> Result<(), String> {
     for ext in EXTENSIONS {
         remove_if_present(&song_dir(song).join(format!("{TAB_STEM}.{ext}")), "tab")?;
+        remove_if_present(&song_dir(song).join(format!("{ORIGINAL_STEM}.{ext}")), "tab")?;
     }
     remove_if_present(&sync_path(song), "tab sync")?;
     remove_if_present(&meta_path(song), "tab")?;
@@ -415,6 +470,79 @@ mod tests {
         assert_eq!(rec.file_name, "tab.gp5");
         assert!(rec.sync.is_none());
         assert!(!Path::new(&song.directory).join("tab.gp").exists());
+    }
+
+    #[test]
+    fn an_edit_is_saved_as_gp_and_the_imported_file_is_kept_once() {
+        let home = TestHome::new();
+        let song = add_song("a", &["guitar"]);
+        import("a", &write_tab(home.path(), "one.gp5", b"imported")).unwrap();
+        save_sync(&song, &sample_sync()).unwrap();
+
+        let rec = save_edited("a", b"edit one").unwrap();
+        assert_eq!(rec.file_name, "tab.gp");
+        assert!(rec.has_original);
+        assert_eq!(rec.original_name, "one.gp5");
+        assert_eq!(std::fs::read(&rec.path).unwrap(), b"edit one");
+        assert!(!Path::new(&song.directory).join("tab.gp5").exists());
+        assert!(rec.sync.is_some(), "a string move keeps the alignment");
+
+        let rec = save_edited("a", b"edit two").unwrap();
+        assert_eq!(std::fs::read(&rec.path).unwrap(), b"edit two");
+        assert_eq!(std::fs::read(Path::new(&song.directory).join("tab.original.gp5")).unwrap(), b"imported");
+    }
+
+    #[test]
+    fn saving_an_edit_over_a_gp_import_keeps_the_original_beside_it() {
+        let home = TestHome::new();
+        let song = add_song("a", &["guitar"]);
+        import("a", &write_tab(home.path(), "one.gp", b"imported")).unwrap();
+        save_edited("a", b"edited").unwrap();
+        assert_eq!(std::fs::read(Path::new(&song.directory).join("tab.gp")).unwrap(), b"edited");
+        assert_eq!(std::fs::read(Path::new(&song.directory).join("tab.original.gp")).unwrap(), b"imported");
+    }
+
+    #[test]
+    fn an_edit_needs_a_tab_and_some_bytes() {
+        let home = TestHome::new();
+        add_song("a", &["guitar"]);
+        assert_eq!(save_edited("a", b"x").unwrap_err(), "This song has no tab to edit.");
+        import("a", &write_tab(home.path(), "one.gp", b"imported")).unwrap();
+        assert_eq!(save_edited("a", b"").unwrap_err(), "The edited tab is empty.");
+        assert!(save_edited("ghost", b"x").unwrap_err().contains("ghost"));
+        assert!(!read("a").unwrap().unwrap().has_original);
+    }
+
+    #[test]
+    fn reverting_restores_the_imported_file_and_its_format() {
+        let home = TestHome::new();
+        let song = add_song("a", &["guitar"]);
+        import("a", &write_tab(home.path(), "one.gp5", b"imported")).unwrap();
+        save_sync(&song, &sample_sync()).unwrap();
+        save_edited("a", b"edited").unwrap();
+
+        let rec = revert_edits("a").unwrap();
+        assert_eq!(rec.file_name, "tab.gp5");
+        assert!(!rec.has_original);
+        assert_eq!(std::fs::read(&rec.path).unwrap(), b"imported");
+        assert!(!Path::new(&song.directory).join("tab.gp").exists());
+        assert!(rec.sync.is_some());
+        assert_eq!(revert_edits("a").unwrap_err(), "This tab has not been edited.");
+    }
+
+    #[test]
+    fn importing_or_deleting_also_clears_the_kept_original() {
+        let home = TestHome::new();
+        let song = add_song("a", &["guitar"]);
+        import("a", &write_tab(home.path(), "one.gp5", b"imported")).unwrap();
+        save_edited("a", b"edited").unwrap();
+        let rec = import("a", &write_tab(home.path(), "two.gp", b"second")).unwrap();
+        assert!(!rec.has_original);
+        assert!(!Path::new(&song.directory).join("tab.original.gp5").exists());
+
+        save_edited("a", b"edited again").unwrap();
+        delete("a").unwrap();
+        assert!(!Path::new(&song.directory).join("tab.original.gp").exists());
     }
 
     #[test]

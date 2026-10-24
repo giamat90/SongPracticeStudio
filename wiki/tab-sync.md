@@ -2,7 +2,7 @@
 
 Import a Guitar Pro tab of the song and SPS places its bar lines on the recording, so the tab follows the music: a cursor moves through the notation with the playhead, clicking a bar seeks there, and a bar that is wrong can be set to the playhead by hand.
 
-**Files:** `sidecar/tab_sync.py` · `src-tauri/src/tab.rs` · `src/lib/tabScore.ts` · `src/lib/tabSync.ts` · `src/stores/tab.ts` · `src/components/tab/TabPanel.tsx` · `src/components/tab/TabScoreView.tsx`
+**Files:** `sidecar/tab_sync.py` · `src-tauri/src/tab.rs` · `src/lib/tabScore.ts` · `src/lib/tabSync.ts` · `src/stores/tab.ts` · `src/components/tab/TabPanel.tsx` · `src/components/tab/TabScoreView.tsx` · `src/components/tab/TabNoteEditor.tsx` · `src/lib/tabEdit.ts`
 
 ## What the user sees
 
@@ -53,6 +53,17 @@ On 12 real full-band GP8 tabs and the stems SPS had made for them (alignment its
 - Not detachable into its own window (not in `ANALYZER_PANELS`); the Tab panel is one of the show/hide entries under the stems (`waveforms.ts`, `songTab`).
 - Tabs are the user's own files and never leave the machine.
 
+## Editing the tab (strings)
+
+*Edit strings* in the panel header turns a click on a note into a pick instead of a seek. The row under the tab lists every other string that plays the **same pitch** (fret 0 to 24, capo and tuning included) with the fret it would be; one click moves the note. The notes that only make sense on the same string move with it: the other end of a tie, a hammer-on / pull-off and a slide. Not offered: harmonics (they sound by fret, not pitch), strings another note of the beat already uses, notes on a percussion or keyboard track. Undo and redo are in memory (reset when the panel folds, the song changes or the tab is read again); *Revert to imported* drops every edit.
+
+Because the pitch never changes, the alignment is untouched: the stored bar lines stay valid and nothing is re-aligned (measured: the MIDI alphaTab generates from an exported tab is identical to the original's on all 26 local tabs). Changing a fret or pitch is deliberately not offered; see [Tab editing spike](tab-edit-spike.md) for the reasoning and the scope ladder.
+
+- **Pure logic:** `lib/tabEdit.ts` (`movability`, `moveToString`, `restore`, `linkedNotes`, `exportTab`), tested on alphaTex scores. String numbers in the UI are the player's (1 is the thinnest string); alphaTab's `Note.string` counts from the lowest, `playerString` converts.
+- **Saving:** 600 ms after the last edit (exporting a long tab takes a moment) the panel exports the live score with alphaTab's `Gp7Exporter` and calls `save_edited_tab`; pending edits are flushed on fold, song change and before *Re-align*, and dropped by *Replace*, *Remove* and *Revert*. Saves run one after another in the store, the last one wins.
+- **The view is not reloaded by its own edits:** `TabScoreView` reads its bytes again only when `source` changes (a new alignment or a revert), and keeps its scroll position across a redraw. The panel keeps `bytes` current after each save so folding and unfolding shows the edited tab.
+- **Limit:** the exporter changes the General MIDI preset of about 1 track in 70 (4 of 272 on the local tabs: a distortion guitar comes back clean, one effects bass comes back with a guitar program). Notes, timing and tempo are identical, and the alignment treats guitar, bass and keys alike, so nothing observable changes; SPS does not play the tab's sound. Beyond that only playback was verified after export; Guitar Pro features alphaTab's exporter may not carry (text, lyrics, chord diagrams, fingerings) are not checked, which is why the imported file is kept.
+
 ## Storage
 
 In the song directory: `tab.<ext>` (the original bytes), `tab_meta.json` (the file's name), `tab_sync.json`:
@@ -63,6 +74,8 @@ In the song directory: `tab.<ext>` (the original bytes), `tab_meta.json` (the fi
  "bars":[{"index":0,"occurrence":0,"time":0.70}, ...]}
 ```
 
+After an edit the song directory also holds `tab.gp` (the edited file, always Guitar Pro 7 format) and `tab.original.<ext>` (the file as imported, kept once; `TabRecord.hasOriginal`). `save_edited_tab(songId, data)` writes both and keeps `tab_sync.json`; `revert_tab_edits` puts the imported file back under its own extension and removes the copy. Importing again or removing the tab deletes both.
+
 `save_tab_bars` stores corrections: same bars in the same order, only times change, finite, non-negative, never running backwards; sets `edited`. Importing again replaces the file and drops the alignment.
 
 ## Tests
@@ -71,4 +84,5 @@ In the song directory: `tab.<ext>` (the original bytes), `tab_meta.json` (the fi
 - `sidecar/tests/test_protocol.py`: `align_tab` over real stdio, error message, handled-commands lists.
 - `src-tauri/src/tab.rs` unit tests and one `integration_tests.rs` test through the real sidecar (it found a contract mismatch the unit tests hid: the sidecar does not send `alignedAt`).
 - `src/lib/tabScore.test.ts` (alphaTex tabs with a repeat), `tabSync.test.ts`, `stores/tab.test.ts`, the IPC contract test.
+- `src/lib/tabEdit.test.ts` (alphaTex: other strings at the same pitch, the 24-fret limit, occupied strings, ties, hammer-ons, slides, harmonics, undo and redo, a `.gp` round trip that plays the same); `tab.rs` tests for save / revert / import / delete of the kept original; store tests for the save queue and revert.
 - `tests/tabs/realTabs.test.ts` reads every `.gp` in the maintainer's local `GP-and-MIDI-files` folder when it exists and skips otherwise; the files are copyrighted and never committed.

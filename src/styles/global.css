@@ -4179,6 +4179,11 @@ button.stem-track__take-name {
   background: var(--bg-raised);
 }
 
+.tab-panel__btn--on {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
 .tab-panel__btn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -4265,6 +4270,15 @@ button.stem-track__take-name {
   margin-left: -0.07rem;
   background: var(--accent);
   box-shadow: 0 0 0.4rem var(--accent);
+  pointer-events: none;
+}
+
+.tab-score__note {
+  position: absolute;
+  box-sizing: border-box;
+  border: 0.125rem solid var(--accent);
+  border-radius: 0.2rem;
+  background: rgba(217, 119, 6, 0.18);
   pointer-events: none;
 }
 
