@@ -6,6 +6,17 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.77] - 2026-10-24
+
+### Added
+- **Edit the tab you imported.** The Tab panel has an **Edit** button. With it on, click a note, then **Shift+Up / Shift+Down** moves it to the string above or below, keeping the same pitch (the fret changes to match). **Left / Right** put the playhead on the previous or next note, **Alt+Left / Alt+Right** on the previous or next bar, and **Ctrl+Z** undoes the last change (**Ctrl+Y** redoes). Ties, hammer-ons and slides move together with the note; harmonics and strings already in use stay put. The edited tab is saved with the song as a Guitar Pro file, your original is kept, and **Revert to imported** brings it back. The bar lines stay where they were, because no note changes pitch.
+
+### Changed
+- **The tab's playhead line sits on the notes.** It used to be spread evenly across each bar, so at the start of a bar it stood on the bar line, left of the first note, and drifted off the notes elsewhere. It now follows the notes' own positions, the first note of a bar included.
+
+### Known
+- Saving an edited tab can change the sound preset of an instrument in the file (for example a distortion guitar comes back clean). Notes and timing are identical, and SPS does not play the tab's sound.
+
 ## [0.0.76] - 2026-10-24
 
 ### Removed
