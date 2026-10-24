@@ -148,6 +148,7 @@ SongPracticeStudio/
 │   │   ├── library.ts          ← Zustand: song list, upload/import, progress (`libraryStateCreator` from `@giamat90/mps-core/hooks` + this app's request shape)
 │   │   ├── settings.ts         ← Zustand: youtubeCookiesPath (localStorage-persisted, `sps_settings`)
 │   │   ├── panels.ts           ← which analyzer-page panels are visible (createPanelStore from mps-core, `sps_panels`)
+│   │   ├── topbar.ts           ← the order of the cards of the pinned top bar (`sps_topbar`): Transport, Loop, Tempo, Input and output, Transpose and capo, Chords (detail select + carousel; absent for a song without chords); one list with no fixed lines, the user puts any card anywhere in the bar and hides any from the Cards menu, never mixed with `panels.ts`
 │   │   ├── collapsed.ts        ← which panels are folded down to their title button (createCollapseStore from mps-core, `sps_collapsed`); `usePanelCollapse(id)`
 │   │   └── waveforms.ts        ← whether the stem area and the bass tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
@@ -173,7 +174,7 @@ SongPracticeStudio/
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
 │   │   │   ├── MeterPanel.tsx     ← the Meter panel (Panels menu "Meter"): source and readout, overview, lane, click density; with MeterLane (bars around the playhead, drag a bar line), MeterOverview (the song by signature), MeterEditor (count, accents, split, join, repeat a pattern, shift, tap along), useHitEnvelope (drums under the bars); see wiki/meter.md
 │   │   │   ├── ChordRoll.tsx      ← the chord panel under the stems (Panels menu "Chord roll"): notes of each stem over time, a strip of chord buttons (click to correct, drag a handle to move a start, + to add), the spectrum section; not detachable (needs decoded audio)
-│   │   │   ├── MonitorControl.tsx ← the Monitor switch in the chord roll's header: listens to the chosen input and draws it in pink on the notes and the spectrum against the song; level meter; the "You play C" readout is in the spectrum panel
+│   │   │   ├── MonitorControl.tsx ← the Monitor switch, a 🎧 pill in the input strip of the top bar between the mic and output menus (shown when the song has chords and the chord roll is on screen): listens to the chosen input and draws it in pink on the notes and the spectrum against the song; level meter; the "You play C" readout is in the spectrum panel
 │   │   │   ├── useNoteRoll.ts     ← loads the saved note strengths (`note_roll.json`) or analyses the decoded stems and saves them
 │   │   │   ├── useChordCommit.ts  ← saving a chord correction (stored vs shown chords, `save_chord_edits`, refresh)
 │   │   │   ├── ChordEditorHost.tsx ← the editor of the picked chord with its saving; hands its parts to the spectrum panel
@@ -193,8 +194,9 @@ SongPracticeStudio/
 │   │   │   ├── RecordingOffsetControl.tsx ← Latency calibration wizard (click-clap)
 │   │   │   └── TakeList.tsx       ← Take list with select/rename/delete
 │   │   ├── panels/
+│   │   │   ├── SortableTopbar.tsx ← the pinned top bar: its cards in the user's order, wrapping with the window, each with a grip (⋮⋮) that moves it anywhere inside the bar (own drag context, clamped to the bar; double-click a grip to restore the usual order)
 │   │   │   ├── PanelTitle.tsx     ← a panel's name as the button that folds it (the Lyrics panel's button)
-│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the bass tab first
+│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the bass tab first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
 │   │   ├── tab/
 │   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
 │   │   │   └── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek

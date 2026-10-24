@@ -18,15 +18,18 @@ import KeyTranspose from "../components/player/KeyTranspose";
 import ChordCarousel from "../components/player/ChordCarousel";
 import MicSelector from "../components/recording/MicSelector";
 import OutputSelector from "../components/player/OutputSelector";
+import MonitorControl from "../components/player/MonitorControl";
 import TakeList from "../components/recording/TakeList";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
 import PanelMenu from "../components/panels/PanelMenu";
 import DetachHandle from "../components/panels/DetachHandle";
 import SortablePanels from "../components/panels/SortablePanels";
+import SortableTopbar from "../components/panels/SortableTopbar";
 import { useLibraryStore } from "../stores/library";
 import { usePlayerStore } from "../stores/player";
 import { useDetachedStore } from "../stores/detached";
 import { ANALYZER_PANELS, useAnalyzerPanels, type AnalyzerPanelId } from "../stores/panels";
+import { TOPBAR_CARDS, TOPBAR_MENU_LABELS, useTopbarOrder, type TopbarCardId } from "../stores/topbar";
 import { hiddenStemTags, useWaveformPanels, waveformMenuItems } from "../stores/waveforms";
 import { canSyncLyrics } from "../lib/lyrics";
 import { transposeKey } from "../lib/chords";
@@ -64,12 +67,15 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const song    = songs.find((s) => s.id === songId);
   const visible = useAnalyzerPanels((s) => s.visible);
   const order = useAnalyzerPanels((s) => s.order);
+  const topbarOrder = useTopbarOrder((s) => s.order);
+  const cardVisible = useTopbarOrder((s) => s.visible);
   const detached = useDetachedStore((s) => s.detached);
   const waveformVisible = useWaveformPanels((s) => s.visible);
 
   useMainBridge();
 
-  // On screen in this window: wanted, and not living in a window of its own.
+  // On screen in this window: wanted, and not living in a window of its own. (The chord carousel is a card of the
+  // top bar, not a panel; it is "docked" while it is not in a window of its own.)
   const docked = (id: AnalyzerPanelId) => visible[id] && !(isDetachablePanel(id) && detached[id]);
   const onScreen = order.filter((id) => BODY_PANELS.includes(id) && docked(id));
 
@@ -94,6 +100,50 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
     );
   }
 
+  // What each card of the pinned bar holds. Where a card sits is the user's (`stores/topbar.ts`).
+  const topbarCard = (id: TopbarCardId) => {
+    switch (id) {
+      case "transport":
+        return <TransportControls />;
+      case "loop":
+        return (
+          <>
+            <LoopButton />
+            <LoopsMenu />
+          </>
+        );
+      case "tempo":
+        return <TempoControl detectedBpm={song.detectedBpm} />;
+      case "devices":
+        return (
+          <>
+            <MicSelector />
+            {song.hasChords && docked("roll") && <MonitorControl songId={song.id} />}
+            <OutputSelector />
+          </>
+        );
+      case "transpose":
+        return (
+          <>
+            <KeyTranspose />
+            <CapoSelect song={song} />
+          </>
+        );
+      case "chords":
+        if (!song.hasChords) return null;
+        return (
+          <>
+            <ChordDetailSelect song={song} />
+            {!detached.chords && (
+              <Detachable panel="chords" inline>
+                <ChordCarousel song={song} />
+              </Detachable>
+            )}
+          </>
+        );
+    }
+  };
+
   return (
     <div className="analyzer-page">
       <div className="analyzer-page__pinned">
@@ -117,31 +167,15 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
               tags: hiddenStemTags(waveformVisible, { stems, muted: mutedStems, soloed: soloedStem }),
             }}
           />
+          <PanelMenu store={useTopbarOrder} panels={TOPBAR_CARDS} labels={TOPBAR_MENU_LABELS} />
           <DownloadAllButton song={song} />
           <ExportChartButton song={song} />
           <ExportMixButton />
         </header>
 
-        <div className="analyzer-page__topbar">
-          <TransportControls />
-          <LoopButton />
-          <LoopsMenu />
-          <TempoControl detectedBpm={song.detectedBpm} />
-          <div className="analyzer-page__topbar-devices">
-            <div className="analyzer-page__io-group">
-              <MicSelector />
-              <OutputSelector />
-            </div>
-            <KeyTranspose />
-          </div>
-          <CapoSelect song={song} />
-          <ChordDetailSelect song={song} />
-          {docked("chords") && (
-            <Detachable panel="chords" inline>
-              <ChordCarousel song={song} />
-            </Detachable>
-          )}
-        </div>
+        <SortableTopbar ids={topbarOrder.filter((id) => cardVisible[id])}>
+          {(id) => topbarCard(id)}
+        </SortableTopbar>
       </div>
 
       <div className="analyzer-page__body">

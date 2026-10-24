@@ -5,7 +5,9 @@ import MeterLane from "./MeterLane";
 import MeterOverview from "./MeterOverview";
 import { useHitEnvelope } from "./useHitEnvelope";
 import { barTitle, meterShares } from "../../lib/meterView";
+import PanelTitle from "../panels/PanelTitle";
 import { usePlayerStore } from "../../stores/player";
+import { usePanelCollapse } from "../../stores/collapsed";
 import type { Song } from "../../lib/types";
 
 const PREFS_KEY = "sps_meter_view";
@@ -69,10 +71,12 @@ export default function MeterPanel({ song }: { song: Song }) {
   const reset = usePlayerStore((s) => s.resetMeter);
   const setDensity = usePlayerStore((s) => s.setClickDensity);
   const dismiss = usePlayerStore((s) => s.clearMeterError);
+  const collapse = usePanelCollapse("meter");
+  const { open: bodyOpen } = collapse;
 
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [replacing, setReplacing] = useState(false);
-  const envelope = useHitEnvelope(song, prefs.envelope && map !== null);
+  const envelope = useHitEnvelope(song, prefs.envelope && map !== null && bodyOpen);
 
   const setPref = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     const next = { ...prefs, [key]: value };
@@ -90,101 +94,107 @@ export default function MeterPanel({ song }: { song: Song }) {
   const hasDrums = song.stems.includes("drums");
 
   return (
-    <section className="meter-panel">
-      <header className="meter-panel__head">
-        <div className="meter-panel__headline">
-          <h2 className="meter-panel__title">Meter</h2>
-          <span className="meter-panel__source">{map ? sourceLabel(map.source, edited, map.confidence) : "No bars yet"}</span>
-          <Readout />
-        </div>
-        <div className="meter-panel__actions">
-          {replacing ? (
-            <>
-              <button type="button" className="meter-btn meter-btn--primary" onClick={() => { setReplacing(false); void detect(); }} title="Finding the bars again throws your bars away (Undo brings them back until you leave the song)">
-                Replace my bars
-              </button>
-              <button type="button" className="meter-btn" onClick={() => setReplacing(false)}>Keep them</button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="meter-btn"
-              onClick={() => (edited ? setReplacing(true) : void detect())}
-              disabled={busy || tapping}
-              title="Listen to the song's beat and work out where the bars fall and how long they are"
-            >
-              {busy ? "Finding bars…" : map ? "Find bars again" : "Find bars"}
-            </button>
-          )}
-          <button type="button" className="meter-btn" onClick={() => void fromTempo()} disabled={busy || tapping} title="Start from the song's tempo with four beats to a bar, then correct it">
-            {map ? "Start over from the tempo" : "Start from the tempo"}
-          </button>
-          <button type="button" className="meter-btn" onClick={() => void undo()} disabled={history === 0 || busy} title="Undo the last change to the bars">Undo</button>
-          {edited && (
-            <button type="button" className="meter-btn" onClick={() => void reset()} disabled={busy} title="Throw away your changes and show what was detected">
-              Discard my changes
-            </button>
-          )}
-        </div>
-      </header>
-
-      {error && (
-        <p className="meter-panel__error" role="alert">
-          {error} <button type="button" className="meter-link" onClick={dismiss}>Dismiss</button>
-        </p>
-      )}
-
-      {map && (
-        <>
-          <div className="meter-panel__summary">
-            {shares.slice(0, 5).map((s) => (
-              <span key={s.label} className="meter-pill" title={`${s.bars} bars`}>
-                {s.label} <small>{Math.round(s.share * 100)}%</small>
-              </span>
-            ))}
-            {shares.length > 5 && <span className="meter-pill meter-pill--more">+{shares.length - 5} more</span>}
-            {pattern && <span className="meter-pill meter-pill--pattern" title="A pattern of bar lengths that repeats">Repeats {pattern}</span>}
-          </div>
-
-          <MeterOverview map={map} duration={song.duration} />
-
-          <div className="meter-panel__options">
-            <div className="roll-seg" role="group" aria-label="What the metronome clicks">
-              {CLICK_DENSITIES.map((d) => (
-                <button key={d} type="button" className="roll-seg__btn" aria-pressed={density === d} onClick={() => setDensity(d)} title={DENSITY_HINT[d]}>
-                  {DENSITY_LABEL[d]}
-                </button>
-              ))}
+    <section className="meter-panel" aria-label="Meter">
+      <h2 className="meter-panel__title">
+        <PanelTitle collapse={collapse}>Meter</PanelTitle>
+      </h2>
+      {bodyOpen && (
+        <div className="meter-panel__card">
+          <header className="meter-panel__head">
+            <div className="meter-panel__headline">
+              <span className="meter-panel__source">{map ? sourceLabel(map.source, edited, map.confidence) : "No bars yet"}</span>
+              <Readout />
             </div>
-            <label className="roll-field">
-              <span className="roll-field__label">Window</span>
-              <select className="roll-select" value={prefs.window} onChange={(e) => setPref("window", Number(e.target.value) as Prefs["window"])} aria-label="Seconds shown">
-                {WINDOWS.map((w) => <option key={w} value={w}>{w} s</option>)}
-              </select>
-            </label>
-            {hasDrums && (
-              <button type="button" className="roll-chip" aria-pressed={prefs.envelope} onClick={() => setPref("envelope", !prefs.envelope)} title="Draw where the drums hit under the bars, to see whether a bar line lands on one">
-                Show the drums
+            <div className="meter-panel__actions">
+              {replacing ? (
+                <>
+                  <button type="button" className="meter-btn meter-btn--primary" onClick={() => { setReplacing(false); void detect(); }} title="Finding the bars again throws your bars away (Undo brings them back until you leave the song)">
+                    Replace my bars
+                  </button>
+                  <button type="button" className="meter-btn" onClick={() => setReplacing(false)}>Keep them</button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="meter-btn"
+                  onClick={() => (edited ? setReplacing(true) : void detect())}
+                  disabled={busy || tapping}
+                  title="Listen to the song's beat and work out where the bars fall and how long they are"
+                >
+                  {busy ? "Finding bars…" : map ? "Find bars again" : "Find bars"}
+                </button>
+              )}
+              <button type="button" className="meter-btn" onClick={() => void fromTempo()} disabled={busy || tapping} title="Start from the song's tempo with four beats to a bar, then correct it">
+                {map ? "Start over from the tempo" : "Start from the tempo"}
               </button>
-            )}
-          </div>
+              <button type="button" className="meter-btn" onClick={() => void undo()} disabled={history === 0 || busy} title="Undo the last change to the bars">Undo</button>
+              {edited && (
+                <button type="button" className="meter-btn" onClick={() => void reset()} disabled={busy} title="Throw away your changes and show what was detected">
+                  Discard my changes
+                </button>
+              )}
+            </div>
+          </header>
 
-          <MeterLane
-            map={map}
-            duration={song.duration}
-            windowSeconds={prefs.window}
-            envelope={prefs.envelope ? envelope : null}
-            selected={selected}
-            onSelect={select}
-            onMoveBar={(next) => void apply(next, selected)}
-          />
-          <p className="meter-panel__hint">
-            Click to go there · drag to scrub · click a bar to edit it · drag the amber handle at its left to move where it starts · the metronome in the tempo box follows these bars
-          </p>
-        </>
+          {error && (
+            <p className="meter-panel__error" role="alert">
+              {error} <button type="button" className="meter-link" onClick={dismiss}>Dismiss</button>
+            </p>
+          )}
+
+          {map && (
+            <>
+              <div className="meter-panel__summary">
+                {shares.slice(0, 5).map((s) => (
+                  <span key={s.label} className="meter-pill" title={`${s.bars} bars`}>
+                    {s.label} <small>{Math.round(s.share * 100)}%</small>
+                  </span>
+                ))}
+                {shares.length > 5 && <span className="meter-pill meter-pill--more">+{shares.length - 5} more</span>}
+                {pattern && <span className="meter-pill meter-pill--pattern" title="A pattern of bar lengths that repeats">Repeats {pattern}</span>}
+              </div>
+
+              <MeterOverview map={map} duration={song.duration} />
+
+              <div className="meter-panel__options">
+                <div className="roll-seg" role="group" aria-label="What the metronome clicks">
+                  {CLICK_DENSITIES.map((d) => (
+                    <button key={d} type="button" className="roll-seg__btn" aria-pressed={density === d} onClick={() => setDensity(d)} title={DENSITY_HINT[d]}>
+                      {DENSITY_LABEL[d]}
+                    </button>
+                  ))}
+                </div>
+                <label className="roll-field">
+                  <span className="roll-field__label">Window</span>
+                  <select className="roll-select" value={prefs.window} onChange={(e) => setPref("window", Number(e.target.value) as Prefs["window"])} aria-label="Seconds shown">
+                    {WINDOWS.map((w) => <option key={w} value={w}>{w} s</option>)}
+                  </select>
+                </label>
+                {hasDrums && (
+                  <button type="button" className="roll-chip" aria-pressed={prefs.envelope} onClick={() => setPref("envelope", !prefs.envelope)} title="Draw where the drums hit under the bars, to see whether a bar line lands on one">
+                    Show the drums
+                  </button>
+                )}
+              </div>
+
+              <MeterLane
+                map={map}
+                duration={song.duration}
+                windowSeconds={prefs.window}
+                envelope={prefs.envelope ? envelope : null}
+                selected={selected}
+                onSelect={select}
+                onMoveBar={(next) => void apply(next, selected)}
+              />
+              <p className="meter-panel__hint">
+                Click to go there · drag to scrub · click a bar to edit it · drag the amber handle at its left to move where it starts · the metronome in the tempo box follows these bars
+              </p>
+            </>
+          )}
+
+          <MeterEditor song={song} map={map} selected={map && selected !== null && selected < map.bars.length ? selected : null} />
+        </div>
       )}
-
-      <MeterEditor song={song} map={map} selected={map && selected !== null && selected < map.bars.length ? selected : null} />
     </section>
   );
 }

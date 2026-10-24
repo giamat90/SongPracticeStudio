@@ -366,10 +366,6 @@ input[type="range"]:focus-visible {
   box-shadow: 0 0 1.1rem var(--record-glow);
 }
 
-.monitor-btn {
-  border-color: var(--info);
-}
-
 .count-in-btn {
   border-radius: var(--radius-sm);
 }
@@ -513,6 +509,14 @@ input[type="range"]:focus-visible {
 
 .analyzer-page__topbar {
   box-shadow: 0 0.6rem 0.6rem -0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.topbar-section {
+  box-shadow: inset 0 0 0 0.0625rem var(--border), var(--shadow-sm);
+}
+
+.topbar-section--dragging {
+  box-shadow: inset 0 0 0 0.0625rem var(--accent), 0 0.5rem 1.5rem rgba(0, 0, 0, 0.45);
 }
 
 .stem-track__label {
