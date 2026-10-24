@@ -7,6 +7,8 @@ import { defaultTrack, type TabTrackInfo } from "../../lib/tabScore";
 import { alignmentNotes, moveBar, qualityText } from "../../lib/tabSync";
 import type { Song } from "../../lib/types";
 import TabScoreView from "./TabScoreView";
+import PanelTitle from "../panels/PanelTitle";
+import { usePanelCollapse } from "../../stores/collapsed";
 
 const TAB_EXTENSIONS = ["gp", "gp3", "gp4", "gp5", "gpx", "musicxml", "xml"];
 
@@ -37,6 +39,8 @@ export default function TabPanel({ song }: TabPanelProps) {
   const setProgress = useTabStore((s) => s.setProgress);
   const clearError = useTabStore((s) => s.clearError);
   const seek = usePlayerStore((s) => s.seek);
+  const collapse = usePanelCollapse("tab");
+  const { open: bodyOpen } = collapse;
 
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [tracks, setTracks] = useState<TabTrackInfo[]>([]);
@@ -114,107 +118,114 @@ export default function TabPanel({ song }: TabPanelProps) {
 
   return (
     <section className="tab-panel" aria-label="Tab">
-      <header className="tab-panel__bar">
-        <h2 className="tab-panel__title">Tab</h2>
-        {aligned && (
-          <span className={`tab-panel__quality tab-panel__quality--${aligned.quality}`}>
-            {qualityText(aligned.quality)}
-            {aligned.edited ? " (edited)" : ""}
-          </span>
-        )}
-        {record && <span className="tab-panel__file" title={record.originalName}>{record.originalName}</span>}
-        <span className="tab-panel__spacer" />
-        {tracks.length > 1 && (
-          <select
-            className="tab-panel__select"
-            aria-label="Track"
-            value={track ?? ""}
-            onChange={(e) => setTrack(Number(e.target.value))}
-          >
-            {tracks.map((t) => (
-              <option key={t.index} value={t.index}>{t.name || `Track ${t.index + 1}`}</option>
-            ))}
-          </select>
-        )}
-        <button className="tab-panel__btn" onClick={chooseFile} disabled={busy}>
-          {record ? "Replace tab…" : "Import tab…"}
-        </button>
-        {record && (
-          <>
-            <button
-              className="tab-panel__btn"
-              onClick={() => align(song.id)}
-              disabled={busy}
-              title="Fit the bar lines again, dropping hand corrections"
-            >
-              Re-align
+      <h2 className="tab-panel__title">
+        <PanelTitle collapse={collapse}>Tab</PanelTitle>
+      </h2>
+
+      {bodyOpen && (
+        <div className="tab-panel__body">
+          <header className="tab-panel__bar">
+            {aligned && (
+              <span className={`tab-panel__quality tab-panel__quality--${aligned.quality}`}>
+                {qualityText(aligned.quality)}
+                {aligned.edited ? " (edited)" : ""}
+              </span>
+            )}
+            {record && <span className="tab-panel__file" title={record.originalName}>{record.originalName}</span>}
+            <span className="tab-panel__spacer" />
+            {tracks.length > 1 && (
+              <select
+                className="tab-panel__select"
+                aria-label="Track"
+                value={track ?? ""}
+                onChange={(e) => setTrack(Number(e.target.value))}
+              >
+                {tracks.map((t) => (
+                  <option key={t.index} value={t.index}>{t.name || `Track ${t.index + 1}`}</option>
+                ))}
+              </select>
+            )}
+            <button className="tab-panel__btn" onClick={chooseFile} disabled={busy}>
+              {record ? "Replace tab…" : "Import tab…"}
             </button>
-            <button className="tab-panel__btn" onClick={() => remove(song.id)} disabled={busy}>Remove</button>
-          </>
-        )}
-      </header>
+            {record && (
+              <>
+                <button
+                  className="tab-panel__btn"
+                  onClick={() => align(song.id)}
+                  disabled={busy}
+                  title="Fit the bar lines again, dropping hand corrections"
+                >
+                  Re-align
+                </button>
+                <button className="tab-panel__btn" onClick={() => remove(song.id)} disabled={busy}>Remove</button>
+              </>
+            )}
+          </header>
 
-      {shownError && (
-        <div className="tab-panel__error" role="alert">
-          <span>{shownError}</span>
-          <button className="tab-panel__btn" onClick={() => { clearError(); setViewError(null); }}>Dismiss</button>
+          {shownError && (
+            <div className="tab-panel__error" role="alert">
+              <span>{shownError}</span>
+              <button className="tab-panel__btn" onClick={() => { clearError(); setViewError(null); }}>Dismiss</button>
+            </div>
+          )}
+
+          {busy && (
+            <div className="tab-panel__progress">
+              <div className="tab-panel__stage">
+                {status === "importing" ? "Copying the tab" : STAGE_TEXT[stage] ?? "Aligning the tab to the recording"}
+              </div>
+              <div className="progress-bar">
+                <div className="progress-bar__fill" style={{ width: `${Math.round(progress * 100)}%` }} />
+              </div>
+            </div>
+          )}
+
+          {!record && !busy && status !== "loading" && (
+            <p className="tab-panel__hint">
+              Import a Guitar Pro tab ({TAB_EXTENSIONS.map((e) => `.${e}`).join(", ")}) of this song. SPS places its bars on
+              the recording so the tab follows the music, using the separated stems. Nothing is uploaded.
+            </p>
+          )}
+
+          {record && !aligned && !busy && !shownError && (
+            <p className="tab-panel__hint">This tab has not been aligned to the recording yet.</p>
+          )}
+
+          {notes.length > 0 && (
+            <ul className="tab-panel__notes">
+              {notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
+
+          {aligned && bytes && (
+            <>
+              <TabScoreView
+                bytes={bytes}
+                bars={bars}
+                duration={song.duration}
+                track={track}
+                selectedOrder={selectedOrder}
+                onTracks={handleTracks}
+                onSeek={seek}
+                onSelectBar={setSelectedOrder}
+                onError={setViewError}
+              />
+              <div className="tab-panel__fix">
+                <span className="tab-panel__fixhint">
+                  {selectedBar ? `Bar ${selectedBar.index + 1} selected.` : "Click a bar to correct its position."}
+                </span>
+                <button className="tab-panel__btn" onClick={setBarHere} disabled={selectedOrder === null}>
+                  Set bar to playhead
+                </button>
+                <label className="tab-panel__check">
+                  <input type="checkbox" checked={following} onChange={(e) => setFollowing(e.target.checked)} />
+                  move the following bars too
+                </label>
+              </div>
+            </>
+          )}
         </div>
-      )}
-
-      {busy && (
-        <div className="tab-panel__progress">
-          <div className="tab-panel__stage">
-            {status === "importing" ? "Copying the tab" : STAGE_TEXT[stage] ?? "Aligning the tab to the recording"}
-          </div>
-          <div className="progress-bar">
-            <div className="progress-bar__fill" style={{ width: `${Math.round(progress * 100)}%` }} />
-          </div>
-        </div>
-      )}
-
-      {!record && !busy && status !== "loading" && (
-        <p className="tab-panel__hint">
-          Import a Guitar Pro tab ({TAB_EXTENSIONS.map((e) => `.${e}`).join(", ")}) of this song. SPS places its bars on
-          the recording so the tab follows the music, using the separated stems. Nothing is uploaded.
-        </p>
-      )}
-
-      {record && !aligned && !busy && !shownError && (
-        <p className="tab-panel__hint">This tab has not been aligned to the recording yet.</p>
-      )}
-
-      {notes.length > 0 && (
-        <ul className="tab-panel__notes">
-          {notes.map((n) => <li key={n}>{n}</li>)}
-        </ul>
-      )}
-
-      {aligned && bytes && (
-        <>
-          <TabScoreView
-            bytes={bytes}
-            bars={bars}
-            duration={song.duration}
-            track={track}
-            selectedOrder={selectedOrder}
-            onTracks={handleTracks}
-            onSeek={seek}
-            onSelectBar={setSelectedOrder}
-            onError={setViewError}
-          />
-          <div className="tab-panel__fix">
-            <span className="tab-panel__fixhint">
-              {selectedBar ? `Bar ${selectedBar.index + 1} selected.` : "Click a bar to correct its position."}
-            </span>
-            <button className="tab-panel__btn" onClick={setBarHere} disabled={selectedOrder === null}>
-              Set bar to playhead
-            </button>
-            <label className="tab-panel__check">
-              <input type="checkbox" checked={following} onChange={(e) => setFollowing(e.target.checked)} />
-              move the following bars too
-            </label>
-          </div>
-        </>
       )}
     </section>
   );

@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { useChordSegments, formatChordName } from "../../lib/chords";
 import type { Song } from "../../lib/types";
+import PanelTitle from "../panels/PanelTitle";
+import { usePanelCollapse } from "../../stores/collapsed";
 
 interface ChordCarouselProps {
   song: Song;
@@ -17,6 +19,7 @@ const RADIUS = 2;
 
 export default function ChordCarousel({ song }: ChordCarouselProps) {
   const { segments, display, activeIndex, centerIndex } = useChordSegments(song);
+  const collapse = usePanelCollapse("chords");
   if (!song.hasChords || segments.length === 0) return null;
 
   const slots = Array.from({ length: RADIUS * 2 + 1 }, (_, i) => {
@@ -28,25 +31,30 @@ export default function ChordCarousel({ song }: ChordCarouselProps) {
   const activeChord = activeIndex >= 0 ? display[activeIndex] : null;
 
   return (
-    <div
-      className="chord-carousel"
-      role="img"
-      aria-label={activeChord ? `Now playing chord ${formatChordName(activeChord.chord, activeChord.bass)}` : "Chords"}
-    >
-      {slots.map(({ offset, segment, shown }) => {
-        const isCenter = offset === 0;
-        const isActive = isCenter && activeIndex === centerIndex && activeIndex >= 0;
-        const position = offset < 0 ? "past" : offset > 0 ? "next" : "now";
-        return (
-          <span
-            key={segment ? `${segment.start}-${segment.chord}` : `empty-${offset}`}
-            className={`chord-carousel__slot chord-carousel__slot--${position}${isActive ? " chord-carousel__slot--active" : ""}`}
-            style={{ "--dist": offset, "--dist-abs": Math.abs(offset) } as SlotStyle}
-          >
-            {shown ? formatChordName(shown.chord, shown.bass) : ""}
-          </span>
-        );
-      })}
-    </div>
+    <>
+      <PanelTitle collapse={collapse}>Chords</PanelTitle>
+      {collapse.open && (
+      <div
+        className="chord-carousel"
+        role="img"
+        aria-label={activeChord ? `Now playing chord ${formatChordName(activeChord.chord, activeChord.bass)}` : "Chords"}
+      >
+        {slots.map(({ offset, segment, shown }) => {
+          const isCenter = offset === 0;
+          const isActive = isCenter && activeIndex === centerIndex && activeIndex >= 0;
+          const position = offset < 0 ? "past" : offset > 0 ? "next" : "now";
+          return (
+            <span
+              key={segment ? `${segment.start}-${segment.chord}` : `empty-${offset}`}
+              className={`chord-carousel__slot chord-carousel__slot--${position}${isActive ? " chord-carousel__slot--active" : ""}`}
+              style={{ "--dist": offset, "--dist-abs": Math.abs(offset) } as SlotStyle}
+            >
+              {shown ? formatChordName(shown.chord, shown.bass) : ""}
+            </span>
+          );
+        })}
+      </div>
+      )}
+    </>
   );
 }

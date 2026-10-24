@@ -7,6 +7,8 @@ import {
   type BassTabData,
 } from "../../lib/bassTab";
 import type { Song } from "../../lib/types";
+import PanelTitle from "../panels/PanelTitle";
+import { usePanelCollapse } from "../../stores/collapsed";
 
 const STRING_ROWS = BASS_STRING_NAMES.length;
 
@@ -22,6 +24,8 @@ export default function BassTabPanel({ song }: BassTabPanelProps) {
   const seek = usePlayerStore((s) => s.seek);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasBass = song.stems.includes("bass");
+  const collapse = usePanelCollapse("bassTab");
+  const { open } = collapse;
 
   useEffect(() => {
     setTab(null);
@@ -86,7 +90,7 @@ export default function BassTabPanel({ song }: BassTabPanelProps) {
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, height);
     ctx.stroke();
-  }, [tab, currentTime]);
+  }, [open, tab, currentTime]);
 
   if (!hasBass || !tab || tab.notes.length === 0) return null;
 
@@ -110,20 +114,26 @@ export default function BassTabPanel({ song }: BassTabPanelProps) {
 
   return (
     <section className="bass-tab" aria-label="Bass tab">
-      <header className="bass-tab__header">
-        <span className="bass-tab__title">🎸 Bass tab</span>
-        <span className="bass-tab__strings" aria-hidden="true">{[...BASS_STRING_NAMES].reverse().join(" ")}</span>
-        <button
-          className="bass-tab__export"
-          onClick={() => void handleExport()}
-          disabled={exporting}
-          title="Save the bass line as a MIDI file"
-          aria-label="Export the bass tab as a MIDI file"
-        >
-          {exporting ? "Exporting…" : "Export MIDI"}
-        </button>
-      </header>
-      <canvas ref={canvasRef} className="bass-tab__canvas" onClick={handleClick} />
+      <div className="panel-bar">
+        <PanelTitle collapse={collapse}>🎸 Bass tab</PanelTitle>
+      </div>
+      {open && (
+        <div className="bass-tab__body">
+          <header className="bass-tab__header">
+            <span className="bass-tab__strings" aria-hidden="true">{[...BASS_STRING_NAMES].reverse().join(" ")}</span>
+            <button
+              className="bass-tab__export"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              title="Save the bass line as a MIDI file"
+              aria-label="Export the bass tab as a MIDI file"
+            >
+              {exporting ? "Exporting…" : "Export MIDI"}
+            </button>
+          </header>
+          <canvas ref={canvasRef} className="bass-tab__canvas" onClick={handleClick} />
+        </div>
+      )}
     </section>
   );
 }

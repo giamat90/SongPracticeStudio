@@ -3832,8 +3832,21 @@ button.stem-track__take-name {
 }
 
 /* Bass tab */
+/* A panel whose content sits in a card keeps its title button outside the card, like the Lyrics button. */
+.panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .bass-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.bass-tab__body {
   border: 1px solid var(--bg-surface);
   border-radius: 0.5rem;
   background: var(--bg-secondary);
@@ -3845,11 +3858,6 @@ button.stem-track__take-name {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.4rem;
-}
-
-.bass-tab__title {
-  font-size: 0.85rem;
-  font-weight: 700;
 }
 
 .bass-tab__strings {
@@ -4119,6 +4127,12 @@ button.stem-track__take-name {
   flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.tab-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   background: var(--bg-secondary);
   border: 0.0625rem solid var(--border);
   border-radius: var(--radius-md);
