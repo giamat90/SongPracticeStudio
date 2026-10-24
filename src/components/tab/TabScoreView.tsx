@@ -31,6 +31,8 @@ export interface TabViewHandle {
   rerender(): void;
   /** The live score, the one the user is editing. */
   getScore(): AlphaScore | null;
+  /** Put the playhead and the selected bar on a note, as a click on it does. */
+  follow(note: TabNoteModel): void;
 }
 
 type AlphaScore = import("@coderline/alphatab").model.Score;
@@ -90,6 +92,17 @@ export default function TabScoreView({
       api.renderTracks([tracks[shown]]);
     },
     getScore: () => apiRef.current?.score ?? null,
+    follow(note) {
+      const bar = note.beat.voice.bar.masterBar;
+      const current = locate(positionRef.current, spansRef.current);
+      const occurrence = current && current.index === bar.index ? current.occurrence : 0;
+      const length = bar.calculateDuration();
+      const time = timeAt(bar.index, occurrence, length > 0 ? note.beat.playbackStart / length : 0, spansRef.current);
+      if (time === null) return;
+      const picked = locate(time, spansRef.current);
+      if (picked) callbacks.current.onSelectBar(picked.order);
+      callbacks.current.onSeek(time);
+    },
   }), []);
 
   useEffect(() => {

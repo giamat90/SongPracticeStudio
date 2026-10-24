@@ -201,7 +201,9 @@ export default function TabPanel({ song }: TabPanelProps) {
 
   const goToNeighbour = (direction: "previous" | "next") => {
     if (!pickedNote) return;
-    setPickedNote(neighbourNote(pickedNote, direction) ?? pickedNote);
+    const next = neighbourNote(pickedNote, direction) ?? pickedNote;
+    setPickedNote(next);
+    viewRef.current?.follow(next);
   };
 
   const undo = () => {
