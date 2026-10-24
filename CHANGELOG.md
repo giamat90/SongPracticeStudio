@@ -6,6 +6,16 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.75] - 2026-10-24
+
+### Added
+- **The top bar is made of cards you can move.** Transport, Loop, Tempo, Input and output, Transpose and capo, and Chords are separate cards in one list that wraps with the window. Drag a card by its ⋮⋮ grip anywhere in the bar (or focus the grip and use the arrow keys); double-click a grip to put the cards back in the usual order. This is separate from moving the panels below.
+- **A Cards menu next to Panels** hides and restores the cards. The chord carousel is only a card now and is no longer listed under Panels.
+- **The Chord roll and Meter names fold the panel**, like Lyrics and Takes.
+
+### Changed
+- **Monitor moved from the Chord roll to the input strip**, between Input and Output. Its level meter shows only while it is on, and the card shrinks and grows with it.
+
 ## [0.0.74] - 2026-10-24
 
 ### Changed
