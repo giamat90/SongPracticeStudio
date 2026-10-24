@@ -16,8 +16,6 @@ interface TabScoreViewProps {
   track: number | null;
   /** Play order of the bar the user picked to correct, if any. */
   selectedOrder: number | null;
-  /** While true a click picks a note to edit instead of seeking. */
-  editing: boolean;
   selectedNote: TabNoteModel | null;
   /** What the panel can ask of the view: draw the (edited) score again, hand over the live score. */
   handleRef: Ref<TabViewHandle>;
@@ -55,7 +53,7 @@ const FOLLOW_SHARE = 0.3;
  * so the position comes from the stored bar lines and the app's playback clock.
  */
 export default function TabScoreView({
-  bytes, source, bars, duration, track, selectedOrder, editing, selectedNote, handleRef, onPickNote, onTracks, onSeek,
+  bytes, source, bars, duration, track, selectedOrder, selectedNote, handleRef, onPickNote, onTracks, onSeek,
   onSelectBar, onError,
 }: TabScoreViewProps) {
   // Read here, not in the panel, so only the cursor re-renders at the clock's rate.
@@ -67,8 +65,6 @@ export default function TabScoreView({
   const apiRef = useRef<(AlphaApi & { renderTracks(t: unknown[]): void; score?: AlphaScore }) | null>(null);
   const trackRef = useRef(track);
   trackRef.current = track;
-  const editingRef = useRef(editing);
-  editingRef.current = editing;
   /** Scroll position to put back once a redraw of an edited score finishes. */
   const scrollBack = useRef<number | null>(null);
   const [ready, setReady] = useState(0);
@@ -127,7 +123,7 @@ export default function TabScoreView({
         setReady((n) => n + 1);
       });
       instance.noteMouseDown.on((note) => {
-        if (editingRef.current) callbacks.current.onPickNote(note);
+        callbacks.current.onPickNote(note);
       });
       instance.beatMouseDown.on((beat) => {
         const bar = beat.voice.bar.masterBar;
@@ -138,7 +134,7 @@ export default function TabScoreView({
         if (time === null) return;
         const picked = locate(time, spansRef.current);
         if (picked) callbacks.current.onSelectBar(picked.order);
-        if (!editingRef.current) callbacks.current.onSeek(time);
+        callbacks.current.onSeek(time);
       });
       instance.load(bytesRef.current);
     })().catch((e: unknown) => {
@@ -193,6 +189,10 @@ export default function TabScoreView({
       ? lookup.findBeat(selectedNote.beat)?.notes?.find((n) => n.note === selectedNote)?.noteHeadBounds
       : null;
     setNoteBox(box ?? null);
+    const view = scrollRef.current;
+    if (box && view && (box.x < view.scrollLeft || box.x + box.w > view.scrollLeft + view.clientWidth)) {
+      view.scrollLeft = Math.max(0, box.x - view.clientWidth * FOLLOW_SHARE);
+    }
   }, [selectedNote, ready]);
 
   return (

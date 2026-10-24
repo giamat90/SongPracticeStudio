@@ -1,6 +1,6 @@
 # Tab editing: feasibility spike (2026-10-24)
 
-**Status:** step 1 of the scope ladder (move a note to another string at the same pitch) is **built** on `feat/tab-edit`; see [Tab sync](tab-sync.md#editing-the-tab-strings). The rest of this page is the spike as it was written before building.
+**Status:** step 1 of the scope ladder (move a note to another string at the same pitch) is **built** on `feat/tab-edit`; see [Tab sync](tab-sync.md#editing-the-tab-strings). The "popover with the other strings" under *Design* below was replaced after a first try by Guitar Pro's interaction (pick a note, Alt+Up / Alt+Down). The rest of this page is the spike as it was written before building.
 
 **Question:** can the user change the tab they imported, for example move a note to another string, and keep it? **Answer: yes, and the risky parts are measured, not guessed.** A first version (move a note to another string at the same pitch, change a fret, persist it) is a small feature, about 3 to 5 days with tests and docs. Nothing was built in the app; the numbers below come from throwaway Node scripts against alphaTab 1.8.4 and the 26 real `.gp` files in `MPS/GP-and-MIDI-files`.
 

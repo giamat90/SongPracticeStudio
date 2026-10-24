@@ -4179,11 +4179,6 @@ button.stem-track__take-name {
   background: var(--bg-raised);
 }
 
-.tab-panel__btn--on {
-  border-color: var(--accent);
-  color: var(--accent-hover);
-}
-
 .tab-panel__btn:disabled {
   opacity: 0.5;
   cursor: default;

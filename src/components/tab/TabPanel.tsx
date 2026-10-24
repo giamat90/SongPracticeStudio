@@ -4,7 +4,7 @@ import { usePlayerStore } from "../../stores/player";
 import { fetchTabBytes, useTabStore } from "../../stores/tab";
 import { onTabProgress } from "../../lib/tauri";
 import { defaultTrack, loadAlphaTab, type TabTrackInfo } from "../../lib/tabScore";
-import { exportTab, moveToString, restore, type Placement, type TabNoteModel } from "../../lib/tabEdit";
+import { exportTab, moveToString, neighbourNote, restore, stepString, type Placement, type TabNoteModel } from "../../lib/tabEdit";
 import { alignmentNotes, moveBar, qualityText } from "../../lib/tabSync";
 import type { Song } from "../../lib/types";
 import TabNoteEditor from "./TabNoteEditor";
@@ -57,7 +57,6 @@ export default function TabPanel({ song }: TabPanelProps) {
   const [following, setFollowing] = useState(true);
   const [viewError, setViewError] = useState<string | null>(null);
   const [source, setSource] = useState(0);
-  const [editing, setEditing] = useState(false);
   const [pickedNote, setPickedNote] = useState<TabNoteModel | null>(null);
   const [undoStack, setUndoStack] = useState<Placement[][]>([]);
   const [redoStack, setRedoStack] = useState<Placement[][]>([]);
@@ -105,7 +104,6 @@ export default function TabPanel({ song }: TabPanelProps) {
     setTrack(null);
     setSelectedOrder(null);
     setViewError(null);
-    setEditing(false);
     resetEditing();
     load(songId);
     return () => { void flushEdits(); };
@@ -186,10 +184,12 @@ export default function TabPanel({ song }: TabPanelProps) {
     saveTimer.current = setTimeout(() => { void flushEdits(); }, SAVE_DELAY_MS);
   };
 
-  const moveNote = (string: number) => {
+  const stepNote = (direction: "up" | "down") => {
     if (!pickedNote) return;
+    const to = stepString(pickedNote, direction);
+    if (!to) return;
     try {
-      const undoStep = moveToString(pickedNote, string);
+      const undoStep = moveToString(pickedNote, to.string);
       setUndoStack((stack) => [...stack, undoStep]);
       setRedoStack([]);
       viewRef.current?.rerender();
@@ -197,6 +197,11 @@ export default function TabPanel({ song }: TabPanelProps) {
     } catch (e) {
       setViewError(e instanceof Error ? e.message : String(e));
     }
+  };
+
+  const goToNeighbour = (direction: "previous" | "next") => {
+    if (!pickedNote) return;
+    setPickedNote(neighbourNote(pickedNote, direction) ?? pickedNote);
   };
 
   const undo = () => {
@@ -226,6 +231,28 @@ export default function TabPanel({ song }: TabPanelProps) {
     await flushEdits();
     await align(song.id);
   };
+
+  // Guitar Pro's keys: Alt+Up / Alt+Down move the picked note to the string above / below, Alt+Left / Alt+Right
+  // pick the previous / next note. Alt combinations are left alone by the app's own shortcuts.
+  const keyActions = useRef({ stepNote, goToNeighbour });
+  keyActions.current = { stepNote, goToNeighbour };
+  useEffect(() => {
+    if (!pickedNote) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+      const { stepNote: step, goToNeighbour: go } = keyActions.current;
+      if (e.key === "ArrowUp") step("up");
+      else if (e.key === "ArrowDown") step("down");
+      else if (e.key === "ArrowLeft") go("previous");
+      else if (e.key === "ArrowRight") go("next");
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickedNote]);
 
   const handleTracks = (found: TabTrackInfo[]) => {
     setTracks(found);
@@ -269,16 +296,6 @@ export default function TabPanel({ song }: TabPanelProps) {
             </button>
             {record && (
               <>
-                {aligned && (
-                  <button
-                    className={`tab-panel__btn${editing ? " tab-panel__btn--on" : ""}`}
-                    onClick={() => { setEditing(!editing); setPickedNote(null); }}
-                    aria-pressed={editing}
-                    title="Move a note to another string"
-                  >
-                    Edit strings
-                  </button>
-                )}
                 <button
                   className="tab-panel__btn"
                   onClick={realign}
@@ -342,7 +359,6 @@ export default function TabPanel({ song }: TabPanelProps) {
                 duration={song.duration}
                 track={track}
                 selectedOrder={selectedOrder}
-                editing={editing}
                 selectedNote={pickedNote}
                 handleRef={viewRef}
                 onPickNote={setPickedNote}
@@ -351,32 +367,30 @@ export default function TabPanel({ song }: TabPanelProps) {
                 onSelectBar={setSelectedOrder}
                 onError={setViewError}
               />
-              {editing ? (
-                <TabNoteEditor
-                  note={pickedNote}
-                  canUndo={undoStack.length > 0}
-                  canRedo={redoStack.length > 0}
-                  hasOriginal={record?.hasOriginal ?? false}
-                  disabled={busy}
-                  onMove={moveNote}
-                  onUndo={undo}
-                  onRedo={redo}
-                  onRevert={revert}
-                />
-              ) : (
-                <div className="tab-panel__fix">
-                  <span className="tab-panel__fixhint">
-                    {selectedBar ? `Bar ${selectedBar.index + 1} selected.` : "Click a bar to correct its position."}
-                  </span>
-                  <button className="tab-panel__btn" onClick={setBarHere} disabled={selectedOrder === null}>
-                    Set bar to playhead
-                  </button>
-                  <label className="tab-panel__check">
-                    <input type="checkbox" checked={following} onChange={(e) => setFollowing(e.target.checked)} />
-                    move the following bars too
-                  </label>
-                </div>
-              )}
+              <TabNoteEditor
+                note={pickedNote}
+                canUndo={undoStack.length > 0}
+                canRedo={redoStack.length > 0}
+                hasOriginal={record?.hasOriginal ?? false}
+                disabled={busy}
+                onStep={stepNote}
+                onNeighbour={goToNeighbour}
+                onUndo={undo}
+                onRedo={redo}
+                onRevert={revert}
+              />
+              <div className="tab-panel__fix">
+                <span className="tab-panel__fixhint">
+                  {selectedBar ? `Bar ${selectedBar.index + 1} selected.` : "Click a bar to correct its position."}
+                </span>
+                <button className="tab-panel__btn" onClick={setBarHere} disabled={selectedOrder === null}>
+                  Set bar to playhead
+                </button>
+                <label className="tab-panel__check">
+                  <input type="checkbox" checked={following} onChange={(e) => setFollowing(e.target.checked)} />
+                  move the following bars too
+                </label>
+              </div>
             </>
           )}
         </div>

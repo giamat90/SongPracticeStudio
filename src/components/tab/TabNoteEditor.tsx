@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { movability, playerString, type TabNoteModel } from "../../lib/tabEdit";
+import { playerString, stepString, type TabNoteModel } from "../../lib/tabEdit";
 
 interface TabNoteEditorProps {
   note: TabNoteModel | null;
@@ -7,39 +7,53 @@ interface TabNoteEditorProps {
   canRedo: boolean;
   hasOriginal: boolean;
   disabled: boolean;
-  onMove: (string: number) => void;
+  onStep: (direction: "up" | "down") => void;
+  onNeighbour: (direction: "previous" | "next") => void;
   onUndo: () => void;
   onRedo: () => void;
   onRevert: () => void;
 }
 
-/** The row under the tab while editing: where the picked note can go, undo / redo, and revert to the imported file. */
+/**
+ * The row under the tab. Like Guitar Pro: pick a note, then move it to the string above or below with the buttons
+ * or Alt+Up / Alt+Down, and step to the previous or next note with Alt+Left / Alt+Right. No mode to switch on.
+ */
 export default function TabNoteEditor({
-  note, canUndo, canRedo, hasOriginal, disabled, onMove, onUndo, onRedo, onRevert,
+  note, canUndo, canRedo, hasOriginal, disabled, onStep, onNeighbour, onUndo, onRedo, onRevert,
 }: TabNoteEditorProps) {
   const [confirming, setConfirming] = useState(false);
-  const result = note ? movability(note) : null;
+  const up = note ? stepString(note, "up") : null;
+  const down = note ? stepString(note, "down") : null;
+  const label = (to: { string: number; fret: number } | null, word: string) => {
+    if (!note) return word;
+    return to ? `${word}: string ${playerString(note, to.string)}, fret ${to.fret}` : `${word}: not possible`;
+  };
 
   return (
     <div className="tab-panel__fix tab-panel__edit">
-      {!note && <span className="tab-panel__fixhint">Click a note to move it to another string.</span>}
-      {note && (
-        <span className="tab-panel__fixhint">
-          Bar {note.beat.voice.bar.index + 1}, string {playerString(note, note.string)}, fret {note.fret}
-          {result?.ok ? ": move to" : ` (${result?.reason})`}
-        </span>
-      )}
-      {result?.ok && result.choices.map((c) => (
-        <button
-          key={c.string}
-          className="tab-panel__btn"
-          onClick={() => onMove(c.string)}
-          disabled={disabled}
-          title="Same note, played on another string"
-        >
-          String {playerString(note as TabNoteModel, c.string)} · fret {c.fret}
-        </button>
-      ))}
+      <button className="tab-panel__btn" onClick={() => onNeighbour("previous")} disabled={disabled || !note} title="Previous note (Alt+Left)">◀</button>
+      <button className="tab-panel__btn" onClick={() => onNeighbour("next")} disabled={disabled || !note} title="Next note (Alt+Right)">▶</button>
+      <button
+        className="tab-panel__btn"
+        onClick={() => onStep("up")}
+        disabled={disabled || !up}
+        title="Same note on the string above, toward the thin string (Alt+Up)"
+      >
+        ▲ {label(up, "String above")}
+      </button>
+      <button
+        className="tab-panel__btn"
+        onClick={() => onStep("down")}
+        disabled={disabled || !down}
+        title="Same note on the string below, toward the thick string (Alt+Down)"
+      >
+        ▼ {label(down, "String below")}
+      </button>
+      <span className="tab-panel__fixhint">
+        {note
+          ? `Bar ${note.beat.voice.bar.index + 1}, string ${playerString(note, note.string)}, fret ${note.fret}`
+          : "Click a note to move it to another string (Alt+Up / Alt+Down)."}
+      </span>
       <span className="tab-panel__spacer" />
       <button className="tab-panel__btn" onClick={onUndo} disabled={disabled || !canUndo}>Undo</button>
       <button className="tab-panel__btn" onClick={onRedo} disabled={disabled || !canRedo}>Redo</button>

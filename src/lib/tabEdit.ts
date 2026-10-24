@@ -89,6 +89,30 @@ export function movability(note: TabNoteModel): Movability {
   return { ok: true, choices };
 }
 
+/**
+ * The string next to the note's in a direction, as a player sees the tab: "up" is toward the thinnest string (the
+ * top line), "down" toward the lowest. Strings that cannot play the pitch are skipped, as Guitar Pro does.
+ */
+export function stepString(note: TabNoteModel, direction: "up" | "down"): StringChoice | null {
+  const result = movability(note);
+  if (!result.ok) return null;
+  const wanted = result.choices.filter((c) => (direction === "up" ? c.string > note.string : c.string < note.string));
+  if (wanted.length === 0) return null;
+  return wanted[0];
+}
+
+/**
+ * The note to select after this one in the track, or before it: the next beat that has notes, on the same string
+ * when it has one there, else on the nearest string. Crosses bars.
+ */
+export function neighbourNote(note: TabNoteModel, direction: "previous" | "next"): TabNoteModel | null {
+  let beat = direction === "next" ? note.beat.nextBeat : note.beat.previousBeat;
+  while (beat && beat.notes.length === 0) beat = direction === "next" ? beat.nextBeat : beat.previousBeat;
+  if (!beat) return null;
+  const distance = (n: TabNoteModel) => Math.abs(n.string - note.string);
+  return beat.notes.reduce((best, n) => (distance(n) < distance(best) ? n : best));
+}
+
 /** Move the note, and the notes linked to it, to a string at the same pitch. Returns what undoes it. */
 export function moveToString(note: TabNoteModel, string: number): Placement[] {
   const result = movability(note);

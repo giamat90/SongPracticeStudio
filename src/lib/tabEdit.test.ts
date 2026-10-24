@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildTabScore, loadAlphaTab, readScore } from "./tabScore";
-import { exportTab, linkedNotes, movability, moveToString, playerString, restore, type TabNoteModel } from "./tabEdit";
+import {
+  exportTab, linkedNotes, movability, moveToString, neighbourNote, playerString, restore, stepString, type TabNoteModel,
+} from "./tabEdit";
 
 // Standard guitar tuning. alphaTex writes `fret.string` with string 1 the thinnest; the model counts from the lowest.
 const TEX = String.raw`\tempo 120
@@ -153,6 +155,59 @@ describe("moveToString", () => {
     expect({ string: note.string, fret: note.fret }).toEqual(before);
     restore(redo);
     expect({ string: note.string, fret: note.fret }).toEqual(moved);
+  });
+});
+
+describe("stepString", () => {
+  it("goes to the string above or below, as the tab is drawn, keeping the pitch", async () => {
+    const { notes } = await load();
+    const note = notes[0]; // fret 5 on the G string: G string is the 3rd from the thinnest
+    const pitch = note.realValue;
+    expect(stepString(note, "up")).toEqual({ string: 5, fret: 1 });
+    expect(stepString(note, "down")).toEqual({ string: 3, fret: 10 });
+    const to = stepString(note, "up") as { string: number; fret: number };
+    moveToString(note, to.string);
+    expect(note.realValue).toBe(pitch);
+    expect(playerString(note, note.string)).toBe(2);
+  });
+
+  it("has nothing past the thinnest string, and skips a string that cannot play the note", async () => {
+    const { notes } = await load();
+    const top = notes.find((n) => n.fret === 3 && n.string === 5 && n.beat.voice.bar.index === 3) as TabNoteModel; // F on the B string: the high E would need fret -2
+    expect(stepString(top, "up")).toBeNull();
+    expect(stepString(top, "down")).toEqual({ string: 4, fret: 7 });
+    const high = notes.find((n) => n.fret === 15 && n.string === 6) as TabNoteModel;
+    expect(stepString(high, "down")).toEqual({ string: 5, fret: 20 });
+  });
+
+  it("is null for a note that cannot move", async () => {
+    const { notes } = await load();
+    expect(stepString(notes.find((n) => n.isHarmonic) as TabNoteModel, "up")).toBeNull();
+  });
+});
+
+describe("neighbourNote", () => {
+  it("walks forward and back through the track, across bars", async () => {
+    const { notes } = await load();
+    expect(neighbourNote(notes[0], "next")).toBe(notes[1]);
+    expect(neighbourNote(notes[1], "previous")).toBe(notes[0]);
+    const lastOfBarOne = notes[3];
+    const firstOfBarTwo = notes[4];
+    expect(neighbourNote(lastOfBarOne, "next")).toBe(firstOfBarTwo);
+  });
+
+  it("stays on the same string when the next beat has a chord", async () => {
+    const { notes } = await load();
+    const before = notes.find((n) => n.fret === 3 && n.string === 5 && n.beat.notes.length === 1) as TabNoteModel;
+    const chord = before.beat.nextBeat?.notes ?? [];
+    expect(chord.length).toBe(2);
+    expect(neighbourNote(before, "next")?.string).toBe(5);
+  });
+
+  it("ends at the first and the last note", async () => {
+    const { notes } = await load();
+    expect(neighbourNote(notes[0], "previous")).toBeNull();
+    expect(neighbourNote(notes[notes.length - 1], "next")).toBeNull();
   });
 });
 
