@@ -35,6 +35,8 @@ describe("tauri.ts wrappers send the exact command name and payload the Rust sid
     ["saveTabBars", () => api.saveTabBars("s1", [{ index: 0, occurrence: 0, time: 1 }]), "save_tab_bars",
       { songId: "s1", bars: [{ index: 0, occurrence: 0, time: 1 }] }],
     ["saveEditedTab", () => api.saveEditedTab("s1", [1, 2]), "save_edited_tab", { songId: "s1", data: [1, 2] }],
+    ["readTabTransposed", () => api.readTabTransposed("s1"), "read_tab_transposed", { songId: "s1" }],
+    ["saveTabTransposed", () => api.saveTabTransposed("s1", "{}"), "save_tab_transposed", { songId: "s1", json: "{}" }],
     ["revertTabEdits", () => api.revertTabEdits("s1"), "revert_tab_edits", { songId: "s1" }],
     ["deleteSongTab", () => api.deleteSongTab("s1"), "delete_song_tab", { songId: "s1" }],
     ["exportFile", () => api.exportFile([1, 2], "a.txt"), "export_file", { data: [1, 2], suggestedName: "a.txt" }],

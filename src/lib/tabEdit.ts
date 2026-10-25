@@ -153,6 +153,30 @@ export function restore(placements: readonly Placement[]): Placement[] {
   });
 }
 
+/** A staff and the tuning to give it: swapped in by `restoreStep`, which returns what puts the old one back. */
+export interface TuningSwap {
+  staff: AlphaTabModule.model.Staff;
+  tuning: AlphaTabModule.model.Tuning;
+}
+
+/** One undoable edit: notes that moved and strings that were retuned. */
+export interface EditStep {
+  placements: Placement[];
+  tunings: TuningSwap[];
+}
+
+/** Undo or redo a step; returns the step that reverses it, so both are the same call. */
+export function restoreStep(step: EditStep): EditStep {
+  return {
+    placements: restore(step.placements),
+    tunings: step.tunings.map(({ staff, tuning }) => {
+      const before = { staff, tuning: staff.stringTuning };
+      staff.stringTuning = tuning;
+      return before;
+    }),
+  };
+}
+
 /** The score as a Guitar Pro 7 file, whatever format it was read from. */
 export function exportTab(at: AlphaTab, score: AlphaTabModule.model.Score): Uint8Array {
   return new at.exporter.Gp7Exporter().export(score, new at.Settings());

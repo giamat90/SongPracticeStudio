@@ -2,13 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { usePlayerStore } from "../../stores/player";
 import { fetchTabBytes, useTabStore } from "../../stores/tab";
-import { onTabProgress } from "../../lib/tauri";
+import { onTabProgress, readTabTransposed, saveTabTransposed } from "../../lib/tauri";
 import { defaultTrack, loadAlphaTab, type TabTrackInfo } from "../../lib/tabScore";
-import { exportTab, moveToString, restore, stepString, type Placement, type TabNoteModel } from "../../lib/tabEdit";
+import { moveToString, restoreStep, stepString, type EditStep, type TabNoteModel } from "../../lib/tabEdit";
+import { canEditTransposed, exportUntransposed, hasOffsets, retuneTab, storedTuning, transposeEdits, transposeTab } from "../../lib/tabTranspose";
+import type { TabTransposition, TransposeEdit, TransposeOptions, TransposeResult } from "../../lib/tabTranspose";
 import { alignmentNotes, moveBar, qualityText } from "../../lib/tabSync";
 import type { Song } from "../../lib/types";
 import TabNoteEditor from "./TabNoteEditor";
 import TabScoreView, { type TabViewHandle } from "./TabScoreView";
+import TabTransposeDialog from "./TabTransposeDialog";
+import TabTuningEditor from "./TabTuningEditor";
 import PanelTitle from "../panels/PanelTitle";
 import { usePanelCollapse } from "../../stores/collapsed";
 
@@ -24,6 +28,35 @@ const STAGE_TEXT: Record<string, string> = {
   alignment: "Fitting the bar lines",
   done: "Done",
 };
+
+/** What is saved for one transposition: the string choices and the lowest strings tuned down (by track index). */
+interface SavedTransposition {
+  edits: TransposeEdit[];
+  /** By track index: semitones each string is tuned down from the tab, lowest string first. */
+  retune: Record<string, number[]>;
+}
+
+/** What is saved for each transposition, by semitones. */
+type SavedEdits = Record<string, SavedTransposition>;
+
+/** Reads the saved file; the first version stored just the list of string choices. */
+function parseSaved(raw: string): SavedEdits {
+  type Stored = { edits?: TransposeEdit[]; retune?: Record<string, number | number[]> };
+  const parsed = JSON.parse(raw) as Record<string, TransposeEdit[] | Stored>;
+  const saved: SavedEdits = {};
+  for (const [amount, value] of Object.entries(parsed)) {
+    if (Array.isArray(value)) {
+      saved[amount] = { edits: value, retune: {} };
+      continue;
+    }
+    // The second version stored how far the lowest string went down, as one number.
+    const retune = Object.fromEntries(
+      Object.entries(value.retune ?? {}).map(([t, v]) => [t, typeof v === "number" ? [v] : v]),
+    );
+    saved[amount] = { edits: value.edits ?? [], retune };
+  }
+  return saved;
+}
 
 interface TabPanelProps {
   song: Song;
@@ -47,6 +80,7 @@ export default function TabPanel({ song }: TabPanelProps) {
   const setProgress = useTabStore((s) => s.setProgress);
   const clearError = useTabStore((s) => s.clearError);
   const seek = usePlayerStore((s) => s.seek);
+  const transpose = usePlayerStore((s) => s.transpose);
   const collapse = usePanelCollapse("tab");
   const { open: bodyOpen } = collapse;
 
@@ -58,13 +92,22 @@ export default function TabPanel({ song }: TabPanelProps) {
   const [viewError, setViewError] = useState<string | null>(null);
   const [source, setSource] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [transposed, setTransposed] = useState<TransposeResult | null>(null);
   const [pickedNote, setPickedNote] = useState<TabNoteModel | null>(null);
-  const [undoStack, setUndoStack] = useState<Placement[][]>([]);
-  const [redoStack, setRedoStack] = useState<Placement[][]>([]);
+  const [undoStack, setUndoStack] = useState<EditStep[]>([]);
+  const [redoStack, setRedoStack] = useState<EditStep[]>([]);
   const viewRef = useRef<TabViewHandle>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The score being edited, kept so a pending save can still be written after the view is gone. */
   const dirtyScore = useRef<ReturnType<TabViewHandle["getScore"]>>(null);
+  /** Choices made on transposed tabs: what the view draws and what is written, kept in step with every edit. */
+  const savedEdits = useRef<SavedEdits>({});
+  /** Choices waiting to be written. */
+  const dirtyEdits = useRef(false);
+  const [editsVersion, setEditsVersion] = useState(0);
+  const [transposing, setTransposing] = useState(false);
+  const [tuningOpen, setTuningOpen] = useState(false);
+  const [rewrote, setRewrote] = useState<string | null>(null);
   const songId = song.id;
   const songIdRef = useRef(songId);
   songIdRef.current = songId;
@@ -75,9 +118,19 @@ export default function TabPanel({ song }: TabPanelProps) {
     saveTimer.current = null;
     const score = dirtyScore.current;
     dirtyScore.current = null;
+    const writeEdits = dirtyEdits.current;
+    dirtyEdits.current = false;
+    if (writeEdits) {
+      try {
+        await saveTabTransposed(songId, JSON.stringify(savedEdits.current));
+      } catch (e) {
+        console.error("[TabPanel] could not save the transposed edits:", e);
+        setViewError(e instanceof Error ? e.message : String(e));
+      }
+    }
     if (!score) return;
     try {
-      const exported = exportTab(await loadAlphaTab(), score);
+      const exported = exportUntransposed(await loadAlphaTab(), score);
       await saveEdited(songId, exported);
       // Kept current so the view reads the edited tab when the panel is folded and opened again.
       if (songIdRef.current === songId) setBytes(exported);
@@ -91,6 +144,7 @@ export default function TabPanel({ song }: TabPanelProps) {
     if (saveTimer.current !== null) clearTimeout(saveTimer.current);
     saveTimer.current = null;
     dirtyScore.current = null;
+    dirtyEdits.current = false;
   };
 
   const resetEditing = () => {
@@ -106,10 +160,33 @@ export default function TabPanel({ song }: TabPanelProps) {
     setSelectedOrder(null);
     setViewError(null);
     setEditing(false);
+    setTransposing(false);
+    setTuningOpen(false);
+    setRewrote(null);
     resetEditing();
+    savedEdits.current = {};
+    let cancelled = false;
+    readTabTransposed(songId)
+      .then((raw) => {
+        if (cancelled) return;
+        savedEdits.current = raw ? parseSaved(raw) : {};
+        setEditsVersion((n) => n + 1);
+      })
+      .catch((e: unknown) => {
+        console.error("[TabPanel] could not read the transposed edits:", e);
+        if (!cancelled) setViewError(`Could not read the saved edits for transposed songs: ${e instanceof Error ? e.message : String(e)}`);
+      });
     load(songId);
-    return () => { void flushEdits(); };
+    return () => {
+      cancelled = true;
+      void flushEdits();
+    };
   }, [songId, load, flushEdits]);
+
+  // The undo steps and the picked note belong to one transposition: another amount draws other frets.
+  useEffect(() => {
+    resetEditing();
+  }, [transpose]);
 
   // Folding the panel drops the score, and with it the notes the undo steps point at.
   useEffect(() => {
@@ -180,19 +257,120 @@ export default function TabPanel({ song }: TabPanelProps) {
     void saveBars(song.id, moveBar(bars, selectedOrder, time, following));
   };
 
-  const scheduleSave = () => {
-    dirtyScore.current = viewRef.current?.getScore() ?? dirtyScore.current;
+  /** Keep the choices made on the shown transposition, with its tunings, to be written. */
+  const snapshotEdits = () => {
+    const score = viewRef.current?.getScore() ?? null;
+    // Taken now, not when the timer fires: by then the view may already be drawn for another transposition.
+    const edits = score ? transposeEdits(score) : [];
+    const retune = savedEdits.current[String(transpose)]?.retune ?? {};
+    if (edits.length > 0 || Object.keys(retune).length > 0) savedEdits.current[String(transpose)] = { edits, retune };
+    else delete savedEdits.current[String(transpose)];
+    dirtyEdits.current = true;
+  };
+
+  const armSave = () => {
     if (saveTimer.current !== null) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { void flushEdits(); }, SAVE_DELAY_MS);
   };
 
+  const scheduleSave = () => {
+    if (transpose !== 0) {
+      snapshotEdits();
+    } else {
+      dirtyScore.current = viewRef.current?.getScore() ?? dirtyScore.current;
+    }
+    armSave();
+  };
+
+  /** Play the shown track in another tuning (or in the tab's with null) for the shown transposition. */
+  const setRetune = (trackIndex: number, offsets: number[] | null) => {
+    snapshotEdits();
+    const key = String(transpose);
+    const saved = savedEdits.current[key] ?? { edits: [], retune: {} };
+    const retune = { ...saved.retune };
+    if (offsets && hasOffsets(offsets)) retune[String(trackIndex)] = offsets;
+    else delete retune[String(trackIndex)];
+    if (saved.edits.length > 0 || Object.keys(retune).length > 0) savedEdits.current[key] = { edits: saved.edits, retune };
+    else delete savedEdits.current[key];
+    resetEditing();
+    setEditsVersion((n) => n + 1);
+    armSave();
+  };
+
+  const transposeOptions = (): TransposeOptions => {
+    const saved = savedEdits.current[String(transpose)];
+    return {
+      edits: saved?.edits ?? [],
+      retune: Object.fromEntries(Object.entries(saved?.retune ?? {}).map(([t, offsets]) => [Number(t), offsets])),
+    };
+  };
+
+  const getScore = useCallback(() => viewRef.current?.getScore() ?? null, []);
+
+  /** Keep a rewrite of the tab as an undo step and save it. */
+  const commitStep = (step: EditStep, message: string) => {
+    setUndoStack((stack) => [...stack, step]);
+    setRedoStack([]);
+    setPickedNote(null);
+    setEditing(true);
+    setRewrote(`${message} Undo is in the editor; Revert goes back to the file as imported.`);
+    viewRef.current?.rerender();
+    scheduleSave();
+  };
+
+  const applyTabTransposition = async (t: TabTransposition) => {
+    const score = viewRef.current?.getScore();
+    if (!score) return;
+    try {
+      const { step, result } = transposeTab(await loadAlphaTab(), score, t);
+      setTransposing(false);
+      commitStep(
+        step,
+        `Tab transposed ${t.semitones > 0 ? "up" : "down"} ${Math.abs(t.semitones)} semitone${Math.abs(t.semitones) === 1 ? "" : "s"}: `
+          + `${result.sameString + result.newString} notes re-fretted`
+          + (result.unplayable > 0 ? `, ${result.unplayable} that no string can play left as written` : "")
+          + (Object.keys(result.retuned).length > 0 ? `, tuning changed (${Object.values(result.retuned)[0].label.toLowerCase()})` : "")
+          + ".",
+      );
+    } catch (e) {
+      console.error("[TabPanel] could not transpose the tab:", e);
+      setViewError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /** The Tuning editor applied: kept for the shown transposition, or written into the tab when the song is not transposed. */
+  const applyTuning = async (offsets: number[], keepPitch: boolean) => {
+    if (track === null) return;
+    setTuningOpen(false);
+    if (transpose !== 0) {
+      setRetune(track, offsets);
+      return;
+    }
+    const score = viewRef.current?.getScore();
+    if (!score) return;
+    try {
+      const { step, result } = retuneTab(await loadAlphaTab(), score, { track, offsets, keepPitch });
+      if (step.tunings.length === 0) return;
+      const shown = Object.values(result.retuned)[0];
+      commitStep(step, `Tuning changed to ${shown.to} (${shown.label.toLowerCase()}), ${keepPitch ? "notes re-fretted to keep their pitch" : "frets kept, so the pitch moved"}.`);
+    } catch (e) {
+      console.error("[TabPanel] could not change the tuning:", e);
+      setViewError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const stepNote = (direction: "up" | "down") => {
     if (!pickedNote) return;
+    const score = viewRef.current?.getScore();
+    if (transpose !== 0 && score && !canEditTransposed(score, pickedNote)) {
+      setViewError("This note has no string in this tuning at the transposed pitch, so it stays as written.");
+      return;
+    }
     const to = stepString(pickedNote, direction);
     if (!to) return;
     try {
       const undoStep = moveToString(pickedNote, to.string);
-      setUndoStack((stack) => [...stack, undoStep]);
+      setUndoStack((stack) => [...stack, { placements: undoStep, tunings: [] }]);
       setRedoStack([]);
       viewRef.current?.rerender();
       scheduleSave();
@@ -220,7 +398,7 @@ export default function TabPanel({ song }: TabPanelProps) {
     const last = undoStack[undoStack.length - 1];
     if (!last) return;
     setUndoStack(undoStack.slice(0, -1));
-    setRedoStack([...redoStack, restore(last)]);
+    setRedoStack([...redoStack, restoreStep(last)]);
     viewRef.current?.rerender();
     scheduleSave();
   };
@@ -229,7 +407,7 @@ export default function TabPanel({ song }: TabPanelProps) {
     const last = redoStack[redoStack.length - 1];
     if (!last) return;
     setRedoStack(redoStack.slice(0, -1));
-    setUndoStack([...undoStack, restore(last)]);
+    setUndoStack([...undoStack, restoreStep(last)]);
     viewRef.current?.rerender();
     scheduleSave();
   };
@@ -324,9 +502,37 @@ export default function TabPanel({ song }: TabPanelProps) {
                     className={`tab-panel__btn${editing ? " tab-panel__btn--on" : ""}`}
                     onClick={toggleEditing}
                     aria-pressed={editing}
-                    title="Edit the tab: move notes between strings (Shift+Up / Shift+Down)"
+                    title={transpose !== 0
+                      ? "Edit the tab as shown for the transposed song: string choices are saved for this transposition only"
+                      : "Edit the tab: move notes between strings (Shift+Up / Shift+Down)"}
                   >
                     Edit
+                  </button>
+                )}
+                {aligned && (
+                  <button
+                    className={`tab-panel__btn${transposing ? " tab-panel__btn--on" : ""}`}
+                    onClick={() => setTransposing(!transposing)}
+                    aria-pressed={transposing}
+                    disabled={transpose !== 0 || !bytes}
+                    title={transpose !== 0
+                      ? "Set the song's transpose back to 0 to transpose the tab itself"
+                      : "Rewrite the tab by some semitones, as Guitar Pro and TuxGuitar do"}
+                  >
+                    Transpose…
+                  </button>
+                )}
+                {aligned && (
+                  <button
+                    className={`tab-panel__btn${tuningOpen ? " tab-panel__btn--on" : ""}`}
+                    onClick={() => setTuningOpen(!tuningOpen)}
+                    aria-pressed={tuningOpen}
+                    disabled={track === null || !bytes}
+                    title={transpose !== 0
+                      ? "Play the shown track in another tuning for this transposition"
+                      : "Change the open strings of the shown track in the tab"}
+                  >
+                    Tuning…
                   </button>
                 )}
                 <button
@@ -383,6 +589,52 @@ export default function TabPanel({ song }: TabPanelProps) {
             </ul>
           )}
 
+          {aligned && bytes && transpose !== 0 && transposed && (
+            <p className="tab-panel__transposed">
+              {`Shown for the song ${transpose > 0 ? "up" : "down"} ${Math.abs(transpose)} semitone${Math.abs(transpose) === 1 ? "" : "s"}: `
+                + `${transposed.sameString} notes on new frets, ${transposed.newString} on another string`
+                + (transposed.edited > 0 ? `, ${transposed.edited} on a string you chose` : "")
+                + (transposed.unplayable > 0
+                  ? `, ${transposed.unplayable} that this tuning cannot play (red, left as written)`
+                  : "")
+                + (transposed.stale > 0 ? `, ${transposed.stale} saved choices that no longer fit the tab` : "")
+                + "."}
+            </p>
+          )}
+
+          {aligned && bytes && transpose !== 0 && transposed && track !== null && (
+            <RetuneLine result={transposed} track={track} onRetune={(offsets) => setRetune(track, offsets)} />
+          )}
+
+          {rewrote && <p className="tab-panel__transposed">{rewrote}</p>}
+
+          {tuningOpen && aligned && bytes && track !== null && (() => {
+            const score = viewRef.current?.getScore();
+            const base = score ? storedTuning(score, track) : null;
+            if (!base) return <p className="tab-panel__transposed">This track has no strings to tune.</p>;
+            const chosen = transpose !== 0 ? savedEdits.current[String(transpose)]?.retune[String(track)] : undefined;
+            return (
+              <TabTuningEditor
+                key={`${track}-${transpose}`}
+                base={base}
+                initial={chosen ?? []}
+                forTransposition={transpose !== 0}
+                onApply={(offsets, keepPitch) => { void applyTuning(offsets, keepPitch); }}
+                onCancel={() => setTuningOpen(false)}
+              />
+            );
+          })()}
+
+          {transposing && aligned && bytes && (
+            <TabTransposeDialog
+              tracks={tracks}
+              track={track}
+              getScore={getScore}
+              onApply={(t) => { void applyTabTransposition(t); }}
+              onCancel={() => setTransposing(false)}
+            />
+          )}
+
           {aligned && bytes && (
             <>
               <TabScoreView
@@ -396,6 +648,9 @@ export default function TabPanel({ song }: TabPanelProps) {
                 selectedNote={pickedNote}
                 handleRef={viewRef}
                 onPickNote={setPickedNote}
+                onTransposed={setTransposed}
+                getTransposeOptions={transposeOptions}
+                editsVersion={editsVersion}
                 onTracks={handleTracks}
                 onSeek={seek}
                 onSelectBar={setSelectedOrder}
@@ -433,5 +688,29 @@ export default function TabPanel({ song }: TabPanelProps) {
         </div>
       )}
     </section>
+  );
+}
+
+/** The tuning the transposition plays the shown track in, or the tunings that would play more of its notes. */
+function RetuneLine({ result, track, onRetune }: { result: TransposeResult; track: number; onRetune: (offsets: number[] | null) => void }) {
+  const used = result.retuned[track];
+  const suggestions = result.suggestions[track] ?? [];
+  if (used) {
+    return (
+      <p className="tab-panel__retune">
+        {`${used.label} for this transposition (${used.from} to ${used.to}).`}
+        <button className="tab-panel__btn" onClick={() => onRetune(null)}>Tab's tuning</button>
+      </p>
+    );
+  }
+  return (
+    <>
+      {suggestions.map((s) => (
+        <p key={s.label} className="tab-panel__retune">
+          {`${s.label} (${s.from} to ${s.to}) plays ${s.fixes} more note${s.fixes === 1 ? "" : "s"}.`}
+          <button className="tab-panel__btn" onClick={() => onRetune(s.offsets)}>Use this tuning</button>
+        </p>
+      ))}
+    </>
   );
 }
