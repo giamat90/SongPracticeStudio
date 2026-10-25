@@ -11,6 +11,9 @@ use std::time::Duration;
 const FORMAT_VERSION: u32 = 1;
 const SYNC_FILE: &str = "tab_sync.json";
 const SCORE_FILE: &str = "tab_score.json";
+/// The user's string choices for a transposed song, per transposition; the stored tab itself never changes for them.
+const TRANSPOSED_FILE: &str = "tab_transposed.json";
+const MAX_TRANSPOSED_BYTES: usize = 1024 * 1024;
 const TAB_STEM: &str = "tab";
 /// The file as it was imported, kept once the user edits the tab so the edits can be undone.
 const ORIGINAL_STEM: &str = "tab.original";
@@ -231,6 +234,31 @@ pub fn save_edited(song_id: &str, data: &[u8]) -> Result<TabRecord, String> {
     read(song_id)?.ok_or_else(|| "The tab could not be stored.".to_string())
 }
 
+/// The string choices saved for transposed songs, as the frontend wrote them, or `None` when there are none.
+pub fn read_transposed(song_id: &str) -> Result<Option<String>, String> {
+    let path = song_dir(&find_song(song_id)?).join(TRANSPOSED_FILE);
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => Ok(Some(raw)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Read transposed tab edits: {e}")),
+    }
+}
+
+/// Store the string choices for transposed songs (a JSON object, kept as written). An empty object removes the file.
+pub fn save_transposed(song_id: &str, json: &str) -> Result<(), String> {
+    let song = find_song(song_id)?;
+    if json.len() > MAX_TRANSPOSED_BYTES {
+        return Err("The transposed tab edits are larger than 1 MB.".to_string());
+    }
+    let value: serde_json::Value = serde_json::from_str(json).map_err(|e| format!("The transposed tab edits are not valid JSON: {e}"))?;
+    let object = value.as_object().ok_or_else(|| "The transposed tab edits must be a JSON object.".to_string())?;
+    let path = song_dir(&song).join(TRANSPOSED_FILE);
+    if object.is_empty() {
+        return remove_if_present(&path, "transposed tab edits");
+    }
+    write_atomic(&path, json.as_bytes(), "transposed tab edits")
+}
+
 /// Put the imported file back and drop the edited one. The alignment is kept:
 /// it was made from the imported file.
 pub fn revert_edits(song_id: &str) -> Result<TabRecord, String> {
@@ -253,7 +281,8 @@ fn delete_files(song: &Song) -> Result<(), String> {
     }
     remove_if_present(&sync_path(song), "tab sync")?;
     remove_if_present(&meta_path(song), "tab")?;
-    remove_if_present(&song_dir(song).join(SCORE_FILE), "tab score")
+    remove_if_present(&song_dir(song).join(SCORE_FILE), "tab score")?;
+    remove_if_present(&song_dir(song).join(TRANSPOSED_FILE), "transposed tab edits")
 }
 
 pub fn delete(song_id: &str) -> Result<(), String> {
@@ -543,6 +572,23 @@ mod tests {
         save_edited("a", b"edited again").unwrap();
         delete("a").unwrap();
         assert!(!Path::new(&song.directory).join("tab.original.gp").exists());
+    }
+
+    #[test]
+    fn transposed_edits_round_trip_and_an_empty_object_removes_them() {
+        let home = TestHome::new();
+        let song = add_song("a", &["bass"]);
+        import("a", &write_tab(home.path(), "one.gp", b"one")).unwrap();
+        assert_eq!(read_transposed("a").unwrap(), None);
+        save_transposed("a", r#"{"-2":[{"bar":0}]}"#).unwrap();
+        assert_eq!(read_transposed("a").unwrap().as_deref(), Some(r#"{"-2":[{"bar":0}]}"#));
+        assert!(save_transposed("a", "[1]").is_err());
+        assert!(save_transposed("a", "nope").is_err());
+        save_transposed("a", "{}").unwrap();
+        assert_eq!(read_transposed("a").unwrap(), None);
+        save_transposed("a", r#"{"3":[]}"#).unwrap();
+        delete("a").unwrap();
+        assert!(!song_dir(&song).join(TRANSPOSED_FILE).exists());
     }
 
     #[test]

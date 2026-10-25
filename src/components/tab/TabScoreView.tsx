@@ -3,6 +3,7 @@ import { usePlayerStore } from "../../stores/player";
 import bravuraWoff2 from "@coderline/alphatab/font/Bravura.woff2?url";
 import { loadAlphaTab, tabTracks, type TabTrackInfo } from "../../lib/tabScore";
 import { firstNoteOfBar, neighbourNote, type TabNoteModel } from "../../lib/tabEdit";
+import { applyTranspose, clearTranspose, type TransposeOptions, type TransposeResult } from "../../lib/tabTranspose";
 import { barSpans, cursorX, locate, timeAt, type BeatStop } from "../../lib/tabSync";
 import type { TabBar } from "../../lib/types";
 
@@ -22,6 +23,12 @@ interface TabScoreViewProps {
   /** What the panel can ask of the view: draw the (edited) score again, hand over the live score. */
   handleRef: Ref<TabViewHandle>;
   onPickNote: (note: TabNoteModel) => void;
+  /** What the song's transposition did to the notes, each time the score is drawn again for it. */
+  onTransposed: (result: TransposeResult) => void;
+  /** The string choices saved for the current transposition, read each time the tab is drawn transposed. */
+  getTransposeOptions: () => TransposeOptions;
+  /** Bumped when saved choices were loaded after the tab was drawn, so it is drawn again with them. */
+  editsVersion: number;
   onTracks: (tracks: TabTrackInfo[]) => void;
   onSeek: (time: number) => void;
   onSelectBar: (order: number) => void;
@@ -65,11 +72,13 @@ const FOLLOW_SHARE = 0.3;
  * so the position comes from the stored bar lines and the app's playback clock.
  */
 export default function TabScoreView({
-  bytes, source, bars, duration, track, selectedOrder, editing, selectedNote, handleRef, onPickNote, onTracks, onSeek,
-  onSelectBar, onError,
+  bytes, source, bars, duration, track, selectedOrder, editing, selectedNote, handleRef, onPickNote, onTransposed, getTransposeOptions, editsVersion, onTracks,
+  onSeek, onSelectBar, onError,
 }: TabScoreViewProps) {
   // Read here, not in the panel, so only the cursor re-renders at the clock's rate.
   const currentTime = usePlayerStore((s) => s.currentTime);
+  const transpose = usePlayerStore((s) => s.transpose);
+  const alphaTabRef = useRef<Awaited<ReturnType<typeof loadAlphaTab>> | null>(null);
   const editingRef = useRef(editing);
   editingRef.current = editing;
   const bytesRef = useRef(bytes);
@@ -88,8 +97,8 @@ export default function TabScoreView({
   spansRef.current = spans;
   const positionRef = useRef(currentTime);
   positionRef.current = currentTime;
-  const callbacks = useRef({ onTracks, onSeek, onSelectBar, onError, onPickNote });
-  callbacks.current = { onTracks, onSeek, onSelectBar, onError, onPickNote };
+  const callbacks = useRef({ onTracks, onSeek, onSelectBar, onError, onPickNote, onTransposed, getTransposeOptions });
+  callbacks.current = { onTracks, onSeek, onSelectBar, onError, onPickNote, onTransposed, getTransposeOptions };
   const [cursor, setCursor] = useState<Bounds | null>(null);
   const [selected, setSelected] = useState<Bounds | null>(null);
   const [noteBox, setNoteBox] = useState<Bounds | null>(null);
@@ -167,6 +176,7 @@ export default function TabScoreView({
     (async () => {
       const at = await loadAlphaTab();
       if (disposed) return;
+      alphaTabRef.current = at;
       const settings = new at.Settings();
       settings.core.useWorkers = false;
       settings.core.includeNoteBounds = true;
@@ -210,6 +220,9 @@ export default function TabScoreView({
 
     return () => {
       disposed = true;
+      // The score outlives the view (a pending save exports it), so it must not keep a transposition.
+      const score = apiRef.current?.score;
+      if (score) clearTranspose(score);
       apiRef.current = null;
       if (api) api.destroy();
     };
@@ -219,8 +232,13 @@ export default function TabScoreView({
     const api = apiRef.current;
     const tracks = api?.score?.tracks;
     if (!api || !tracks || track === null || !tracks[track]) return;
+    const at = alphaTabRef.current;
+    if (at && api.score) {
+      callbacks.current.onTransposed(applyTranspose(at, api.score, transpose, callbacks.current.getTransposeOptions()));
+      scrollBack.current = scrollRef.current?.scrollLeft ?? null;
+    }
     api.renderTracks([tracks[track]]);
-  }, [track, scoreVersion]);
+  }, [track, scoreVersion, transpose, editsVersion]);
 
   /** Where the notes of a bar are drawn, for the cursor to sit on them. */
   const beatStops = (index: number): BeatStop[] => {

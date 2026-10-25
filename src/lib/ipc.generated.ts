@@ -253,6 +253,16 @@ export async function saveEditedTab(songId: string, data: number[]): Promise<Tab
   return invoke<TabRecord>("save_edited_tab", { songId, data });
 }
 
+/** The string choices saved for transposed songs (a JSON object), or none */
+export async function readTabTransposed(songId: string): Promise<string | null> {
+  return invoke<string | null>("read_tab_transposed", { songId });
+}
+
+/** Store the string choices for transposed songs (a JSON object); an empty object removes them */
+export async function saveTabTransposed(songId: string, json: string): Promise<void> {
+  return invoke<void>("save_tab_transposed", { songId, json });
+}
+
 /** Put the imported tab back, dropping the user's edits */
 export async function revertTabEdits(songId: string): Promise<TabRecord> {
   return invoke<TabRecord>("revert_tab_edits", { songId });

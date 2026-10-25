@@ -68,6 +68,8 @@ pub fn run() {
         commands::align_song_tab,
         commands::save_tab_bars,
         commands::save_edited_tab,
+        commands::read_tab_transposed,
+        commands::save_tab_transposed,
         commands::revert_tab_edits,
         commands::delete_song_tab,
         windows::detach_panel,

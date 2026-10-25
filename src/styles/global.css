@@ -4164,6 +4164,12 @@ button.stem-track__take-name {
   border-color: #f87171;
 }
 
+.tab-panel__transposed {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
 .tab-panel__btn {
   background: var(--bg-surface);
   border: 0.0625rem solid var(--border-strong);
@@ -5007,4 +5013,80 @@ button.stem-track__take-name {
 
 .meter-tap:active {
   transform: scale(0.97);
+}
+
+.tab-transpose {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-surface);
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.tab-transpose__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.tab-transpose__number {
+  width: 4rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+}
+
+.tab-transpose__preview {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.tab-transpose__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-panel__retune {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.tab-tuning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 0.0625rem solid var(--border);
+  border-radius: 0.4rem;
+}
+.tab-tuning__presets,
+.tab-tuning__strings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.tab-tuning__string {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.tab-tuning__note {
+  min-width: 2.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }

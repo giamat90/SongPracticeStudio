@@ -1027,6 +1027,18 @@ pub async fn save_edited_tab(song_id: String, data: Vec<u8>) -> Result<crate::ta
     crate::tab::save_edited(&song_id, &data)
 }
 
+/// The string choices saved for transposed songs (a JSON object), or none
+#[tauri::command]
+pub async fn read_tab_transposed(song_id: String) -> Result<Option<String>, String> {
+    crate::tab::read_transposed(&song_id)
+}
+
+/// Store the string choices for transposed songs (a JSON object); an empty object removes them
+#[tauri::command]
+pub async fn save_tab_transposed(song_id: String, json: String) -> Result<(), String> {
+    crate::tab::save_transposed(&song_id, &json)
+}
+
 /// Put the imported tab back, dropping the user's edits
 #[tauri::command]
 pub async fn revert_tab_edits(song_id: String) -> Result<crate::tab::TabRecord, String> {

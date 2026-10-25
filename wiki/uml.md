@@ -371,6 +371,17 @@ flowchart LR
     UI -- "drag a bar" --> SB["save_tab_bars -> edited = true"]
     UI -- "Edit: click a note, Shift+Up / Shift+Down" --> TE["tabEdit.ts on the live alphaTab score<br/>exportTab -> Gp7Exporter"]
     TE --> SE["save_edited_tab -> tab.gp + tab.original.EXT"]
+    PL["player store: transpose"] -- "song transposed" --> TT["tabTranspose.ts applyTranspose<br/>same string, else nearest; red when unplayable<br/>display only, exportUntransposed on save"]
+    TT --> UI
+    TT -. "never in the file" .-> SE
+    UI -- "Edit while transposed" --> TX["transposeEdits -> save_tab_transposed<br/>tab_transposed.json, per amount of semitones"]
+    TX -. "applied again after applyTranspose" .-> TT
+    TT -- "notes below the lowest string" --> RT["ranked tuning suggestions: lowest / all strings down<br/>saved per amount in tab_transposed.json"]
+    UI -- "Tuning..." --> TN["TabTuningEditor: per-string tuning<br/>song transposed: saved per amount; else retuneTab (EditStep)"]
+    TN -. "retune option" .-> TT
+    RT -. "retune option" .-> TT
+    UI -- "Transpose... (song transpose 0)" --> TD["TabTransposeDialog -> transposeTab<br/>rewrites the stored tab, EditStep undo"]
+    TD --> TE
     SB --> SY
     PY -. "event tab-progress" .-> UI
 ```
@@ -389,6 +400,7 @@ classDiagram
         save_chord_edits clear_chord_edits has_chord_edits
         read_chord_tuning
         read_song_tab import_song_tab align_song_tab
+        read_tab_transposed save_tab_transposed
         save_tab_bars save_edited_tab revert_tab_edits delete_song_tab
         save_take list_takes export_mix export_file ...
     }
