@@ -258,11 +258,11 @@ See [Recording Flow](recording-flow.md) for the recording state machine and late
 
 **Components:**
 
-- `FolderSection` — one folder's header (drag handle, collapse toggle, inline double-click-to-rename, delete) plus its song list. `useSortable({ id: "folder:" + folder.id })` makes the folder itself draggable (reorder folders); a separately-prefixed id (`FOLDER_DRAG_PREFIX = "folder:"`) keeps folder-drag ids from colliding with song ids in dnd-kit's shared id namespace. `useDroppable({ id: folder.id })` (unprefixed) on the folder's body makes it a drop target for songs.
+- `FolderSection` — one folder's header (drag handle, collapse toggle, inline double-click-to-rename, delete) plus its song list. `useSortable({ id: "folder:" + folder.id })` makes the folder itself draggable (reorder folders); a separately-prefixed id (`FOLDER_DRAG_PREFIX = "folder:"`) keeps folder-drag ids from colliding with song ids in dnd-kit's shared id namespace. `useDroppable({ id: folder.id })` (unprefixed) on the folder's body makes it a drop target for songs while it is open; a closed folder has no body, so the song is dropped on its header, which is the `folder:<id>` section (`resolveLibraryDrop` reads that as the folder and appends at the end; the folder stays closed).
 
 - `DraggableSongRow` — wraps `SongCard` with a small drag-handle button (⠿) that receives dnd-kit's `attributes`/`listeners`; the card itself keeps its existing click-to-open/delete handlers untouched.
 
-- `RootDropZone` — `useDroppable({ id: "root" })` wrapping the un-foldered song list.
+- `RootDropZone` — `useDroppable({ id: "root" })` (takes `isDropTarget`) wrapping the un-foldered song list.
 
 
 
