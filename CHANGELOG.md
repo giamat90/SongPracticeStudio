@@ -6,6 +6,13 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.79] - 2026-10-25
+
+### Changed
+- **A song dragged onto a closed folder moves into it.** Drop it on the folder's header; the folder stays closed and the song goes to the end of its list.
+- **The folder where the song would land is highlighted while you drag** (the whole folder, header included, or the list outside folders), also when the pointer is over a song inside it. Nothing is highlighted when the song would stay where it is.
+- mps-core v0.19.0.
+
 ## [0.0.78] - 2026-10-25
 
 ### Added

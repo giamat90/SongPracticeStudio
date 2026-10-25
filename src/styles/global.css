@@ -338,15 +338,12 @@ body,
   gap: 0.4rem;
   padding: 0 0.75rem 0.75rem;
   min-height: 2rem;
-  border-radius: 6px;
-  outline: 2px solid transparent;
-  outline-offset: -2px;
-  transition: outline-color 0.1s, background 0.1s;
 }
 
-.library-page__folder-body--over {
-  outline-color: var(--accent);
-  background: rgba(245, 158, 11, 0.08);
+.library-page__folder--target {
+  outline: 0.125rem solid var(--accent);
+  outline-offset: -0.125rem;
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .library-page__folder-empty {
@@ -369,7 +366,7 @@ body,
   transition: outline-color 0.1s, background 0.1s;
 }
 
-.library-page__root-list--over {
+.library-page__root-list--target {
   outline-color: var(--accent);
   background: rgba(245, 158, 11, 0.05);
 }

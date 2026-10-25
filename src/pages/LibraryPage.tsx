@@ -4,6 +4,7 @@ import { DndContext } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import {
   FOLDER_DRAG_PREFIX,
+  ROOT_CONTAINER_ID,
   activateOnKey,
   formatDuration,
   useEditableText,
@@ -125,6 +126,7 @@ interface FolderSectionProps {
   onRenameSong: (songId: string, title: string) => void;
   onRenameFolder: (folderId: string, name: string) => void;
   onDeleteFolder: (folderId: string) => void;
+  isDropTarget: boolean;
 }
 
 function FolderSection({
@@ -135,14 +137,19 @@ function FolderSection({
   onRenameSong,
   onRenameFolder,
   onDeleteFolder,
+  isDropTarget,
 }: FolderSectionProps) {
   const collapsed = useSettingsStore((s) => s.collapsedFolders[folder.id] ?? false);
   const setFolderCollapsed = useSettingsStore((s) => s.setFolderCollapsed);
   const name = useEditableText(folder.name, (next) => onRenameFolder(folder.id, next));
-  const { setSortableRef, setDroppableRef, isOver, style, handleProps } = useSortableFolder(folder.id);
+  const { setSortableRef, setDroppableRef, style, handleProps } = useSortableFolder(folder.id);
 
   return (
-    <div ref={setSortableRef} style={style} className="library-page__folder">
+    <div
+      ref={setSortableRef}
+      style={style}
+      className={`library-page__folder${isDropTarget ? " library-page__folder--target" : ""}`}
+    >
       <div className="library-page__folder-header">
         <button
           className="library-page__drag-handle"
@@ -197,10 +204,7 @@ function FolderSection({
         </button>
       </div>
       {!collapsed && (
-        <div
-          ref={setDroppableRef}
-          className={`library-page__folder-body${isOver ? " library-page__folder-body--over" : ""}`}
-        >
+        <div ref={setDroppableRef} className="library-page__folder-body">
           <SortableContext items={songs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
             {songs.length === 0 ? (
               <p className="library-page__folder-empty">Drag songs here</p>
@@ -222,12 +226,12 @@ function FolderSection({
   );
 }
 
-function RootDropZone({ children }: { children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useRootDropZone();
+function RootDropZone({ isDropTarget, children }: { isDropTarget: boolean; children: React.ReactNode }) {
+  const { setNodeRef } = useRootDropZone();
   return (
     <div
       ref={setNodeRef}
-      className={`library-page__root-list${isOver ? " library-page__root-list--over" : ""}`}
+      className={`library-page__root-list${isDropTarget ? " library-page__root-list--target" : ""}`}
     >
       {children}
     </div>
@@ -238,7 +242,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const {
     isLoading, error, sessionExpired, isProcessing, hasContent, sortedFolders, rootSongs, songsByFolder,
     searching, matches, folderNameOf, deleteSong, renameSong, renameFolder, deleteFolder, clearError,
-    signInAndRetryYoutube, handleDragEnd, showAbout, openAbout, closeAbout, showSettings, toggleSettings,
+    signInAndRetryYoutube, dropTarget, handleDragOver, handleDragCancel, handleDragEnd, showAbout, openAbout, closeAbout, showSettings, toggleSettings,
     appVersion, highQuality, setHighQuality, query, setQuery, clearQuery, isCreatingFolder, startCreatingFolder,
     newFolderName, setNewFolderName, commitNewFolder, cancelNewFolder,
   } = useLibraryPage({ useStore: useLibraryStore, getVersion, filterSongs });
@@ -396,7 +400,13 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
       )}
 
       {!isLoading && !searching && hasContent && (
-        <DndContext sensors={sensors} collisionDetection={libraryCollisionDetection} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={libraryCollisionDetection}
+          onDragOver={handleDragOver}
+          onDragCancel={handleDragCancel}
+          onDragEnd={handleDragEnd}
+        >
           <div className="library-page__scroll">
             {sortedFolders.length > 0 && (
               <div className="library-page__folders">
@@ -414,6 +424,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
                       onRenameSong={renameSong}
                       onRenameFolder={renameFolder}
                       onDeleteFolder={deleteFolder}
+                      isDropTarget={dropTarget === folder.id}
                     />
                   ))}
                 </SortableContext>
@@ -421,7 +432,7 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
             )}
 
             <section className="library-page__list">
-              <RootDropZone>
+              <RootDropZone isDropTarget={dropTarget === ROOT_CONTAINER_ID}>
                 <SortableContext items={rootSongs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                   {rootSongs.map((song) => (
                     <DraggableSongRow
