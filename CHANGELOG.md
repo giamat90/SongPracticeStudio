@@ -6,6 +6,16 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.78] - 2026-10-25
+
+### Added
+- **The tab follows the song's transpose.** When you transpose the song, the Tab panel redraws the notes for the new key: the same string with the fret moved, else the nearest string that fits. A note no string can play (below the lowest open string, or a harmonic) stays as written and is drawn red. This is display only; your saved tab is never changed by it. You can still edit the tab while the song is transposed, and your string choices are remembered for each transposition.
+- **Tuning.** When a transposition leaves notes below the lowest string, the panel suggests tunings that play more of them (lowest string down, or all strings down), best first. The new **Tuning...** button opens an editor with presets and a step up / down for every string, with the note names. With the song transposed it sets the tuning for that transposition; with the song at 0 it changes the tab itself, either re-fretting the notes to keep their pitch or keeping the frets so the pitch moves. It can be undone.
+- **Transpose... for the tab itself.** Like Guitar Pro and TuxGuitar, the **Transpose...** button rewrites the stored tab by some semitones: all tracks or one, keep notes on their strings or not, and a tuning choice, with a live preview of how many notes fit. One undo step; **Revert to imported** goes back to your original file.
+
+### Changed
+- The Edit, Transpose... and Tuning... buttons (and the tuning presets) now show when they are on.
+
 ## [0.0.77] - 2026-10-24
 
 ### Added
