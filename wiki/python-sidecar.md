@@ -228,3 +228,9 @@ copy dist\song-practice-studio-sidecar-x86_64-pc-windows-msvc.exe ..\src-tauri\b
 ```
 
 In development the sidecar runs as a raw Python process — Tauri spawns it lazily on first use.
+
+### Lazy imports need an explicit collect (frozen exe vs dev venv)
+
+The dev venv has every package installed, so a missing PyInstaller collect only shows up in the installed app. `pitch_shift_song` resamples with `res_type="kaiser_fast"`, which makes librosa import **resampy** at call time and read its filter tables from package data; PyInstaller cannot see that, so `build.py` passes `--collect-all=resampy`. Until v0.0.80 it did not, and every key transpose in an installed SPS failed with `No module named 'resampy'` (the error only reached the browser console, so the Transpose value just snapped back). VPS never hit it because `torchcrepe`, which it freezes, depends on resampy; SPS has no such dependency.
+
+Two guards: `tests/test_build_config.py` pins the collect next to the `kaiser_fast` call, and `smoke_test.py` (run on the frozen exe by `release.yml` before the app is built) now also sends a `pitch_shift` for the stems it just produced. Any new lazily imported package (anything a library imports inside a function or through `lazy_loader`) needs the same two steps.

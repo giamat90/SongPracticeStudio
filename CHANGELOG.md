@@ -6,6 +6,12 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.80] - 2026-10-26
+
+### Fixed
+- **Transpose works in the installed app.** Every transpose in an installed build failed (the value jumped back to 0, the error only reached the console) because the Python sidecar was frozen without `resampy`, which the pitch shift needs. It only worked when running from source. The sidecar now bundles it, and the release build's smoke test pitch-shifts a stem so a gap like this cannot ship again.
+- The first transpose of a song still takes a while (about a minute per stem) and is cached afterwards.
+
 ## [0.0.79] - 2026-10-25
 
 ### Changed

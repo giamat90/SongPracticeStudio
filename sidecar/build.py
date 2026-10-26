@@ -46,6 +46,12 @@ args = [
     "--hidden-import=scipy.ndimage",
     "--hidden-import=torchaudio.pipelines",
     "--collect-data=demucs",
+    # pitch_shift_song asks librosa for res_type="kaiser_fast", which imports
+    # resampy lazily at call time (static analysis never sees it) and loads its
+    # filter tables from package data. VPS only gets resampy because torchcrepe
+    # drags it in; SPS has no such dependency, so without this the frozen exe
+    # fails every key transpose with "No module named 'resampy'".
+    "--collect-all=resampy",
     "--collect-all=yt_dlp",
     # The JS challenge solver scripts (yt-dlp[default]); package data PyInstaller
     # cannot see, and without them a signed-in YouTube extraction fails.
