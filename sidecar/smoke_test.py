@@ -9,6 +9,10 @@ write, librosa BPM/key/chords) inside the frozen exe — a
 plain "does the exe launch" check does not touch any of this and would not
 have caught the missing-ffmpeg-on-PATH bug that shipped in an earlier build.
 
+After the stems exist it also pitch-shifts one of them: key transpose resamples
+through a lazily imported package (resampy) that PyInstaller does not see, so
+only the frozen exe can show it is bundled.
+
 Only requests vocals/drums/bass/other so a single Demucs pass (htdemucs) runs
 instead of the guitar/piano cascade, keeping CI time and model-download size
 down while still covering every native dependency in the chain.
@@ -24,6 +28,7 @@ import time
 
 READY_TIMEOUT_S = 30
 PROCESS_TIMEOUT_S = 900  # first run downloads Demucs model weights
+PITCH_SHIFT_TIMEOUT_S = 120
 
 
 def read_until(proc, wanted_types, timeout):
@@ -100,6 +105,32 @@ def main():
                 sys.exit(1)
 
             print(f"PASS: produced {len(stems)} stems: {list(stems)}")
+
+            shift_dir = os.path.join(out_dir, "pitched")
+            os.makedirs(shift_dir)
+            shift = {
+                "cmd": "pitch_shift",
+                "songDir": out_dir,
+                "cacheDir": shift_dir,
+                "stemNames": ["vocals"],
+                "nSteps": -1,
+            }
+            proc.stdin.write(json.dumps(shift) + "\n")
+            proc.stdin.flush()
+
+            shifted = read_until(proc, {"result", "error"}, PITCH_SHIFT_TIMEOUT_S)
+            if shifted is None:
+                print("FAIL: pitch_shift gave no result/error before timeout", file=sys.stderr)
+                sys.exit(1)
+            if shifted.get("type") == "error":
+                print(f"FAIL: pitch_shift returned error: {shifted}", file=sys.stderr)
+                sys.exit(1)
+            shifted_path = shifted.get("data", {}).get("stems", {}).get("vocals")
+            if not shifted_path or not os.path.isfile(shifted_path):
+                print(f"FAIL: pitch_shift wrote no vocals file: {shifted}", file=sys.stderr)
+                sys.exit(1)
+
+            print("PASS: pitch_shift wrote a shifted vocals stem")
         finally:
             try:
                 proc.stdin.write(json.dumps({"cmd": "quit"}) + "\n")

@@ -52,6 +52,7 @@ How to read these numbers: [Code metrics: a short course](../../wiki/code-metric
 - `tests/helpers.py` synthesises audio with a known pitch/level; nothing depends on checked-in audio fixtures.
 - `tests/test_protocol.py` drives the real `main.py` over stdio exactly like `SidecarManager` does (ready, ping, invalid JSON, unknown command, exceptions → `error` with traceback, progress ordering, non-ASCII paths, `quit`, EOF). It also asserts that every `"cmd"` string Rust sends has a branch in `main.py`.
 - `tests/test_processor.py` uses `FakeDemucs`/`FakeTensor` (numpy stand-ins for the two torch calls `_save_stem` makes) to pin down which model runs for which stem request, what lands in `other`, the progress ladder (0→0.75 separation, then BPM, key, chords, bars), and that BPM/chord failures degrade instead of failing the import.
+- `tests/test_build_config.py` pins what the dev venv hides: `resampy` (imported lazily by librosa's `kaiser_fast` resampling) must be in `build.py`'s `--collect-all` list and in `requirements.txt`. The frozen exe itself is only exercised by `smoke_test.py` in `release.yml` (process a clip, then `pitch_shift` one stem); see [Python sidecar](python-sidecar.md#lazy-imports-need-an-explicit-collect-frozen-exe-vs-dev-venv).
 - `tests/test_yt_dlp_floor.py` checks the `requirements*.txt` floors against `mps_core.version_check.MIN_YT_DLP_VERSION`; the equal-across-projects rule (MPS conventions #10) now holds by construction because the constant has one home.
 
 ## Lyrics sync tests
