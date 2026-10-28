@@ -19,6 +19,7 @@ import {
 } from "@giamat90/mps-core/hooks/dnd";
 import DropZone from "../components/upload/DropZone";
 import YouTubeImport from "../components/upload/YouTubeImport";
+import ImportQueue from "../components/upload/ImportQueue";
 import StemPicker, { DEFAULT_STEMS } from "../components/upload/StemPicker";
 import RecordingOffsetControl from "../components/recording/RecordingOffsetControl";
 import YouTubeCookiesControl from "../components/settings/YouTubeCookiesControl";
@@ -240,7 +241,7 @@ function RootDropZone({ isDropTarget, children }: { isDropTarget: boolean; child
 
 function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const {
-    isLoading, error, sessionExpired, isProcessing, hasContent, sortedFolders, rootSongs, songsByFolder,
+    isLoading, error, sessionExpired, hasContent, sortedFolders, rootSongs, songsByFolder,
     searching, matches, folderNameOf, deleteSong, renameSong, renameFolder, deleteFolder, clearError,
     signInAndRetryYoutube, dropTarget, handleDragOver, handleDragCancel, handleDragEnd, showAbout, openAbout, closeAbout, showSettings, toggleSettings,
     appVersion, highQuality, setHighQuality, query, setQuery, clearQuery, isCreatingFolder, startCreatingFolder,
@@ -297,12 +298,12 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
           onChange={setStems}
           highQuality={highQuality}
           onHighQualityChange={setHighQuality}
-          disabled={isProcessing}
         />
         <div className="library-page__import-sources">
           <DropZone stems={stems} highQuality={highQuality} />
           <YouTubeImport stems={stems} highQuality={highQuality} />
         </div>
+        <ImportQueue />
       </div>
 
       {showSettings && (
@@ -319,7 +320,6 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
             <button
               className="library-page__error-action"
               onClick={signInAndRetryYoutube}
-              disabled={isProcessing}
             >
               Sign in again and retry
             </button>

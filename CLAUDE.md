@@ -210,6 +210,7 @@ SongPracticeStudio/
 │   │   └── upload/
 │   │       ├── DropZone.tsx       ← File drag-and-drop → processSong
 │   │       ├── YouTubeImport.tsx  ← URL paste → importYoutube
+│   │       ├── ImportQueue.tsx    ← the running import's progress + the numbered list of imports waiting (× removes one); imports line up in the library store, one separation at a time, in memory only
 │   │       └── StemPicker.tsx     ← per-stem extraction toggle + high-quality checkbox, shared by both import paths
 │   ├── pages/
 │   │   ├── LibraryPage.tsx    ← Markup of the song list + import + About modal; SongCard shows stem count; state and drag logic are `useLibraryPage` etc. from `@giamat90/mps-core/hooks`

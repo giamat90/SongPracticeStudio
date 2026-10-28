@@ -113,10 +113,29 @@ describe("importYoutube error mapping", () => {
     expect(useLibraryStore.getState().processing).toBeNull();
   });
 
-  it("starts with a Connecting status", () => {
-    api.importYoutube.mockReturnValue(new Promise(() => {}));
-    void useLibraryStore.getState().importYoutube("u");
+  it("starts with a Connecting status", async () => {
+    let resolve!: (s: Song) => void;
+    api.importYoutube.mockReturnValue(new Promise<Song>((r) => { resolve = r; }));
+    const pending = useLibraryStore.getState().importYoutube("u");
     expect(useLibraryStore.getState().processing?.stage).toBe("Connecting…");
+    expect(useLibraryStore.getState().processingLabel).toBe("u");
+    resolve(song("yt"));
+    await pending;
+  });
+
+  it("lines a second import up behind the running one, with its own options", async () => {
+    let resolve!: (s: Song) => void;
+    api.importYoutube.mockReturnValueOnce(new Promise<Song>((r) => { resolve = r; }));
+    api.processSong.mockResolvedValue(song("file"));
+    const first = useLibraryStore.getState().importYoutube("https://youtu.be/a", ["vocals"], false);
+    const second = useLibraryStore.getState().uploadSong("/music/b.mp3", ["drums"], true);
+    expect(api.processSong).not.toHaveBeenCalled();
+    expect(useLibraryStore.getState().queue.map((q) => q.label)).toEqual(["b.mp3"]);
+    resolve(song("yt"));
+    await Promise.all([first, second]);
+    expect(api.processSong).toHaveBeenCalledWith("/music/b.mp3", ["drums"], true);
+    expect(useLibraryStore.getState().queue).toEqual([]);
+    expect(useLibraryStore.getState().songs.map((s) => s.id)).toEqual(["yt", "file"]);
   });
 
   it("explains an outdated yt-dlp (known-good floor)", async () => {

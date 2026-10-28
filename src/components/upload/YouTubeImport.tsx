@@ -10,10 +10,9 @@ interface YouTubeImportProps {
 
 function YouTubeImport({ stems, highQuality }: YouTubeImportProps) {
   const importYoutube = useLibraryStore((s) => s.importYoutube);
-  const isProcessing  = useLibraryStore((s) => s.processing !== null);
   const youtubeCookiesPath = useSettingsStore((s) => s.youtubeCookiesPath);
   const { url, setUrl, error, canSubmit, submit, onKeyDown } = useYouTubeImport({
-    isProcessing,
+    isProcessing: false,
     onImport: (link) => importYoutube(link, stems, highQuality, youtubeCookiesPath),
   });
 
@@ -26,7 +25,6 @@ function YouTubeImport({ stems, highQuality }: YouTubeImportProps) {
           placeholder="Paste YouTube URL…"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          disabled={isProcessing}
           onKeyDown={onKeyDown}
         />
         <button
