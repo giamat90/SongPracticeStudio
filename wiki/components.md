@@ -25,6 +25,7 @@ App
 │   │   └── StemPicker     — pick which of the 6 stems to extract + high-quality toggle
 
 │   ├── YouTubeImport      — paste-and-import YouTube URL
+│   ├── ImportQueue        — the running import's progress and the numbered list of waiting ones
 
 │   ├── SongCard           — song list item with stem count + delete
 
@@ -102,15 +103,21 @@ Manages the song list, import/upload flow, and error state.
 
 | `folders` | `Folder[]` | All folders in the library |
 
-| `processing` | `ProcessingStatus \| null` | Active processing job (null when idle) |
+| `processing` | `ProcessingStatus \| null` | The import running now (null when idle) |
+
+| `processingLabel` | `string \| null` | What `processing` is about: the file name or the link |
+
+| `queue` | `QueuedImport[]` | Imports waiting their turn, oldest first (`id`, `label`, `source`); the running one is not in it |
 
 | `isLoading` | `boolean` | Initial fetch in progress |
 
-| `error` | `string \| null` | Last friendly error message |
+| `error` | `string \| null` | Last friendly error message (cleared when an import starts on an idle queue; kept, with the new one appended, while others wait) |
 
 
 
-Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `deleteSong`, `renameSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. `renameSong` calls `rename_song` and swaps in the returned song (double-click the title or the ✎ button on a song card; empty titles are rejected by the backend). See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
+**Import queue.** The backend separates one song at a time, so `uploadSong` and `importYoutube` line up behind a running import instead of being refused: each returns a promise that settles when *that* import ends, and the store runs them in the order given. The stems and the high-quality choice are taken when the import is queued, so the `StemPicker` can be changed for the next song while one is running. A failed import does not stop the line; when others are waiting (or it waited itself) its message starts with its file name or link. `removeFromQueue(id)` drops a waiting import; the running one cannot be stopped (no cancel in `process_song` yet). The queue lives in memory only: closing the app drops the waiting imports. `retryableYoutubeImport` is a single slot, so after several expired-session links only the last is offered for "Sign in again and retry". Design and limits: [mps-core architecture](../../core/wiki/architecture.md).
+
+Actions: `fetchSongs`, `uploadSong`, `importYoutube`, `removeFromQueue`, `deleteSong`, `renameSong`, `fetchFolders`, `createFolder`, `renameFolder`, `deleteFolder`, `reorderFolders`, `moveSongs`, `clearError`, `initProgressListener`. `renameSong` calls `rename_song` and swaps in the returned song (double-click the title or the ✎ button on a song card; empty titles are rejected by the backend). See [Library Folders](#library-folders-drag-and-drop) below for the folder-related actions.
 
 
 
@@ -516,7 +523,11 @@ Clicking `-`/`+` calls the player store's `setTranspose(semitones)`, which — u
 
 
 
-Drag-and-drop target. Accepts audio files and calls `uploadSong(filePath)` on the library store. Disabled while any processing job is active. Renders `StemPicker` above the drop target so stem selection applies to the next upload or YouTube import alike.
+Drag-and-drop target. Accepts audio files and calls `uploadSong(filePath)` on the library store. Stays usable while an import runs (the file is queued); the progress moved to `ImportQueue`. Renders `StemPicker` above the drop target so stem selection applies to the next upload or YouTube import alike.
+
+### ImportQueue
+
+Under the two import controls in `LibraryPage` (`components/upload/ImportQueue.tsx`, CSS `.import-queue*`). Renders nothing when idle. While an import runs: its `processingLabel`, percent, stage and a progress bar from `processing`. Below it the numbered list of waiting imports, each with a × that calls `removeFromQueue(id)`. Plain markup over the store fields, so there is no hook for it in mps-core.
 
 
 
@@ -575,7 +586,7 @@ The song's bars with the tools to correct them: overview by signature, a lane of
 
 
 
-Input + button for pasting a YouTube URL. Validates client-side with a regex before calling `importYoutube(url)`. Disabled while any processing job is active. Errors appear as a dismissible red banner in `LibraryPage`.
+Input + button for pasting a YouTube URL. Validates client-side with a regex before calling `importYoutube(url)`. Never disabled by a running import: the link is queued and the box is emptied at once. Errors appear as a dismissible red banner in `LibraryPage`.
 
 
 

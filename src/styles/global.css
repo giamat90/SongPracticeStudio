@@ -438,11 +438,6 @@ body,
   background: rgba(245, 158, 11, 0.05);
 }
 
-.dropzone--busy {
-  cursor: default;
-  border-color: var(--accent);
-}
-
 .dropzone__idle {
   text-align: center;
 }
@@ -464,20 +459,91 @@ body,
   font-size: 0.8rem;
 }
 
-.dropzone__progress {
-  width: 80%;
-  text-align: center;
+/* Import queue: the running import with its progress, then the ones waiting */
+.import-queue {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.dropzone__stage {
-  font-size: 0.85rem;
+.import-queue__running {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.import-queue__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.import-queue__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.import-queue__percent {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.import-queue__stage {
+  font-size: 0.8rem;
   margin-bottom: 0.5rem;
+  color: var(--text-secondary);
   text-transform: capitalize;
 }
 
-.dropzone__percent {
+.import-queue__waiting {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.import-queue__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--bg-surface);
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.import-queue__position {
+  flex: 0 0 auto;
+  min-width: 1.25rem;
   font-size: 0.8rem;
-  margin-top: 0.25rem;
+  text-align: right;
+}
+
+.import-queue__remove {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.import-queue__remove:hover {
+  color: var(--text-primary);
 }
 
 /* Progress Bar */
