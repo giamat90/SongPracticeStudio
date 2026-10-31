@@ -13,6 +13,8 @@ Ported from VPS (2026-10-10, VPS PR #3) and since moved into the shared `mps-cor
 
 The panel sits **above** the stems list, outside its scroller. Placed below the stems (the first attempt), six stem rows pushed it off-screen and the lyrics were never visible without scrolling; this was only noticed by running the app.
 
+Layout: docked, the karaoke view is capped at `15rem` (`.lyrics-view`). In a detached window the panel fills the window body and the view scrolls inside it (`.detached-host__body .lyrics-view`).
+
 ## Differences from VPS
 
 | | VPS | SPS |
