@@ -3530,6 +3530,22 @@ body,
   padding: 0.25rem 0;
 }
 
+/* In a detached window the panel owns the whole body: the lyrics fill it and scroll inside it */
+.detached-host__body > .lyrics-panel {
+  height: 100%;
+}
+
+.detached-host__body .lyrics-panel__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.detached-host__body .lyrics-view {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
 .lyrics-line {
   text-align: left;
   background: transparent;
