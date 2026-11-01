@@ -250,6 +250,53 @@ class TestImportFlow:
         assert target.is_dir()
 
 
+class TestFeedback:
+    def test_every_attempt_names_itself_and_restarts_the_bar(self, run):
+        _, _, _, events = run([BOT, BOT, INFO])
+        stages = []
+        for v, s in events:
+            if s.startswith("downloading") and (not stages or stages[-1] != s):
+                stages.append(s)
+        assert stages == [
+            "downloading",
+            "downloading (attempt 2 of 6: Chrome cookies)",
+            "downloading (attempt 3 of 6: Firefox cookies)",
+        ]
+        assert (0.0, "downloading (attempt 2 of 6: Chrome cookies)") in events
+
+    def test_a_download_of_unknown_size_is_reported_as_indeterminate(self, run, monkeypatch):
+        original = yt_importer.download_hook
+
+        def hook_factory(on_progress, stage):
+            hook = original(on_progress, stage)
+
+            def wrapped(d):
+                hook({"status": "downloading", "downloaded_bytes": 9})
+
+            return wrapped
+
+        monkeypatch.setattr(yt_importer, "download_hook", hook_factory)
+        _, _, _, events = run([INFO])
+        assert (-1.0, "downloading") in events
+
+    def test_attempts_fail_fast_instead_of_waiting_on_yt_dlps_long_defaults(self, run):
+        _, script, _, _ = run([INFO])
+        o = script.opts[0]
+        assert o["socket_timeout"] <= 30 and o["retries"] <= 3 and o["fragment_retries"] <= 3
+
+    def test_a_used_up_budget_stops_the_cascade_with_the_last_error(self, run, monkeypatch):
+        monkeypatch.setattr(yt_dlp.version, "__version__", "2999.1.1")
+
+        class Spent:
+            def expired(self):
+                return True
+
+        monkeypatch.setattr(yt_importer, "AttemptBudget", Spent)
+        with pytest.raises(DownloadError, match="final-0"):
+            run([DownloadError("final-0")] + [INFO] * 5)
+        assert len(run.last_script.opts) == 1
+
+
 class TestJsRuntime:
     """YouTube's signature/n challenges need a JS runtime. yt-dlp finds Deno on
     its own in a venv; the frozen sidecar must be pointed at the bundled copy."""

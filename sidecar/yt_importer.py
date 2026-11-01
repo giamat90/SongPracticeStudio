@@ -11,6 +11,7 @@ import yt_dlp
 from processor import process
 from mps_core.identity import artist_from_ytdlp
 from mps_core.version_check import MIN_YT_DLP_VERSION as _MIN_YT_DLP_VERSION
+from mps_core.yt_download import FAST_FAIL_OPTS, AttemptBudget, attempt_stage, download_hook
 
 _BROWSERS = ["chrome", "firefox", "edge", "brave", "opera"]
 
@@ -73,23 +74,14 @@ def import_yt(
     cookies_path: str | None = None,
 ) -> dict:
     """
-    Progress: download occupies 0.0–0.15, existing pipeline fills 0.15–1.0.
+    Progress: download occupies 0.0–0.15, existing pipeline fills 0.15–1.0. A download
+    of unknown size reports -1 (indeterminate); every attempt names itself in the stage.
     Returns the same dict as processor.process(), with 'title' added.
     """
     if on_progress is None:
         on_progress = lambda v, s: None
 
     os.makedirs(output_dir, exist_ok=True)
-    on_progress(0.0, "downloading")
-
-    def ydl_hook(d):
-        if d["status"] == "downloading":
-            total = d.get("total_bytes") or d.get("total_bytes_estimate") or 1
-            frac = min(d.get("downloaded_bytes", 0) / total, 1.0)
-            on_progress(frac * 0.15, "downloading")
-        elif d["status"] == "finished":
-            on_progress(0.15, "downloading")
-
     base_opts = {
         "format": "bestaudio/best",
         "outtmpl": os.path.join(output_dir, "source.%(ext)s"),
@@ -97,7 +89,7 @@ def import_yt(
         "quiet": True,
         "no_warnings": True,
         "noprogress": True,
-        "progress_hooks": [ydl_hook],
+        **FAST_FAIL_OPTS,
         **_js_runtime_opts(),
     }
 
@@ -122,9 +114,17 @@ def import_yt(
         print("[yt_importer] no cookiesPath configured", file=sys.stderr)
     attempts += [{}] + [{"cookiesfrombrowser": (b,)} for b in _BROWSERS]
     last_error: Exception | None = None
+    # A blocked connection fails every attempt slowly; stopping new attempts after a
+    # while surfaces the error instead of leaving the import looping silently.
+    budget = AttemptBudget()
 
-    for extra in attempts:
-        opts = {**base_opts, **extra}
+    for index, extra in enumerate(attempts):
+        if last_error is not None and budget.expired():
+            print("[yt_importer] attempt budget used up, giving up", file=sys.stderr)
+            break
+        stage = attempt_stage(index, len(attempts), extra)
+        on_progress(0.0, stage)
+        opts = {**base_opts, **extra, "progress_hooks": [download_hook(on_progress, stage)]}
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=True)
