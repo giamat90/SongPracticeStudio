@@ -6,6 +6,12 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.82] - 2026-11-01
+
+### Fixed
+- **A YouTube import that cannot reach the video now says so, instead of looping.** The bar used to climb to 15%, fall to 0 and repeat for many minutes. Each attempt now names itself (for example "attempt 2 of 7: Chrome cookies"), a download of unknown size shows a moving bar instead of a stuck percentage, and attempts give up sooner so the error appears within a few minutes.
+- **When nobody is signed in to YouTube, the error offers "Sign in to YouTube and retry"** instead of making you look for it in Settings.
+
 ## [0.0.81] - 2026-11-01
 
 ### Added
