@@ -10,32 +10,11 @@ interface DropZoneProps {
 
 function DropZone({ stems, highQuality }: DropZoneProps) {
   const uploadSong   = useLibraryStore((s) => s.uploadSong);
-  const processing   = useLibraryStore((s) => s.processing);
-  const isProcessing = processing !== null;
   const { pendingFile, fileName, pick, confirm, cancel } = useDropZone({
-    isProcessing,
+    isProcessing: false,
     pickFile,
     onUpload: (path) => uploadSong(path, stems, highQuality),
   });
-
-  if (isProcessing) {
-    return (
-      <div className="dropzone dropzone--busy">
-        <div className="dropzone__progress">
-          <div className="dropzone__stage">{processing.stage}</div>
-          <div className="progress-bar">
-            <div
-              className="progress-bar__fill"
-              style={{ width: `${Math.round(processing.progress * 100)}%` }}
-            />
-          </div>
-          <div className="dropzone__percent">
-            {Math.round(processing.progress * 100)}%
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (pendingFile) {
     return (
@@ -56,7 +35,7 @@ function DropZone({ stems, highQuality }: DropZoneProps) {
   }
 
   return (
-    <button className="dropzone" onClick={pick} disabled={isProcessing}>
+    <button className="dropzone" onClick={pick}>
       <div className="dropzone__idle">
         <div className="dropzone__icon">+</div>
         <div className="dropzone__label">Upload a song</div>

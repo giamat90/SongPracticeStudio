@@ -490,6 +490,7 @@ flowchart TB
 sequenceDiagram
     actor U as User
     participant DZ as DropZone + StemPicker
+    participant IQ as ImportQueue
     participant LS as library store
     participant R as commands.rs
     participant P as processor.py
@@ -497,6 +498,11 @@ sequenceDiagram
 
     U->>DZ: pick file and stems (guitar / piano optional)
     DZ->>LS: process(file, stems, highQuality)
+    opt another import is running
+        LS-->>IQ: queue (waits, in memory only)
+        U->>IQ: x removes a waiting import
+        Note over LS: starts when the one before it ends, even if that one failed
+    end
     LS->>R: invoke("process_song")
     R->>P: {"cmd":"process", stems, ...}
     P->>P: 1 Demucs separation (0 to 0.75)
@@ -509,6 +515,7 @@ sequenceDiagram
     P->>FS: meter.json
     P-->>R: {stems, duration, detectedBpm, detectedKey, chords}
     Note over R,LS: progress events "processing-progress" throughout
+    LS-->>IQ: running import: label, stage, percent
     R->>FS: library.json (Song with stems, hasChords)
     R-->>LS: Song
     LS-->>U: song in the library
