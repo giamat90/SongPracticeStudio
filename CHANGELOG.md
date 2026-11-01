@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.81] - 2026-11-01
+
+### Added
+- **Queue of songs to analyze.** You can keep adding songs while one is being analyzed. The import box and the YouTube box stay usable, the next songs wait in a list below them, and a song can be taken out of the list before it starts. The list is kept in memory only, so it is empty again after you close the app. The song being analyzed cannot be cancelled yet.
+
+### Fixed
+- **A detached lyrics window now uses its whole height.** The lyrics used to stop after about fifteen lines of text and leave the rest of the window empty; they now fill the window and scroll inside it. The lyrics panel docked in the main window is unchanged.
+
 ## [0.0.80] - 2026-10-26
 
 ### Fixed
