@@ -561,6 +561,18 @@ body,
   transition: width 0.3s ease;
 }
 
+/* Download of unknown size: a sliding bar instead of a percentage nobody knows */
+.progress-bar--indeterminate .progress-bar__fill {
+  width: 40%;
+  transition: none;
+  animation: progress-bar-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes progress-bar-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
 /* DropZone pending state */
 .dropzone--pending {
   cursor: default;

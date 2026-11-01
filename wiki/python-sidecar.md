@@ -88,7 +88,7 @@ Downloads a YouTube video as audio and runs it through the full `process` pipeli
 `cookiesPath` (optional) — absolute path to a user-exported Netscape-format `cookies.txt`; see the bot-detection fallback note below.
 
 Implemented in `yt_importer.py` via `yt-dlp`. Steps:
-1. Download best audio → `source.wav` (via FFmpegExtractAudio post-processor). Progress maps to 0–15%.
+1. Download best audio → `source.wav` (via FFmpegExtractAudio post-processor). Progress maps to 0–15% (`-1` when yt-dlp cannot say the size; each cookie attempt restarts the bar and names itself in the stage; see `youtube-signin.md`).
 2. Run `processor.process(source_wav, output_dir)`. Progress maps to 15–100%.
 
 Returns the same dict as `process`, with `"title"` added (from yt-dlp metadata).

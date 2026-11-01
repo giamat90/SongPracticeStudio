@@ -241,7 +241,7 @@ function RootDropZone({ isDropTarget, children }: { isDropTarget: boolean; child
 
 function LibraryPage({ onSelectSong }: LibraryPageProps) {
   const {
-    isLoading, error, sessionExpired, hasContent, sortedFolders, rootSongs, songsByFolder,
+    isLoading, error, sessionExpired, signInNeeded, hasContent, sortedFolders, rootSongs, songsByFolder,
     searching, matches, folderNameOf, deleteSong, renameSong, renameFolder, deleteFolder, clearError,
     signInAndRetryYoutube, dropTarget, handleDragOver, handleDragCancel, handleDragEnd, showAbout, openAbout, closeAbout, showSettings, toggleSettings,
     appVersion, highQuality, setHighQuality, query, setQuery, clearQuery, isCreatingFolder, startCreatingFolder,
@@ -316,12 +316,12 @@ function LibraryPage({ onSelectSong }: LibraryPageProps) {
       {error && (
         <div className="library-page__error" role="alert">
           <span className="library-page__error-msg">{error}</span>
-          {sessionExpired && (
+          {(sessionExpired || signInNeeded) && (
             <button
               className="library-page__error-action"
               onClick={signInAndRetryYoutube}
             >
-              Sign in again and retry
+              {signInNeeded ? "Sign in to YouTube and retry" : "Sign in again and retry"}
             </button>
           )}
           <button
