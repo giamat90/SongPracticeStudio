@@ -209,6 +209,14 @@ function LyricsPanel({ songId, hasVocals }: LyricsPanelProps) {
                 <button className="lyrics-panel__btn" onClick={p.removeLyrics} disabled={busy}>
                   Remove
                 </button>
+                <button
+                  className="lyrics-panel__btn"
+                  onClick={() => p.setFollow(!p.follow)}
+                  aria-pressed={p.follow}
+                  title="Light the line being sung and scroll to it as the song plays. Off: the lyrics stay still; clicking a line still jumps to it."
+                >
+                  Follow song: {p.follow ? "on" : "off"}
+                </button>
               </div>
               <div className="lyrics-view" ref={p.listRef}>
                 {lyrics.lines.map((line, i) => {
