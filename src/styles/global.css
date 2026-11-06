@@ -5249,3 +5249,55 @@ button.stem-track__take-name {
     animation-duration: 2.4s;
   }
 }
+
+
+/* Default audio setup (Settings) */
+.audio-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.audio-setup__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.audio-setup__hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.audio-setup__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.audio-setup__note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.audio-setup__reset {
+  align-self: flex-start;
+  background: var(--bg-surface);
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 0.3rem 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.audio-setup__reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

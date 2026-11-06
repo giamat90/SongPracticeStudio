@@ -1969,3 +1969,82 @@ describe("operation locks", () => {
     expect(h.api.renameTakeApi).not.toHaveBeenCalled();
   });
 });
+
+
+// ─── the remembered audio setup ────────────────────────────────────────────
+
+describe("remembered audio setup", () => {
+  const KEY = "sps_settings";
+  const saved = () => JSON.parse(localStorage.getItem(KEY) ?? "{}").audioSetup;
+  const seed = (audioSetup: unknown) => localStorage.setItem(KEY, JSON.stringify({ audioSetup }));
+
+  it("picking an input or an output is saved with its name", async () => {
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    await store().getState().fetchOutputDevices();
+    store().getState().setAudioDevice("mic-ub");
+    await store().getState().setOutputDevice("out-ub");
+    expect(saved()).toEqual({
+      input: { id: "mic-ub", label: "Microphone (2-Behringer USB WDM Audio)" },
+      output: { id: "out-ub", label: expect.stringContaining("Speakers") },
+    });
+  });
+
+  it("picking the system default forgets the choice", async () => {
+    seed({ input: { id: "mic-ub", label: "x" }, output: { id: "out-ub", label: "y" } });
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    await store().getState().fetchOutputDevices();
+    store().getState().setAudioDevice(null);
+    await store().getState().setOutputDevice(null);
+    expect(saved()).toEqual({ input: null, output: null });
+  });
+
+  it("a new session starts on the saved devices, and the output reaches the audio engine", async () => {
+    seed({ input: { id: "mic-ub", label: "x" }, output: { id: "out-ub", label: "y" } });
+    await freshModule();
+    expect(store().getState().selectedDeviceId).toBeNull();
+    await store().getState().fetchAudioDevices();
+    await store().getState().fetchOutputDevices();
+    expect(store().getState()).toMatchObject({ selectedDeviceId: "mic-ub", selectedOutputDeviceId: "out-ub" });
+    expect(eng().setOutputDevice).toHaveBeenCalledWith("out-ub");
+  });
+
+  it("keeps a saved device that is not connected, and uses the default meanwhile", async () => {
+    const gone = { id: "usb-gone", label: "USB Mic" };
+    seed({ input: gone, output: { id: "out-gone", label: "Old Speakers" } });
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    await store().getState().fetchOutputDevices();
+    expect(store().getState()).toMatchObject({ selectedDeviceId: null, selectedOutputDeviceId: null });
+    expect(saved().input).toEqual(gone);
+  });
+
+  it("finds the device again by name when its id changed, and saves the new id", async () => {
+    seed({ input: { id: "old-id", label: "Microphone (2-Behringer USB WDM Audio)" }, output: null });
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    expect(store().getState().selectedDeviceId).toBe("mic-ub");
+    expect(saved().input.id).toBe("mic-ub");
+  });
+
+  it("picks the saved device up when it is plugged in later", async () => {
+    seed({ input: { id: "mic-new", label: "New Mic" }, output: null });
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    expect(store().getState().selectedDeviceId).toBeNull();
+    currentDevices = [...DEVICES, device("audioinput", "mic-new", "New Mic")];
+    deviceChange!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(store().getState().selectedDeviceId).toBe("mic-new");
+  });
+
+  it("does not override what the user picked in this session", async () => {
+    seed({ input: { id: "mic-ub", label: "x" }, output: null });
+    await freshModule();
+    await store().getState().fetchAudioDevices();
+    store().getState().setAudioDevice(null);
+    await store().getState().fetchAudioDevices();
+    expect(store().getState().selectedDeviceId).toBeNull();
+  });
+});
