@@ -6,6 +6,34 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.84] - 2026-11-06
+
+### Fixed
+- Controls that would race a running procedure are now disabled (still visible, the reason in the tooltip) and their store actions refuse: while a song loads or a transpose runs, playback, Record, a second transpose, exports and Back are locked; while a take is analyzing, a new recording, transpose, take rename/delete and Back are locked; while recording or counting in, transpose is locked. SPS has no Monitor, so that lock never applies.
+
+### Added
+- One audio setup for every song: the input and output you pick are remembered across songs and restarts. Settings (the gear in the library) has a "Default audio setup" with the two pickers and "Use the system defaults"; a remembered device that is not connected is named there and used again when it returns. The output picker no longer needs an open song. The recording latency is kept per input, so it follows the input.
+- The window says what it is busy with: a thin bar across the top and a pill at the bottom left ("Transposing…", "Opening song…", "Analyzing take…", exports). It appears only after 0.3 s, so quick actions show nothing, and it names the last started task and counts the others. Work that already had its own progress (imports, lyrics sync, updates) keeps it.
+
+## [0.0.83] - 2026-11-03
+
+### Added
+- **The lyrics can stop following the song.** A new "Follow song: on/off" button next to Edit and Remove turns off the lit line and word and the automatic scrolling, so the lyrics stay still. Clicking a line still jumps to it. It is on by default, and the choice is kept for every song.
+
+## [0.0.82] - 2026-11-01
+
+### Fixed
+- **A YouTube import that cannot reach the video now says so, instead of looping.** The bar used to climb to 15%, fall to 0 and repeat for many minutes. Each attempt now names itself (for example "attempt 2 of 7: Chrome cookies"), a download of unknown size shows a moving bar instead of a stuck percentage, and attempts give up sooner so the error appears within a few minutes.
+- **When nobody is signed in to YouTube, the error offers "Sign in to YouTube and retry"** instead of making you look for it in Settings.
+
+## [0.0.81] - 2026-11-01
+
+### Added
+- **Queue of songs to analyze.** You can keep adding songs while one is being analyzed. The import box and the YouTube box stay usable, the next songs wait in a list below them, and a song can be taken out of the list before it starts. The list is kept in memory only, so it is empty again after you close the app. The song being analyzed cannot be cancelled yet.
+
+### Fixed
+- **A detached lyrics window now uses its whole height.** The lyrics used to stop after about fifteen lines of text and leave the rest of the window empty; they now fill the window and scroll inside it. The lyrics panel docked in the main window is unchanged.
+
 ## [0.0.80] - 2026-10-26
 
 ### Fixed

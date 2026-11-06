@@ -1,3 +1,4 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
 import type { AudioEngine } from "../../audio/engine";
 import { countInPlan } from "./countInSlice";
 import { clampCapo, readCapos } from "./prefs";
@@ -5,6 +6,7 @@ import { disposeRecorder, getEngine } from "./singletons";
 import { meterReset } from "./meterSlice";
 import { mixerReset } from "./mixerSlice";
 import { punchReset } from "./timelineSlice";
+import { useActivityStore } from "../activity";
 import { recordingReset } from "./recordingSlice";
 import { takesReset } from "./takesSlice";
 import type { Getter, Setter, Slice, TransportSlice } from "./types";
@@ -57,11 +59,19 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   currentTime: 0,
   duration: 0,
   playbackRate: 1.0,
+  isLoadingSong: false,
 
   loadSong: async (song, containers) => {
     get().cancelCountIn();
     const eng = getEngine();
-    if (!(await eng.load(song.directory, song.stems, containers))) return;
+    set({ isLoadingSong: true });
+    let loaded: boolean;
+    try {
+      loaded = await useActivityStore.getState().track("Opening song…", () => eng.load(song.directory, song.stems, containers));
+    } finally {
+      set({ isLoadingSong: false });
+    }
+    if (!loaded) return;
     attachEngineHandlers(eng, set, get);
     const initialVolumes = Object.fromEntries(song.stems.map((n) => [n, 1.0]));
     const baselinePxPerSec = eng.getMinPxPerSec();
@@ -87,6 +97,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   },
 
   play: () => {
+    if (operationLocks(get()).playback !== null) return;
     const eng = getEngine();
     const { punchIn } = get();
     if (punchIn !== null) {
@@ -106,6 +117,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   // (the recording flow starts the engine directly, and the chord editor's "With song" plays a loop).
   togglePlay: () => {
     const s = get();
+    if (operationLocks(s).playback !== null) return;
     if (s.isCountingIn) {
       // Only the count-in before Play is the transport's to cancel; a recording's belongs to the Record button.
       if (s.countInFor === "play") s.cancelCountIn();
@@ -119,12 +131,14 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
   },
 
   stop: () => {
+    if (operationLocks(get()).playback !== null) return;
     get().cancelCountIn();
     getEngine().stop();
     set({ isPlaying: false, currentTime: 0 });
   },
 
   seek: (time) => {
+    if (operationLocks(get()).playback !== null) return;
     getEngine().seekTo(time);
     set({ currentTime: time });
   },

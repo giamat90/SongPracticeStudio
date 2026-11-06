@@ -20,8 +20,8 @@ function ExportMixButton() {
     <button
       className="analyzer-page__export-mix"
       onClick={() => void mix.onExport()}
-      disabled={!mix.canExport || mix.isExporting}
-      title={mix.canExport ? "Export the currently audible mix as a WAV file" : "No audible tracks to export"}
+      disabled={!mix.canExport || mix.isExporting || mix.lockReason !== null}
+      title={mix.lockReason ?? (mix.canExport ? "Export the currently audible mix as a WAV file" : "No audible tracks to export")}
       aria-label={mix.canExport ? "Export the currently audible mix as a WAV file" : "No audible tracks to export"}
     >
       {mix.isExporting ? "Exporting…" : "Export Mix"}

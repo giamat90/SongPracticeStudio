@@ -1,3 +1,4 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
 import { showTake } from "@giamat90/mps-core/takes";
 import type { AudioEngine } from "../../audio/engine";
 import { saveTake } from "../../lib/tauri";
@@ -115,7 +116,7 @@ export const createRecordingSlice: Slice<RecordingSlice> = (set, get) => ({
 
   startRecording: async () => {
     const { song } = get();
-    if (!song) return;
+    if (!song || operationLocks(get()).record !== null) return;
 
     // With "mute takes while recording" on (the default), drop the selected take
     // before recording a new one: every take stays saved (takes.json is never

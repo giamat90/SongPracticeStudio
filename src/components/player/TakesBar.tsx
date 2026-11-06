@@ -1,3 +1,4 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
 import { useState } from "react";
 import { usePlayerStore, TAKE_TRACK_KEY } from "../../stores/player";
 
@@ -18,6 +19,7 @@ function TakesBar() {
   const toggleSolo = usePlayerStore((s) => s.toggleSolo);
   const takeCount = usePlayerStore((s) => s.takes.length);
   const deleteAllTakes = usePlayerStore((s) => s.deleteAllTakes);
+  const takeEditLock = usePlayerStore((s) => operationLocks(s).takeEdit);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -92,8 +94,8 @@ function TakesBar() {
         <button
           className="stem-track__download takes-bar__delete"
           onClick={() => setConfirming(true)}
-          disabled={takeCount === 0 || deleting}
-          title="Delete all the recorded takes"
+          disabled={takeCount === 0 || deleting || takeEditLock !== null}
+          title={takeEditLock ?? "Delete all the recorded takes"}
           aria-label="Delete all takes"
         >
           &times;

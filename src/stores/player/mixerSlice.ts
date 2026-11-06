@@ -1,3 +1,5 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
+import { useActivityStore } from "../activity";
 import { pitchShiftSong } from "../../lib/tauri";
 import type { Song } from "../../lib/types";
 import { applyEffectiveVolumes } from "./audioMix";
@@ -46,13 +48,14 @@ export const createMixerSlice: Slice<MixerSlice> = (set, get) => ({
 
   setTranspose: async (semitones) => {
     const { song, transpose } = get();
-    if (!song || semitones === transpose) return;
+    if (!song || semitones === transpose || operationLocks(get()).transpose !== null) return;
 
     getEngine().pause();
     set({ isTransposing: true, isPlaying: false });
 
     try {
-      await getEngine().reloadStemsFromPaths(await transposedPaths(song, semitones));
+      const paths = await transposedPaths(song, semitones);
+      await useActivityStore.getState().track("Loading stems…", () => getEngine().reloadStemsFromPaths(paths));
       set({ transpose: semitones, isTransposing: false });
     } catch (e) {
       set({ isTransposing: false });

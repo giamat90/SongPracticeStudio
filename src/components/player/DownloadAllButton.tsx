@@ -17,8 +17,8 @@ function DownloadAllButton({ song }: { song: Song }) {
     <button
       className="analyzer-page__download-all"
       onClick={() => void download.onDownload()}
-      disabled={download.isExporting}
-      title="Download all stems and takes as a zip archive"
+      disabled={download.isExporting || download.lockReason !== null}
+      title={download.lockReason ?? "Download all stems and takes as a zip archive"}
     >
       {download.isExporting ? "Zipping…" : "Download All"}
     </button>

@@ -1,4 +1,6 @@
+import { resolveSavedDevice, toSavedDevice } from "@giamat90/mps-core/audio-setup";
 import { chordSynth } from "../../audio/chordSynth";
+import { useSettingsStore } from "../settings";
 import { loadOffsets, persistOffsets } from "./prefs";
 import { getEngine } from "./singletons";
 import type { CalibrationEntry, DevicesSlice, Getter, Setter, Slice } from "./types";
@@ -40,6 +42,40 @@ function markStaleCalibrations(
   return { offsets: next, changed };
 }
 
+async function applyOutput(deviceId: string): Promise<void> {
+  chordSynth.setOutputDevice(deviceId);
+  await getEngine().setOutputDevice(deviceId);
+}
+
+// The input and output the user picked live in the settings (one choice for every song and
+// every start). Whenever the device lists are known, a pick the session does not hold yet is
+// taken from there; a saved device that is not connected waits, and the system default is used.
+function restoreInput(set: Setter, get: Getter): void {
+  if (get().selectedDeviceId !== null) return;
+  const settings = useSettingsStore.getState();
+  const saved = settings.audioSetup.input;
+  const { id } = resolveSavedDevice(saved, get().audioDevices);
+  if (id === null) return;
+  set({ selectedDeviceId: id });
+  if (saved !== null && id !== saved.id) settings.setAudioInput(toSavedDevice(id, get().audioDevices));
+}
+
+async function restoreOutput(set: Setter, get: Getter): Promise<void> {
+  if (get().selectedOutputDeviceId !== null) return;
+  const settings = useSettingsStore.getState();
+  const saved = settings.audioSetup.output;
+  const { id } = resolveSavedDevice(saved, get().outputDevices);
+  if (id === null) return;
+  try {
+    await applyOutput(id);
+  } catch (e) {
+    console.warn("[devices] could not restore the saved output:", e);
+    return;
+  }
+  set({ selectedOutputDeviceId: id });
+  if (saved !== null && id !== saved.id) settings.setAudioOutput(toSavedDevice(id, get().outputDevices));
+}
+
 async function handleDeviceChange(set: Setter, get: Getter): Promise<void> {
   const current = await navigator.mediaDevices.enumerateDevices();
   const currentIds = new Set(current.map((d) => d.deviceId));
@@ -53,6 +89,8 @@ async function handleDeviceChange(set: Setter, get: Getter): Promise<void> {
     audioDevices: current.filter((d) => d.kind === "audioinput"),
     outputDevices: current.filter((d) => d.kind === "audiooutput"),
   });
+  restoreInput(set, get);
+  await restoreOutput(set, get);
 
   const { offsets, changed } = markStaleCalibrations(get().recordingOffsets, currentIds);
   if (changed) {
@@ -83,11 +121,13 @@ export const createDevicesSlice: Slice<DevicesSlice> = (set, get) => ({
     const devices = await navigator.mediaDevices.enumerateDevices();
     set({ audioDevices: devices.filter((d) => d.kind === "audioinput") });
     knownDeviceIds = new Set(devices.map((d) => d.deviceId));
+    restoreInput(set, get);
     watchDeviceChanges(set, get);
   },
 
   setAudioDevice: (deviceId) => {
     set({ selectedDeviceId: deviceId });
+    useSettingsStore.getState().setAudioInput(toSavedDevice(deviceId, get().audioDevices));
   },
 
   setRecordingOffset: (deviceId, offsetMs) => {
@@ -108,11 +148,12 @@ export const createDevicesSlice: Slice<DevicesSlice> = (set, get) => ({
     await probeMicPermission("output device list may be incomplete");
     const devices = await navigator.mediaDevices.enumerateDevices();
     set({ outputDevices: devices.filter((d) => d.kind === "audiooutput") });
+    await restoreOutput(set, get);
   },
 
   setOutputDevice: async (deviceId) => {
-    chordSynth.setOutputDevice(deviceId ?? "");
-    await getEngine().setOutputDevice(deviceId ?? "");
+    await applyOutput(deviceId ?? "");
     set({ selectedOutputDeviceId: deviceId });
+    useSettingsStore.getState().setAudioOutput(toSavedDevice(deviceId, get().outputDevices));
   },
 });

@@ -7,6 +7,7 @@ function ImportQueue() {
   const removeFromQueue = useLibraryStore((s) => s.removeFromQueue);
 
   if (!processing && queue.length === 0) return null;
+  const indeterminate = (processing?.progress ?? 0) < 0;
   const percent = Math.round((processing?.progress ?? 0) * 100);
 
   return (
@@ -15,11 +16,11 @@ function ImportQueue() {
         <div className="import-queue__running">
           <div className="import-queue__row">
             <span className="import-queue__label" title={label ?? undefined}>{label}</span>
-            <span className="import-queue__percent">{percent}%</span>
+            {!indeterminate && <span className="import-queue__percent">{percent}%</span>}
           </div>
           <div className="import-queue__stage">{processing.stage}</div>
-          <div className="progress-bar">
-            <div className="progress-bar__fill" style={{ width: `${percent}%` }} />
+          <div className={indeterminate ? "progress-bar progress-bar--indeterminate" : "progress-bar"}>
+            <div className="progress-bar__fill" style={indeterminate ? undefined : { width: `${percent}%` }} />
           </div>
         </div>
       )}

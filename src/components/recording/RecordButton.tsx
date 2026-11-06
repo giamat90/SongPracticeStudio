@@ -9,8 +9,8 @@ function RecordButton() {
       <button
         className={`record-btn ${rec.isRecording ? "record-btn--active" : ""} ${rec.isCountingIn ? "record-btn--counting-in" : ""} ${rec.isSavingTake ? "record-btn--saving" : ""}`}
         onClick={rec.onRecordClick}
-        disabled={rec.isSavingTake}
-        title={rec.recordLabel}
+        disabled={rec.isSavingTake || rec.lockReason !== null}
+        title={rec.lockReason ?? rec.recordLabel}
         aria-label={rec.recordLabel}
       >
         {rec.isCountingIn ? (

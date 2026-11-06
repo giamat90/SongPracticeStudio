@@ -12,19 +12,26 @@ function TransportControls() {
         <button
           className="transport__btn"
           onClick={transport.skipToStart}
-          disabled={transport.isRecording}
-          title="Skip to start"
+          disabled={transport.isRecording || transport.lockReason !== null}
+          title={transport.lockReason ?? "Skip to start"}
           aria-label="Skip to start"
         >
           &#9198;
         </button>
-        <button className="transport__btn" onClick={transport.onStop} title="Stop" aria-label="Stop">
+        <button
+          className="transport__btn"
+          onClick={transport.onStop}
+          disabled={transport.lockReason !== null}
+          title={transport.lockReason ?? "Stop"}
+          aria-label="Stop"
+        >
           &#9632;
         </button>
         <button
           className={`transport__btn transport__btn--play ${transport.isCountingIn ? "transport__btn--counting-in" : ""}`}
           onClick={transport.togglePlay}
-          title={transport.playLabel}
+          disabled={transport.lockReason !== null}
+          title={transport.lockReason ?? transport.playLabel}
           aria-label={transport.playLabel}
         >
           {transport.isCountingIn ? transport.countInBeatsRemaining : transport.isPlaying ? "❚❚" : "▶"}
@@ -33,8 +40,8 @@ function TransportControls() {
         <button
           className="transport__btn"
           onClick={transport.skipToEnd}
-          disabled={transport.isRecording}
-          title="Skip to end"
+          disabled={transport.isRecording || transport.lockReason !== null}
+          title={transport.lockReason ?? "Skip to end"}
           aria-label="Skip to end"
         >
           &#9197;

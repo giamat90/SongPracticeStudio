@@ -21,7 +21,7 @@ describe("settings store of this app", () => {
 
   it("saves under sps_settings only, in the shape older versions read", async () => {
     (await freshStore()).getState().setFolderCollapsed("a", true);
-    expect(JSON.parse(localStorage.getItem(KEY) ?? "{}")).toEqual({ youtubeCookiesPath: null, collapsedFolders: { a: true } });
+    expect(JSON.parse(localStorage.getItem(KEY) ?? "{}")).toEqual({ youtubeCookiesPath: null, collapsedFolders: { a: true }, audioSetup: { input: null, output: null } });
     expect(localStorage.length).toBe(1);
     expect(localStorage.key(0)).toBe(KEY);
   });
