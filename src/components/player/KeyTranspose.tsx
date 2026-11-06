@@ -5,7 +5,7 @@ function KeyTranspose() {
   const key = useKeyTranspose(usePlayerStore);
 
   return (
-    <div className="key-transpose">
+    <div className="key-transpose" title={key.lockReason ?? undefined}>
       <span className="key-transpose__label">Transpose</span>
       <div className="key-transpose__controls">
         <button
