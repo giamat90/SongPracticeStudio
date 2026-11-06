@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [Unreleased]
+
+### Fixed
+- Controls that would race a running procedure are now disabled (still visible, the reason in the tooltip) and their store actions refuse: while a song loads or a transpose runs, playback, Record, a second transpose, exports and Back are locked; while a take is analyzing, a new recording, transpose, take rename/delete and Back are locked; while recording or counting in, transpose is locked. SPS has no Monitor, so that lock never applies.
+
+### Added
+- The window says what it is busy with: a thin bar across the top and a pill at the bottom left ("Transposing…", "Opening song…", "Analyzing take…", exports). It appears only after 0.3 s, so quick actions show nothing, and it names the last started task and counts the others. Work that already had its own progress (imports, lyrics sync, updates) keeps it.
+
 ## [0.0.80] - 2026-10-26
 
 ### Fixed

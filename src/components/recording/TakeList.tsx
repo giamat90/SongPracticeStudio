@@ -1,3 +1,4 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
 import { formatTakeDate, useTakeList } from "@giamat90/mps-core/hooks";
 import { usePlayerStore, takesSilenced } from "../../stores/player";
 import { exportTake } from "../../lib/tauri";
@@ -15,6 +16,7 @@ function TakeList() {
     onMount: fetchTakes,
   });
   const { takes, editingId, editValue, setEditValue, exportingId } = list;
+  const editLock = usePlayerStore((s) => operationLocks(s).takeEdit);
   const collapse = usePanelCollapse("takes");
   const title = (
     <h3 className="take-list__title">
@@ -68,7 +70,7 @@ function TakeList() {
             ) : (
               <span
                 className="take-item__name"
-                onDoubleClick={(e) => list.startEditing(e, take, i)}
+                onDoubleClick={(e) => editLock === null && list.startEditing(e, take, i)}
                 title="Double-click to rename"
               >
                 {list.displayName(take, i)}
@@ -80,7 +82,8 @@ function TakeList() {
             <button
               className="take-item__rename"
               onClick={(e) => list.startEditing(e, take, i)}
-              title="Rename take"
+              disabled={editLock !== null}
+              title={editLock ?? "Rename take"}
               aria-label="Rename take"
             >
               &#9998;
@@ -97,7 +100,8 @@ function TakeList() {
             <button
               className="take-item__delete"
               onClick={(e) => list.remove(e, take)}
-              title="Delete take"
+              disabled={editLock !== null}
+              title={editLock ?? "Delete take"}
               aria-label="Delete take"
             >
               &times;

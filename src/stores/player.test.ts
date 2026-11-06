@@ -1905,3 +1905,67 @@ describe("a take's own mixer", () => {
     expect(out.sources.filter((x) => !x.isTake)).toEqual(before.sources.filter((x) => !x.isTake));
   });
 });
+
+
+// ─── operation locks ───────────────────────────────────────────────────────
+
+describe("operation locks", () => {
+  it("setTranspose is refused while recording, counting in or saving a take", async () => {
+    await loadedSong();
+    h.api.pitchShiftSong.mockResolvedValue({ stems: {} });
+    for (const busy of [{ isRecording: true }, { isCountingIn: true }, { isSavingTake: true }]) {
+      store().setState({ isRecording: false, isCountingIn: false, isSavingTake: false, ...busy });
+      await store().getState().setTranspose(2);
+    }
+    expect(h.api.pitchShiftSong).not.toHaveBeenCalled();
+    expect(store().getState().transpose).toBe(0);
+  });
+
+  it("a second setTranspose is refused while one is running", async () => {
+    await loadedSong();
+    let release!: (v: unknown) => void;
+    h.api.pitchShiftSong.mockReturnValue(new Promise((r) => { release = r; }));
+    const first = store().getState().setTranspose(1);
+    await store().getState().setTranspose(4);
+    expect(h.api.pitchShiftSong).toHaveBeenCalledTimes(1);
+    release({ stems: {} });
+    await first;
+    expect(store().getState().transpose).toBe(1);
+  });
+
+  it("play, togglePlay, seek and startRecording do nothing while transposing", async () => {
+    await loadedSong();
+    store().setState({ isTransposing: true });
+    store().getState().play();
+    store().getState().togglePlay();
+    store().getState().seek(10);
+    await store().getState().startRecording();
+    expect(eng().play).not.toHaveBeenCalled();
+    expect(eng().seekTo).not.toHaveBeenCalled();
+    expect(rec().init).not.toHaveBeenCalled();
+  });
+
+  it("isLoadingSong is set while the song loads and cleared afterwards, even on failure", async () => {
+    await loadedSong();
+    expect(store().getState().isLoadingSong).toBe(false);
+    let release!: (v: boolean) => void;
+    eng().load.mockReturnValue(new Promise<boolean>((r) => { release = r; }));
+    const pending = loadedSong();
+    expect(store().getState().isLoadingSong).toBe(true);
+    release(true);
+    await pending;
+    expect(store().getState().isLoadingSong).toBe(false);
+    eng().load.mockRejectedValue(new Error("bad"));
+    await expect(loadedSong()).rejects.toThrow("bad");
+    expect(store().getState().isLoadingSong).toBe(false);
+  });
+
+  it("deleteTake and renameTake are refused while a take is being saved", async () => {
+    await loadedSong();
+    store().setState({ takes: [take()], isSavingTake: true });
+    await store().getState().deleteTake("t1");
+    await store().getState().renameTake("t1", "x");
+    expect(h.api.deleteTakeApi).not.toHaveBeenCalled();
+    expect(h.api.renameTakeApi).not.toHaveBeenCalled();
+  });
+});

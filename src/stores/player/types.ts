@@ -23,6 +23,7 @@ export interface TransportSlice {
   currentTime: number;
   duration: number;
   playbackRate: number;
+  isLoadingSong: boolean;
   loadSong: (song: Song, containers: Record<string, HTMLElement>) => Promise<void>;
   play: () => void;
   pause: () => void;

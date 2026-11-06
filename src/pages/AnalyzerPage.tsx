@@ -1,3 +1,4 @@
+import { operationLocks } from "@giamat90/mps-core/locks";
 import { useEffect, type ReactNode } from "react";
 import StemView from "../components/player/StemView";
 import DownloadAllButton from "../components/player/DownloadAllButton";
@@ -60,6 +61,7 @@ interface AnalyzerPageProps {
 function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
   const songs   = useLibraryStore((s) => s.songs);
   const cleanup = usePlayerStore((s) => s.cleanup);
+  const leaveLock = usePlayerStore((s) => operationLocks(s).leave);
   const transpose = usePlayerStore((s) => s.transpose);
   const mutedStems = usePlayerStore((s) => s.mutedStems);
   const soloedStem = usePlayerStore((s) => s.soloedStem);
@@ -147,7 +149,12 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
     <div className="analyzer-page">
       <div className="analyzer-page__pinned">
         <header className="analyzer-page__header">
-          <button className="analyzer-page__back" onClick={onBack}>
+          <button
+            className="analyzer-page__back"
+            onClick={onBack}
+            disabled={leaveLock !== null}
+            title={leaveLock ?? undefined}
+          >
             &larr; Back
           </button>
           <div className="analyzer-page__song-info">

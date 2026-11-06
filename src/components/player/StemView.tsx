@@ -1,3 +1,4 @@
+import { useActivityStore } from "../../stores/activity";
 import { useEffect, useRef, useState } from "react";
 import { usePlayerStore, getEngine, takesSilenced } from "../../stores/player";
 import TimeRuler from "./TimeRuler";
@@ -84,7 +85,7 @@ function StemView({ song }: StemViewProps) {
       const rail = takeRails.current.get(take.id);
       if (!rail || loadedTakes.current.get(take.id) === rail) continue;
       loadedTakes.current.set(take.id, rail);
-      eng.loadTakeTrack(take.id, take.filepath, rail, take.startPosition, take.audioOffset ?? 0, take.manualOffset ?? 0)
+      useActivityStore.getState().track("Loading take…", () => eng.loadTakeTrack(take.id, take.filepath, rail, take.startPosition, take.audioOffset ?? 0, take.manualOffset ?? 0))
         .then(() => setTakeVolume(usePlayerStore.getState().takeVolume))
         .catch((e: unknown) => {
           if (loadedTakes.current.get(take.id) === rail) loadedTakes.current.delete(take.id);
