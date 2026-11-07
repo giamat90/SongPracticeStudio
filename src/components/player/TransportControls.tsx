@@ -2,6 +2,7 @@ import { useTransportControls } from "@giamat90/mps-core/hooks";
 import { usePlayerStore } from "../../stores/player";
 import RecordButton from "../recording/RecordButton";
 import CountInButton from "./CountInButton";
+import MasterVolume from "./MasterVolume";
 
 function TransportControls() {
   const transport = useTransportControls(usePlayerStore, { stopEndsRecording: false });
@@ -51,6 +52,7 @@ function TransportControls() {
           {transport.currentText} / {transport.durationText}
         </span>
       </div>
+      <MasterVolume />
     </div>
   );
 }

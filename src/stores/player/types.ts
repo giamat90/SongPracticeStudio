@@ -40,11 +40,14 @@ export interface MixerSlice {
   stemVolumes: Record<string, number>;
   mutedStems: Record<string, boolean>;
   soloedStem: string | null;
+  // The level above every stem and the take; the listening level, kept across songs.
+  masterVolume: number;
   // Key transpose (ported from VPS): active semitone shift, phase-vocoder
   // rendered per-stem and cached under {songDir}/pitched/{n}/.
   transpose: number;
   isTransposing: boolean;
   setStemVolume: (name: StemName | string, volume: number) => void;
+  setMasterVolume: (volume: number) => void;
   toggleMute: (name: string) => void;
   toggleSolo: (name: string) => void;
   setTranspose: (semitones: number) => Promise<void>;

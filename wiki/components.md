@@ -6,7 +6,7 @@
 
 
 
-> **Logic in mps-core hooks.** `MicSelector`, `OutputSelector`, `KeyTranspose`, `TempoControl`, `LoopButton`, `RecordButton`, `CountInButton`, `TransportControls`, `ExportMixButton` and `DownloadAllButton` hold markup and CSS classes only; their state, effects and handlers are `@giamat90/mps-core/hooks` (`useMicSelect`, `useOutputSelect`, `useKeyTranspose`, `useTempoControl`, `useLoopToggle`, `useCountInButton`, `useRecordButton`, `useTransportControls`, `useExportMix`, `useDownloadAll`), which take the player store and the IPC functions as arguments. What differs between VPS and SPS is an option (`stopEndsRecording`, the `watch` selectors of the mix export, `trackEntries`) or stays in the markup (aria-labels, wording).
+> **Logic in mps-core hooks.** `MicSelector`, `OutputSelector`, `KeyTranspose`, `TempoControl`, `LoopButton`, `RecordButton`, `CountInButton`, `TransportControls`, `ExportMixButton` and `DownloadAllButton` hold markup and CSS classes only; their state, effects and handlers are `@giamat90/mps-core/hooks` (`useMicSelect`, `useOutputSelect`, `useKeyTranspose`, `useTempoControl`, `useLoopToggle`, `useCountInButton`, `useRecordButton`, `useTransportControls`, `useMasterVolume`, `useExportMix`, `useDownloadAll`), which take the player store and the IPC functions as arguments. What differs between VPS and SPS is an option (`stopEndsRecording`, the `watch` selectors of the mix export, `trackEntries`) or stays in the markup (aria-labels, wording).
 
 
 
@@ -41,7 +41,7 @@ App
 
 │   ├── topbar (pinned with the header)
 
-│   │   ├── TransportControls  — skip, Stop, Play, Record (renders RecordButton), current time display
+│   │   ├── TransportControls  — skip, Stop, Play, Record (renders RecordButton), current time display, master volume
 
 │   │   ├── LoopButton         — punch-loop toggle
 
@@ -454,6 +454,8 @@ All of `tX`/`xToTime` (coordinate mapping), `modeForOffset` (handle hit-testing)
 
 
 ### TransportControls
+
+**Master volume (2026-11-07).** `MasterVolume` (`components/player/MasterVolume.tsx`, headless `useMasterVolume`) sits at the right end of the transport bar: a speaker button (click mutes and brings the level back) and a 0 to 100% slider. It is the `masterVolume` field of the mixer slice (`setMasterVolume` clamps, saves to `localStorage` key `mps_master_volume`, and pushes the volumes), multiplied into the gain `applyEffectiveVolumes` gives the player, so a track's own slider, mute and solo keep their meaning and a mixed-down export (`buildMixSources`) ignores it. It covers the song tracks and the takes; the metronome, the count-in and the live monitor keep their own levels. Pinned by the mixer tests in `stores/player.test.ts` and `TransportControls.test.ts`.
 
 
 

@@ -4,7 +4,7 @@ import { countInPlan } from "./countInSlice";
 import { clampCapo, readCapos } from "./prefs";
 import { disposeRecorder, getEngine } from "./singletons";
 import { meterReset } from "./meterSlice";
-import { mixerReset } from "./mixerSlice";
+import { mixerReset, pushVolumes } from "./mixerSlice";
 import { punchReset } from "./timelineSlice";
 import { useActivityStore } from "../activity";
 import { recordingReset } from "./recordingSlice";
@@ -92,6 +92,7 @@ export const createTransportSlice: Slice<TransportSlice> = (set, get) => ({
       metronomeOffset: Math.max(0, Math.min(eng.getDuration(), song.metronomeOffset ?? 0)),
       capo: clampCapo(Number(readCapos()[song.id]) || 0),
     });
+    pushVolumes(get);
     get().fetchTakes();
     get().loadMeter(song.id).catch((e: unknown) => console.error("[player] loading the bars failed:", e));
   },
