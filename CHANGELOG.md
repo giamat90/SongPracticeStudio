@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.85] - 2026-11-07
+
+### Added
+- A master volume: a speaker button and a 0 to 100% slider at the right end of the transport bar. It sits above every stem and the takes, so one control sets the listening level while the mix balance stays as it is; the stem sliders, mute and solo work as before. The speaker mutes and brings the level back. The level is kept across songs and restarts, and applies as soon as a song opens. It does not change an exported mix, the metronome or the count-in.
+
+### Changed
+- Shared code updated to mps-core 0.24.0 (the master volume module and hook).
+
 ## [0.0.84] - 2026-11-06
 
 ### Fixed

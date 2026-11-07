@@ -1,3 +1,4 @@
+import { applyMaster } from "@giamat90/mps-core/master";
 import { audibleTakes, type TakeSelection } from "@giamat90/mps-core/takes";
 import type { AudioEngine } from "../../audio/engine";
 import type { MixSource } from "../../lib/tauri";
@@ -23,6 +24,8 @@ export function effectiveStemGain(
 }
 
 // Compute and push effective volume for every loaded stem, plus the take (if any).
+// The master level is applied here, on the way to the player; buildMixSources (the export)
+// keeps the tracks' own balance.
 export function applyEffectiveVolumes(
   eng: AudioEngine,
   stems: readonly string[],
@@ -30,11 +33,12 @@ export function applyEffectiveVolumes(
   mutedStems: Record<string, boolean>,
   soloedStem: string | null,
   takeVolume: number,
+  masterVolume = 1,
 ) {
   for (const name of stems) {
-    eng.setStemVolume(name, effectiveStemGain(name, stemVolumes[name] ?? 1.0, mutedStems, soloedStem));
+    eng.setStemVolume(name, applyMaster(effectiveStemGain(name, stemVolumes[name] ?? 1.0, mutedStems, soloedStem), masterVolume));
   }
-  eng.setTakeVolume(effectiveStemGain(TAKE_TRACK_KEY, takeVolume, mutedStems, soloedStem));
+  eng.setTakeVolume(applyMaster(effectiveStemGain(TAKE_TRACK_KEY, takeVolume, mutedStems, soloedStem), masterVolume));
 }
 
 // A take soloed on its own lane only chooses among the takes; it never touches the

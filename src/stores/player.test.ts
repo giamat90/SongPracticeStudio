@@ -413,6 +413,49 @@ describe("mixer", () => {
     expect(store().getState().stemVolumes.drums).toBe(0.3);
   });
 
+  it("master volume scales every stem and the take, and leaves the sliders alone", () => {
+    store().getState().setStemVolume("drums", 0.6);
+    store().getState().setMasterVolume(0.5);
+    expect(lastVolumes()).toEqual({ vocals: 0.5, drums: 0.3, bass: 0.5 });
+    expect(eng().setTakeVolume).toHaveBeenLastCalledWith(0.5);
+    expect(store().getState().stemVolumes.drums).toBe(0.6);
+  });
+
+  it("master volume 0 silences everything, and raising it restores the balance", () => {
+    store().getState().setMasterVolume(0);
+    expect(lastVolumes()).toEqual({ vocals: 0, drums: 0, bass: 0 });
+    store().getState().setMasterVolume(1);
+    expect(lastVolumes()).toEqual({ vocals: 1, drums: 1, bass: 1 });
+  });
+
+  it("master volume works with solo", () => {
+    store().getState().setMasterVolume(0.5);
+    store().getState().toggleSolo("drums");
+    expect(lastVolumes()).toEqual({ vocals: 0, drums: 0.5, bass: 0 });
+  });
+
+  it("master volume reaches the take's volume when the take is set", () => {
+    store().getState().setMasterVolume(0.4);
+    store().getState().setTakeVolume(0.5);
+    expect(eng().setTakeVolume).toHaveBeenLastCalledWith(0.2);
+  });
+
+  it("master volume is clamped, kept for the next start, and not part of an exported mix", () => {
+    store().getState().setMasterVolume(3);
+    expect(store().getState().masterVolume).toBe(1);
+    store().getState().setMasterVolume(0.3);
+    expect(localStorage.getItem("mps_master_volume")).toBe("0.3");
+    const out = mod.buildMixSources({ ...store().getState(), stemVolumes: {}, duration: 200 })!;
+    expect(out.sources.map((x) => x.gain)).toEqual([1, 1, 1]);
+  });
+
+  it("a song loaded under a saved master level plays at it", async () => {
+    store().getState().setMasterVolume(0.5);
+    eng().setStemVolume.mockClear();
+    await loadedSong();
+    expect(lastVolumes()).toEqual({ vocals: 0.5, drums: 0.5, bass: 0.5 });
+  });
+
   it("mute silences the engine but remembers the slider, so unmute restores it exactly", () => {
     store().getState().setStemVolume("vocals", 0.35);
     store().getState().toggleMute("vocals");
