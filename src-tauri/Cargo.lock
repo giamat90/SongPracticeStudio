@@ -2179,7 +2179,7 @@ dependencies = [
 [[package]]
 name = "mps-detached-windows"
 version = "0.1.0"
-source = "git+https://github.com/giamat90/mps-core?tag=v0.23.0#879f2943e6f0f6b136293b7977a7e5417a5836bf"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.24.0#804c19df87c7c6fd1a64ee4f579b5407651eaaa2"
 dependencies = [
  "log",
  "serde",
@@ -2190,7 +2190,7 @@ dependencies = [
 [[package]]
 name = "mps-sidecar"
 version = "0.1.0"
-source = "git+https://github.com/giamat90/mps-core?tag=v0.23.0#879f2943e6f0f6b136293b7977a7e5417a5836bf"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.24.0#804c19df87c7c6fd1a64ee4f579b5407651eaaa2"
 dependencies = [
  "log",
  "serde",
@@ -2200,7 +2200,7 @@ dependencies = [
 [[package]]
 name = "mps-youtube-signin"
 version = "0.7.0"
-source = "git+https://github.com/giamat90/mps-core?tag=v0.23.0#879f2943e6f0f6b136293b7977a7e5417a5836bf"
+source = "git+https://github.com/giamat90/mps-core?tag=v0.24.0#804c19df87c7c6fd1a64ee4f579b5407651eaaa2"
 dependencies = [
  "log",
  "tauri",
@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "song-practice-studio"
-version = "0.0.84"
+version = "0.0.85"
 dependencies = [
  "chrono",
  "dirs",
