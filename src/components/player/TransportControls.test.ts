@@ -11,6 +11,8 @@ const h = vi.hoisted(() => ({
     isCountingIn: false,
     countInFor: null as string | null,
     countInBeatsRemaining: 0,
+    masterVolume: 0.8,
+    setMasterVolume: () => {},
     togglePlay: () => {},
     stop: () => {},
     stopRecording: async () => {},
@@ -58,6 +60,13 @@ describe("TransportControls", () => {
     ];
     expect(order.every((i) => i >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it("ends with the master volume, showing its level", () => {
+    const html = render();
+    expect(html.indexOf("master-volume")).toBeGreaterThan(html.indexOf('role="timer"'));
+    expect(html).toContain("80%");
+    expect(html).toContain('aria-label="Master volume"');
   });
 
   it("shows the elapsed and total time", () => {

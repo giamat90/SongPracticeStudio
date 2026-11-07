@@ -1,6 +1,6 @@
 {
   "name": "vps",
-  "version": "0.0.84",
+  "version": "0.0.85",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,7 +26,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@giamat90/mps-core": "github:giamat90/mps-core#v0.23.0",
+    "@giamat90/mps-core": "github:giamat90/mps-core#v0.24.0",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-process": "^2.3.1",

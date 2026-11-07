@@ -1,3 +1,4 @@
+import { applyMaster } from "@giamat90/mps-core/master";
 import { operationLocks } from "@giamat90/mps-core/locks";
 import { hideTake, reconcileTakes, showTake, toggleTake, type TakeSelection } from "@giamat90/mps-core/takes";
 import type { Take } from "../../lib/types";
@@ -164,6 +165,6 @@ export const createTakesSlice: Slice<TakesSlice> = (set, get) => ({
   setTakeVolume: (v) => {
     set({ takeVolume: v });
     const { mutedStems, soloedStem } = get();
-    getEngine().setTakeVolume(effectiveStemGain(TAKE_TRACK_KEY, v, mutedStems, soloedStem));
+    getEngine().setTakeVolume(applyMaster(effectiveStemGain(TAKE_TRACK_KEY, v, mutedStems, soloedStem), get().masterVolume));
   },
 });

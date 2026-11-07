@@ -1,3 +1,4 @@
+import { clampMaster, loadMasterVolume, saveMasterVolume } from "@giamat90/mps-core/master";
 import { operationLocks } from "@giamat90/mps-core/locks";
 import { useActivityStore } from "../activity";
 import { pitchShiftSong } from "../../lib/tauri";
@@ -10,9 +11,9 @@ export function mixerReset(stemVolumes: Record<string, number>) {
   return { stemVolumes, mutedStems: {}, soloedStem: null, transpose: 0, isTransposing: false };
 }
 
-function pushVolumes(get: Getter): void {
-  const { song, stemVolumes, mutedStems, soloedStem, takeVolume } = get();
-  if (song) applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, soloedStem, takeVolume);
+export function pushVolumes(get: Getter): void {
+  const { song, stemVolumes, mutedStems, soloedStem, takeVolume, masterVolume } = get();
+  if (song) applyEffectiveVolumes(getEngine(), song.stems, stemVolumes, mutedStems, soloedStem, takeVolume, masterVolume);
 }
 
 async function transposedPaths(song: Song, semitones: number): Promise<Record<string, string>> {
@@ -27,8 +28,16 @@ export const createMixerSlice: Slice<MixerSlice> = (set, get) => ({
   stemVolumes: {},
   mutedStems: {},
   soloedStem: null,
+  masterVolume: loadMasterVolume(),
   transpose: 0,
   isTransposing: false,
+
+  setMasterVolume: (volume) => {
+    const masterVolume = clampMaster(volume);
+    set({ masterVolume });
+    saveMasterVolume(masterVolume);
+    pushVolumes(get);
+  },
 
   setStemVolume: (name, volume) => {
     set({ stemVolumes: { ...get().stemVolumes, [name]: volume } });
