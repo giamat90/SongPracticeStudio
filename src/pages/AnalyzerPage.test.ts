@@ -43,7 +43,7 @@ vi.mock("../components/player/ExportChartButton", h.stub("exportChart"));
 vi.mock("../components/player/LoopsMenu", h.stub("loops"));
 vi.mock("../components/player/ChordRoll", h.stub("roll"));
 vi.mock("../components/player/MeterPanel", h.stub("meter"));
-vi.mock("../components/tab/TabPanel", h.stub("songTab"));
+vi.mock("../components/tab/TabPanel", h.stub("tab"));
 vi.mock("../components/player/OutputSelector", h.stub("output"));
 vi.mock("../components/player/MonitorControl", h.stub("monitor"));
 vi.mock("../components/recording/MicSelector", h.stub("mic"));
@@ -89,7 +89,7 @@ async function render(
 }
 
 const shown = (html: string) => [...html.matchAll(/data-c="(\w+)"/g)].map((m) => m[1]);
-const OPTIONAL = ["lyrics", "takes"];
+const OPTIONAL = ["tab", "lyrics", "takes"];
 const DETACHABLE = ["chords", ...OPTIONAL];
 
 beforeEach(() => {
@@ -171,7 +171,7 @@ describe("AnalyzerPage panels", () => {
   });
 
   it("always keeps the stems and the controls, however much is hidden", async () => {
-    const ids = shown(await render({ lyrics: false, takes: false }));
+    const ids = shown(await render({ tab: false, lyrics: false, takes: false }));
     expect(ids).toEqual(expect.arrayContaining(["stems", "transport", "loop", "tempo", "transpose", "mic", "output", "chords"]));
     expect(ids.filter((c) => OPTIONAL.includes(c))).toEqual([]);
   });
@@ -189,7 +189,7 @@ describe("AnalyzerPage panels", () => {
 
   it("puts a detach handle on every docked optional panel, and none on the stems", async () => {
     const html = await render();
-    expect([...html.matchAll(/data-panel="(\w+)"/g)].map((m) => m[1]).sort()).toEqual(["chords", "lyrics", "takes"]);
+    expect([...html.matchAll(/data-panel="(\w+)"/g)].map((m) => m[1]).sort()).toEqual(["chords", "lyrics", "tab", "takes"]);
   });
 
   it.each(DETACHABLE)("a detached %s leaves the page, its handle with it, and nothing else", async (id) => {
@@ -231,19 +231,19 @@ describe("AnalyzerPage panels", () => {
     expect(/data-ids="([^"]*)"/.exec(html)?.[1]).not.toContain("chords");
   });
 
-  it("gives the roll, meter, lyrics and takes a movable slot", async () => {
-    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(4);
+  it("gives the tab, roll, meter, lyrics and takes a movable slot", async () => {
+    expect((await render()).match(/class="sortable-panel/g)).toHaveLength(5);
   });
 
   it("offers the Panels menu every optional panel, and not the chords", async () => {
     const html = await render();
-    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("roll,meter,lyrics,takes");
+    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("tab,roll,meter,lyrics,takes");
   });
 
   it("offers a second menu, Cards, with every card of the top bar", async () => {
     const html = await render();
     expect([...html.matchAll(/data-ids="([^"]*)"/g)].map((m) => m[1])).toEqual([
-      "roll,meter,lyrics,takes",
+      "tab,roll,meter,lyrics,takes",
       "transport,loop,tempo,devices,transpose,chords",
     ]);
   });
@@ -278,15 +278,15 @@ describe("AnalyzerPage cards", () => {
     const html = await render({}, undefined, {}, { chords: false });
     expect(bar(html)).not.toContain('data-c="chords"');
     expect(bar(html)).not.toContain('aria-label="Chords"');
-    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("roll,meter,lyrics,takes");
+    expect(/data-ids="([^"]*)"/.exec(html)?.[1]).toBe("tab,roll,meter,lyrics,takes");
   });
 
   it("is not affected by hiding panels, and does not hide them", async () => {
-    const html = await render({ roll: false, meter: false, lyrics: false, takes: false });
+    const html = await render({ tab: false, roll: false, meter: false, lyrics: false, takes: false });
     expect(bar(html).match(/class="topbar-section/g)).toHaveLength(6);
     const cardsHidden = await render({}, undefined, {}, { transport: false, loop: false, tempo: false, devices: false, transpose: false, chords: false });
     expect(bar(cardsHidden)).not.toContain("topbar-section");
-    for (const c of ["roll", "meter", "lyrics", "takes", "stems"]) expect(cardsHidden).toContain(`data-c="${c}"`);
+    for (const c of ["tab", "roll", "meter", "lyrics", "takes", "stems"]) expect(cardsHidden).toContain(`data-c="${c}"`);
   });
 
   it("a Chords card whose carousel is in a window of its own keeps the detail select", async () => {
@@ -325,9 +325,9 @@ describe("AnalyzerPage waveform area", () => {
 
   it("lists the song's own stems under the waveforms in the Panels menu", async () => {
     const fixed = (html: string) => /data-fixed="([^"]*)"/.exec(html)?.[1];
-    expect(fixed(await render())).toBe("waveforms,vocals,drums,songTab");
+    expect(fixed(await render())).toBe("waveforms,vocals,drums");
     withBass();
-    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass,songTab");
+    expect(fixed(await render())).toBe("waveforms,vocals,drums,bass");
   });
 
   it("tells the menu which hidden stem is muted or soloed", async () => {

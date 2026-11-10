@@ -15,7 +15,7 @@
 | [Dev Setup](dev-setup.md) | Prerequisites, dev.bat, build commands, and local dev notes |
 | [UI Polish](ui-polish.md) | Design tokens, `polish.css` layer, accessibility conventions |
 | [Lyrics Sync](lyrics.md) | Forced alignment of lyrics to the vocals stem: design, wire protocol, accuracy, tests (ported from VPS) |
-| [Detachable panels](detachable-panels.md) | Drag chords / lyrics / takes into their own window and back: the bridge, the commands, `windows.rs`, how to try it |
+| [Detachable panels](detachable-panels.md) | Drag chords / lyrics / takes / tab into their own window and back: the bridge, the commands, `windows.rs`, how to try it |
 | [Shared code](shared-core.md) | What comes from `@giamat90/mps-core`, the wiring in this repo, how to change or bump it |
 | [YouTube sign-in](youtube-signin.md) | In-app Google sign-in that produces the cookies file for YouTube import, plus the bundled Deno runtime (ported from VPS) |
 | [Tab sync](tab-sync.md) | Import a Guitar Pro tab and place its bars on the recording: data flow, the alignment algorithm and its measured accuracy, limits, storage |

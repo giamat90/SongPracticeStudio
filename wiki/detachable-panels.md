@@ -1,6 +1,6 @@
 # Detachable panels
 
-Any optional panel of the analyzer page can be dragged out into a window of its own, for a second monitor: **Chords** (the carousel of the Chords card in the top bar), **Lyrics** and **Takes**. Lyrics and Takes are shown or hidden from the Panels menu; the Chords card from the Cards menu (`sps_topbar`), which closes its window the same way. The waveforms, mixer, transport and microphone stay in the main window. Ported from VPS (see `MPS/wiki/lineage.md`); on branch `feat/detachable-panels`, not released.
+Any optional panel of the analyzer page can be dragged out into a window of its own, for a second monitor: **Chords** (the carousel of the Chords card in the top bar), **Lyrics**, **Takes** and **Tab**. Lyrics, Takes and Tab are shown or hidden from the Panels menu; the Chords card from the Cards menu (`sps_topbar`), which closes its window the same way. The waveforms, mixer, transport and microphone stay in the main window. Ported from VPS (see `MPS/wiki/lineage.md`); on branch `feat/detachable-panels`, not released.
 
 ## The model
 
@@ -36,6 +36,7 @@ The window handling is shared with VPS in mps-core's `mps-detached-windows` crat
 - In the detached window: Dock button, closing the window, or carrying the ⋮⋮ grip in its bar over the main window and releasing. Moving the window by its title bar never docks it.
 - Hiding a detached panel in the Panels menu closes its window; the menu marks panels that are "own window". Leaving the analyzer page closes every detached window, and so does closing the main window.
 - Lyrics sync, find online and edit work from the detached window (the commands and `lyrics-progress` are app-wide). The docked panel reloads `lyrics.json` when it is mounted again.
+- The Tab panel (`TabPanel`, `detached` prop) reads the song, the duration, the transpose and the playhead from the mirrored state and seeks through the bridge's `seek` command; the tab itself (record, alignment, edits) it loads from disk with the app-wide tab commands when it mounts, and a bar correction, re-align or tuning change is saved the same way. There is no file dialog in a detached window (`capabilities/detached.json`), so **Import / Replace tab…** is not offered there: with no tab imported the panel says to import one from the main window. The docked panel loads the stored tab again when it is mounted again, so changes made in the window appear after docking.
 
 ## Trying it by hand
 

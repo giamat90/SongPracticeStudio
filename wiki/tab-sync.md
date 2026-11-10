@@ -50,7 +50,7 @@ On 12 real full-band GP8 tabs and the stems SPS had made for them (alignment its
 - **Repeats** come from the tab's repeat signs; a tab that writes a repeated section out in full is fine, and a recording that does not repeat what the tab repeats is a mismatch.
 - **Free time** (a long rubato intro, a tempo the band does not hold) is outside the +-8 s band and the 0.5-2 slope.
 - **Which beat the user calls "one"** is whatever the tab's bar lines say; a tab that starts on a pickup has its bar 1 line before the first note.
-- Not detachable into its own window (not in `ANALYZER_PANELS`); the Tab panel is one of the show/hide entries under the stems (`waveforms.ts`, `songTab`).
+- The Tab panel is one of the movable, detachable panels (`tab` in `ANALYZER_PANELS` and `DETACHABLE_PANELS`, first in the Panels menu; it left `waveforms.ts`, so the old `songTab` choice in `sps_waveforms` is ignored and the panel shows once). In its own window it cannot import a tab (no file dialog there); everything else works, see `wiki/detachable-panels.md`.
 - Tabs are the user's own files and never leave the machine.
 
 ## Editing the tab (strings)
