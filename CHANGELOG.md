@@ -6,6 +6,14 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.86] - 2026-11-10
+
+### Added
+- **The Tab panel can be moved into a window of its own**, like Lyrics and Takes: drag its grip past the edge of the window or press the pop-out button. In its window the tab follows the playhead, a click on a beat moves the song, and editing, tuning and correcting a bar work as before. Importing or replacing a tab is done in the main window (a detached window has no file dialog). The Tab panel can now also be dragged to a new place among the panels.
+
+### Changed
+- The Tab panel is in the Panels menu with the other panels, first in the list. If you had hidden it before, it shows once and can be hidden again.
+
 ## [0.0.85] - 2026-11-07
 
 ### Added

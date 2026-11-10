@@ -3,6 +3,7 @@ import { detachedTitle, dockSafely, useBridgeRun } from "@giamat90/mps-core/hook
 import ChordCarousel from "../components/player/ChordCarousel";
 import DockHandle from "../components/panels/DockHandle";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
+import TabPanel from "../components/tab/TabPanel";
 import TakeList from "../components/recording/TakeList";
 import { canSyncLyrics } from "../lib/lyrics";
 import { dockPanel } from "../lib/tauri";
@@ -15,6 +16,7 @@ const TITLES: Record<DetachablePanel, string> = {
   chords: "Chords",
   lyrics: "Lyrics",
   takes: "Takes",
+  tab: "Tab",
 };
 
 interface DetachedHostProps {
@@ -33,6 +35,8 @@ function PanelBody({ panel, song }: { panel: DetachablePanel; song: Song }) {
       return <LyricsPanel songId={song.id} hasVocals={canSyncLyrics(song.stems)} />;
     case "takes":
       return <TakeList />;
+    case "tab":
+      return <TabPanel song={song} detached />;
   }
 }
 

@@ -5,6 +5,7 @@ import { createPanelStore } from "@giamat90/mps-core/panels";
 // The chord carousel is not one of them: it sits in the top bar and is a card
 // (`topbar.ts`, the Cards menu), so it is listed in one place only.
 export const ANALYZER_PANELS = [
+  { id: "tab", label: "Tab", defaultVisible: true },
   { id: "roll", label: "Chord roll", defaultVisible: true },
   { id: "meter", label: "Meter", defaultVisible: true },
   { id: "lyrics", label: "Lyrics", defaultVisible: true },
