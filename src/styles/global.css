@@ -2020,7 +2020,8 @@ body,
 }
 
 .analyzer-page__lyrics,
-.analyzer-page__takes {
+.analyzer-page__takes,
+.analyzer-page__tab {
   flex-shrink: 0;
 }
 

@@ -20,7 +20,7 @@ export { EVT_COMMAND, EVT_DOCKED, EVT_HELLO, EVT_STATE };
 export type { TransportSnapshot };
 
 /** Every optional panel of the analyzer page. Must match `plan` in src-tauri/src/windows.rs. */
-export const DETACHABLE_PANELS = ["chords", "lyrics", "takes"] as const;
+export const DETACHABLE_PANELS = ["chords", "lyrics", "takes", "tab"] as const;
 export type DetachablePanel = (typeof DETACHABLE_PANELS)[number];
 
 const windows = definePanelWindows<DetachablePanel>(DETACHABLE_PANELS);

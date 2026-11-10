@@ -60,10 +60,12 @@ function parseSaved(raw: string): SavedEdits {
 
 interface TabPanelProps {
   song: Song;
+  /** In a window of its own: no file dialog there, so a tab is imported from the main window. */
+  detached?: boolean;
 }
 
 /** A Guitar Pro tab that follows the recording: import a file and it is placed on the song's timeline. */
-export default function TabPanel({ song }: TabPanelProps) {
+export default function TabPanel({ song, detached = false }: TabPanelProps) {
   const record = useTabStore((s) => s.record);
   const status = useTabStore((s) => s.status);
   const progress = useTabStore((s) => s.progress);
@@ -492,9 +494,11 @@ export default function TabPanel({ song }: TabPanelProps) {
                 ))}
               </select>
             )}
-            <button className="tab-panel__btn" onClick={chooseFile} disabled={busy}>
-              {record ? "Replace tab…" : "Import tab…"}
-            </button>
+            {!detached && (
+              <button className="tab-panel__btn" onClick={chooseFile} disabled={busy}>
+                {record ? "Replace tab…" : "Import tab…"}
+              </button>
+            )}
             {record && (
               <>
                 {aligned && (
@@ -572,7 +576,13 @@ export default function TabPanel({ song }: TabPanelProps) {
             </div>
           )}
 
-          {!record && !busy && status !== "loading" && (
+          {!record && !busy && status !== "loading" && detached && (
+            <p className="tab-panel__hint">
+              No tab is imported for this song. Import one from the main window (dock this panel, then Import tab…).
+            </p>
+          )}
+
+          {!record && !busy && status !== "loading" && !detached && (
             <p className="tab-panel__hint">
               Import a Guitar Pro tab ({TAB_EXTENSIONS.map((e) => `.${e}`).join(", ")}) of this song. SPS places its bars on
               the recording so the tab follows the music, using the separated stems. Nothing is uploaded.

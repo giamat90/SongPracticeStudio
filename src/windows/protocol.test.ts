@@ -29,8 +29,8 @@ const shared = {
 const transport = { time: 1, playing: false, rate: 1, sentAt: 100 };
 
 describe("detachable panels", () => {
-  it("are the three optional panels of the analyzer page", () => {
-    expect([...DETACHABLE_PANELS]).toEqual(["chords", "lyrics", "takes"]);
+  it("are the optional panels of the analyzer page that need no audio engine", () => {
+    expect([...DETACHABLE_PANELS]).toEqual(["chords", "lyrics", "takes", "tab"]);
   });
 
   it("round-trip through the window label", () => {

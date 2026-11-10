@@ -48,10 +48,10 @@ function Detachable({ panel, inline, children }: { panel: DetachablePanel; inlin
 }
 
 // The chord carousel lives in the topbar; these are the panels stacked under the tracks.
-const BODY_PANELS: readonly AnalyzerPanelId[] = ["roll", "meter", "lyrics", "takes"];
+const BODY_PANELS: readonly AnalyzerPanelId[] = ["tab", "roll", "meter", "lyrics", "takes"];
 
 const slotClass = (id: AnalyzerPanelId) =>
-  id === "roll" ? "analyzer-page__roll" : id === "meter" ? "analyzer-page__meter" : id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : undefined;
+  id === "roll" ? "analyzer-page__roll" : id === "meter" ? "analyzer-page__meter" : id === "lyrics" ? "analyzer-page__lyrics" : id === "takes" ? "analyzer-page__takes" : id === "tab" ? "analyzer-page__tab" : undefined;
 
 interface AnalyzerPageProps {
   songId: string;
@@ -189,7 +189,6 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
           <div className={`analyzer-page__waveforms${waveformsShown ? "" : " analyzer-page__waveforms--collapsed"}`}>
             <StemView song={song} />
           </div>
-          {waveformVisible.songTab && <TabPanel song={song} />}
         </div>
 
         <SortablePanels store={useAnalyzerPanels} ids={onScreen} className={slotClass}>
@@ -205,7 +204,7 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
             </div>
           ) : (
             <Detachable panel={id}>
-              {id === "lyrics" ? <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} /> : <TakeList />}
+              {id === "lyrics" ? <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} /> : id === "tab" ? <TabPanel song={song} /> : <TakeList />}
             </Detachable>
           )}
         </SortablePanels>

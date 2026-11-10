@@ -152,7 +152,7 @@ SongPracticeStudio/
 │   │   ├── (audio setup)      the picked input and output are saved in `settings.ts` (`audioSetup`, by id and name) by `setAudioDevice` / `setOutputDevice` and restored by the devices slice whenever the device lists are known; `components/settings/AudioSetupControl.tsx` is the Settings section
 │   │   ├── (operation locks)  `operationLocks` from `@giamat90/mps-core/locks` guards the player store's play/seek/record/transpose/take actions and disables the matching controls; `isLoadingSong` and `isTransposing` feed it
 │   │   ├── activity.ts        what the window is busy with (createActivityStore from mps-core); slow IPC commands arrive through `lib/trackedInvoke.ts` + `lib/activityLabels.ts`, other waits call `track` themselves; shown by `components/activity/ActivityIndicator.tsx`
-│   │   └── waveforms.ts        ← whether the stem area and the imported tab are shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
+│   │   └── waveforms.ts        ← whether the stem area is shown, and whether each stem is expanded or shrunk to its strip (`sps_waveforms`); hidden = collapsed, never unmounted
 │   ├── windows/               ← detachable panels: SPS-specific state and commands on top of `@giamat90/mps-core/windows` (wiki/detachable-panels.md)
 │   ├── lib/types.ts            ← Song, StemName, Take, ChordSegment, ProcessingStatus
 │   ├── lib/tauri.ts            ← re-exports ipc.generated.ts + the event listeners (onProcessingProgress, onTabProgress)
@@ -199,9 +199,9 @@ SongPracticeStudio/
 │   │   ├── panels/
 │   │   │   ├── SortableTopbar.tsx ← the pinned top bar: its cards in the user's order, wrapping with the window, each with a grip (⋮⋮) that moves it anywhere inside the bar (own drag context, clamped to the bar; double-click a grip to restore the usual order)
 │   │   │   ├── PanelTitle.tsx     ← a panel's name as the button that folds it (the Lyrics panel's button)
-│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area, its stems and the Tab panel first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
+│   │   │   └── PanelMenu.tsx      ← Panels menu in the analyzer header: tick which panels are shown; lists the stem area and its stems first; with `labels` it is also the Cards menu of the top bar (the chord carousel is a card, listed there only)
 │   │   ├── tab/
-│   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (below the stems; Panels menu "Tab")
+│   │   │   ├── TabPanel.tsx       ← import a Guitar Pro tab, alignment state, track menu, correct a bar (a movable, detachable panel, `tab` in `panels.ts`, Panels menu "Tab"; `detached` prop hides Import there)
 │   │   │   ├── TabScoreView.tsx   ← alphaTab notation with our own cursor from the stored bar times; click a beat to seek (a click picks a note while editing)
 │   │   │   └── TabNoteEditor.tsx  ← the row under the tab while Edit is on: previous / next bar, the string above / below for the picked note, undo / redo, revert to imported (TuxGuitar's keys: Shift+Up/Down, Left/Right, Alt+Left/Right, Ctrl+Z)
 │   │   ├── lyrics/
