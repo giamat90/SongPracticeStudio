@@ -18,7 +18,7 @@ import {
   type BarMap,
 } from "@giamat90/mps-core/meter";
 import { barRange, barTitle, formatStamp, groupPresets, parseCycle, parseGroups, type ApplyScope } from "../../lib/meterView";
-import { getEngine, usePlayerStore } from "../../stores/player";
+import { getPlayheadTime, usePlayerStore } from "../../stores/player";
 import type { Song } from "../../lib/types";
 
 interface Props {
@@ -92,7 +92,7 @@ export default function MeterEditor({ song, map, selected }: Props) {
   }, [tapSession, tapNow]);
 
   const [from, to] = map && bar && selected !== null ? barRange(map, selected, scope) : [0, 0];
-  const now = () => getEngine().getCurrentTime();
+  const now = () => getPlayheadTime();
 
   const relabel = (patch: Parameters<typeof relabelBars>[3]) => {
     if (!map || selected === null) return;

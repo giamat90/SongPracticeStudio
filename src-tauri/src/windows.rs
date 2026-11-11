@@ -14,6 +14,7 @@ const PANELS: &[PanelSpec] = &[
     PanelSpec { id: "lyrics", title: "Lyrics", width: 560.0, height: 640.0 },
     PanelSpec { id: "takes", title: "Takes", width: 420.0, height: 560.0 },
     PanelSpec { id: "tab", title: "Tab", width: 960.0, height: 420.0 },
+    PanelSpec { id: "meter", title: "Meter", width: 900.0, height: 620.0 },
 ];
 
 /// Where each panel window last was, read from SPS's data directory.

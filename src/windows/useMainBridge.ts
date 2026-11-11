@@ -5,6 +5,7 @@ import { useDetachedStore } from "../stores/detached";
 import { useAnalyzerPanels } from "../stores/panels";
 import { useTopbarOrder } from "../stores/topbar";
 import { takesSilenced, usePlayerStore } from "../stores/player";
+import { computeHitEnvelope } from "../components/player/useHitEnvelope";
 import { startMainBridge } from "./mainBridge";
 import { DETACHABLE_PANELS, EVT_DOCKED } from "./protocol";
 
@@ -38,6 +39,7 @@ export function useMainBridge(): void {
         listen: (event, cb) => listen(event, (e) => cb(e.payload)),
         now: () => Date.now(),
         takesSilenced: () => takesSilenced(usePlayerStore.getState()),
+        hitEnvelope: computeHitEnvelope,
       }),
     ids: DETACHABLE_PANELS,
     panels: hideable,

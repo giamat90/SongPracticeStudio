@@ -8,7 +8,7 @@ import {
 } from "@giamat90/mps-core/meter";
 import { clearMeterEdits, hasMeterEdits, readSongMeter, redetectSongMeter, saveMeterEdits } from "../../lib/tauri";
 import { persistClickDensity, readClickDensity } from "./prefs";
-import { getEngine } from "./singletons";
+import { getPlayheadTime } from "./singletons";
 import type { MeterEntry, MeterSlice, Slice } from "./types";
 
 const HISTORY_LIMIT = 40;
@@ -159,10 +159,12 @@ export const createMeterSlice: Slice<MeterSlice> = (set, get) => {
 
     startTapping: (session) => set({ tapSession: { ...session, taps: [] }, meterError: null }),
 
-    tapNow: () => {
+    tapNow: () => get().addTap(getPlayheadTime()),
+
+    addTap: (time) => {
       const session = get().tapSession;
       if (!session) return;
-      set({ tapSession: { ...session, taps: [...session.taps, getEngine().getCurrentTime()] } });
+      set({ tapSession: { ...session, taps: [...session.taps, time] } });
     },
 
     finishTapping: async () => {

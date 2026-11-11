@@ -27,7 +27,7 @@ Rust: `src-tauri/src/meter.rs` (`MeterDoc`, validation that mirrors the frontend
 
 ## The panel
 
-`MeterPanel.tsx` (Panels menu "Meter", between the chord roll and the lyrics; not detachable, it needs decoded audio):
+`MeterPanel.tsx` (Panels menu "Meter", between the chord roll and the lyrics; detachable: the main window keeps the bars and sends the drums' envelope, see detachable-panels.md):
 
 - **Header:** where the bars came from ("Your bars", "Detected, 60% sure", "From the tempo, not checked", "Tapped in"), a readout of the bar under the playhead (`Bar 17 of 120 · 7/8 (3+2+2) · 215 pulses a minute`), *Find bars*, *Start from the tempo* (four beats to a bar at the detected BPM from the downbeat marker), *Undo*, *Discard my changes*.
 - **Summary:** the signatures the song spends its time in (share of time) and, when bar lengths repeat, the pattern (`Repeats 5+7`). A tenth of the bars may break the pattern (a cut-short last bar).
