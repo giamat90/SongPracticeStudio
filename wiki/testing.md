@@ -102,3 +102,7 @@ python chord_eval.py --manifest songs.json --set _SWITCH_COST=0.2          # try
 - New sidecar command → a branch in `main.py`, a case in `tests/test_protocol.py` (its handled-commands test lists them all).
 - Bumped the yt-dlp floor → change `MIN_YT_DLP_VERSION` in `mps-core`, then both requirements files here and in VPS (see MPS conventions #10).
 - Shared code (metronome, recorder, zoom/pan, updater store, lyrics engine and slice, version check) is tested in `mps-core`; see [Shared code](shared-core.md). Its tests no longer run here.
+
+## CI cost
+
+CI cost assumes this repo is public; revisit triggers before changing visibility. PR runs cancel older runs on the same branch; docs-only changes (`wiki/**`, `**.md`) start no test job.
