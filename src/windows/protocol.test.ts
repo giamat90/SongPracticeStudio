@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { BarMap } from "@giamat90/mps-core/meter";
 import {
   DETACHABLE_PANELS,
   detachedLabel,
@@ -25,12 +26,21 @@ const shared = {
   muteTakesWhileRecording: true,
   isRecording: false,
   takes: [],
+  meterMap: null,
+  meterEdited: false,
+  meterSelected: null,
+  meterBusy: false,
+  meterError: null,
+  meterUndoDepth: 0,
+  clickDensity: "pulses",
+  tapSession: null,
 };
+const bars: BarMap = { version: 1, bars: [{ start: 0, num: 4, den: 4 }, { start: 2, num: 3, den: 4, groups: [2, 1] }], end: 4, source: "edited" };
 const transport = { time: 1, playing: false, rate: 1, sentAt: 100 };
 
 describe("detachable panels", () => {
   it("are the optional panels of the analyzer page that need no audio engine", () => {
-    expect([...DETACHABLE_PANELS]).toEqual(["chords", "lyrics", "takes", "tab"]);
+    expect([...DETACHABLE_PANELS]).toEqual(["chords", "lyrics", "takes", "tab", "meter"]);
   });
 
   it("round-trip through the window label", () => {
@@ -86,10 +96,51 @@ describe("parseCommand", () => {
   });
 });
 
+describe("meter commands", () => {
+  it("accepts the bars with their shape intact and passes only the fields it knows", () => {
+    expect(parseCommand({ type: "applyMeter", map: bars, select: 1 })).toEqual({ type: "applyMeter", map: bars, select: 1 });
+    expect(parseCommand({ type: "applyMeter", map: bars, select: null })).toEqual({ type: "applyMeter", map: bars, select: null });
+    expect(parseCommand({ type: "applyMeter", map: bars })).toEqual({ type: "applyMeter", map: bars, select: undefined });
+  });
+
+  it("rejects bars that are not bars, or a pick that is not a place in them", () => {
+    for (const map of [null, {}, { ...bars, version: 2 }, { ...bars, bars: "x" }, { ...bars, end: "4" }, { ...bars, bars: [{ start: 0, num: 4 }] }, { ...bars, bars: [{ start: 0, num: 4, den: 4, groups: ["2"] }] }]) {
+      expect(parseCommand({ type: "applyMeter", map, select: 0 }), JSON.stringify(map)).toBeNull();
+    }
+    for (const select of [-1, 1.5, "1"]) expect(parseCommand({ type: "applyMeter", map: bars, select })).toBeNull();
+  });
+
+  it("accepts the argument-less commands without carrying anything else", () => {
+    for (const type of ["undoMeter", "resetMeter", "detectMeter", "startMeterFromGrid", "finishTapping", "cancelTapping", "clearMeterError"]) {
+      expect(parseCommand({ type, extra: 1 })).toEqual({ type });
+    }
+  });
+
+  it("checks a bar pick, a click density, a tap and a loop", () => {
+    expect(parseCommand({ type: "selectBar", index: 3 })).toEqual({ type: "selectBar", index: 3 });
+    expect(parseCommand({ type: "selectBar", index: null })).toEqual({ type: "selectBar", index: null });
+    expect(parseCommand({ type: "selectBar", index: -1 })).toBeNull();
+    expect(parseCommand({ type: "setClickDensity", density: "pulses" })).toEqual({ type: "setClickDensity", density: "pulses" });
+    expect(parseCommand({ type: "setClickDensity", density: "loud" })).toBeNull();
+    expect(parseCommand({ type: "addTap", time: 1.5 })).toEqual({ type: "addTap", time: 1.5 });
+    for (const time of [-1, Number.NaN, "1"]) expect(parseCommand({ type: "addTap", time })).toBeNull();
+    expect(parseCommand({ type: "applyLoopRegion", start: 1, end: 2 })).toEqual({ type: "applyLoopRegion", start: 1, end: 2 });
+    expect(parseCommand({ type: "applyLoopRegion", start: 2, end: 1 })).toBeNull();
+  });
+
+  it("starts a tap session from its four settings and nothing more", () => {
+    const session = { kind: "bars", den: 4, perBar: 4, pulse: 0.5 };
+    expect(parseCommand({ type: "startTapping", session: { ...session, taps: [1, 2], extra: 1 } })).toEqual({ type: "startTapping", session });
+    expect(parseCommand({ type: "startTapping", session: { ...session, kind: "both" } })).toBeNull();
+    expect(parseCommand({ type: "startTapping", session: null })).toBeNull();
+  });
+});
+
 describe("shared state", () => {
   it("accepts a complete state", () => {
     expect(isSharedState(shared)).toBe(true);
     expect(isSharedState({ ...shared, activeTakeId: "t1", takes: [{ id: "t1" }] })).toBe(true);
+    expect(isSharedState({ ...shared, meterMap: bars, meterSelected: 1, meterUndoDepth: 2, tapSession: { kind: "beats", den: 4, perBar: 4, pulse: 0.5, taps: [1, 2] } })).toBe(true);
   });
 
   it("rejects what is incomplete or mistyped", () => {
@@ -118,6 +169,12 @@ describe("shared state", () => {
       { ...shared, takes: {} },
       { ...shared, takes: [{ name: "no id" }] },
       { ...shared, song: 7 },
+      { ...shared, meterMap: {} },
+      { ...shared, meterSelected: -1 },
+      { ...shared, meterBusy: undefined },
+      { ...shared, meterUndoDepth: "1" },
+      { ...shared, clickDensity: "loud" },
+      { ...shared, tapSession: { kind: "bars" } },
     ]) {
       expect(isSharedState(bad), JSON.stringify(bad)).toBe(false);
     }

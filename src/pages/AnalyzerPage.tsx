@@ -198,10 +198,9 @@ function AnalyzerPage({ songId, onBack }: AnalyzerPageProps) {
               <ChordRoll song={song} />
             </div>
           ) : id === "meter" ? (
-            <div className="detachable">
-              <div className="detach-handle"><MoveGrip /></div>
+            <Detachable panel="meter">
               <MeterPanel song={song} />
-            </div>
+            </Detachable>
           ) : (
             <Detachable panel={id}>
               {id === "lyrics" ? <LyricsPanel songId={songId} hasVocals={canSyncLyrics(song.stems)} /> : id === "tab" ? <TabPanel song={song} /> : <TakeList />}

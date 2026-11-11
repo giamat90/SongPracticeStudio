@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { barEnd, barIndexAt, formatSignature, pulseLevels, pulseTimes, setBarStart, type BarMap } from "@giamat90/mps-core/meter";
 import { classifyMeterPress, STRIP_H, type BarBlock } from "../../lib/meterView";
-import { getEngine, usePlayerStore } from "../../stores/player";
+import { getPlayheadTime, usePlayerStore } from "../../stores/player";
 import { ENVELOPE_FPS } from "./useHitEnvelope";
 
 /** A press that moves less than this is a click, not a drag. */
@@ -34,7 +34,7 @@ export default function MeterLane({ map, duration, windowSeconds, envelope, sele
   live.current = { map, envelope, selected, windowSeconds };
 
   const timeAt = (el: HTMLCanvasElement, x: number) =>
-    getEngine().getCurrentTime() - live.current.windowSeconds / 2 + (x / el.offsetWidth) * live.current.windowSeconds;
+    getPlayheadTime() - live.current.windowSeconds / 2 + (x / el.offsetWidth) * live.current.windowSeconds;
   const seekTo = (time: number) => usePlayerStore.getState().seek(Math.min(Math.max(time, 0), duration));
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -45,7 +45,7 @@ export default function MeterLane({ map, duration, windowSeconds, envelope, sele
     const x = e.clientX - rect.left;
     const press = classifyMeterPress(blocks.current, x, e.clientY - rect.top);
     if (press.kind === "edge") drag.current = { kind: "edge", index: press.index, time: timeAt(el, x), startX: x, moved: false };
-    else drag.current = { kind: "seek", startX: x, startTime: getEngine().getCurrentTime(), moved: false, pick: press.kind === "bar" ? press.index : null };
+    else drag.current = { kind: "seek", startX: x, startTime: getPlayheadTime(), moved: false, pick: press.kind === "bar" ? press.index : null };
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -94,7 +94,7 @@ export default function MeterLane({ map, duration, windowSeconds, envelope, sele
       const { map: shown, envelope: env, selected: picked, windowSeconds: win } = live.current;
       const held = drag.current;
       const bars = held?.kind === "edge" && held.moved ? setBarStart(shown, held.index, held.time) : shown;
-      const now = getEngine().getCurrentTime();
+      const now = getPlayheadTime();
       const t0 = now - win / 2;
       const xOf = (t: number) => ((t - t0) / win) * W;
       const bodyTop = STRIP_H;

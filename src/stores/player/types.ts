@@ -189,6 +189,8 @@ export interface MeterSlice {
   setClickDensity: (density: ClickDensity) => void;
   startTapping: (session: Omit<TapSession, "taps">) => void;
   tapNow: () => void;
+  /** A tap at a given song time: a detached Meter window taps by its own clock and the main window records it. */
+  addTap: (time: number) => void;
   finishTapping: () => Promise<void>;
   cancelTapping: () => void;
   clearMeterError: () => void;

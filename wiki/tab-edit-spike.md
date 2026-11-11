@@ -37,7 +37,7 @@ Tab sync already parses the stored file into an alphaTab `Score` and draws it (`
 - **Fidelity of export beyond playback.** Check 2 compares MIDI only. GP7 export of lyrics, text marks, chord diagrams, fingerings, beam and layout hints is **not verified**; open an exported file in Guitar Pro or Songsterr-like viewers before shipping, and keep the original as the safety net.
 - **Percussion and non-stringed tracks:** `note.isStringed` is false there; the editor ignores them.
 - **Other import formats:** `.gp3` to `.gp5`, `.gpx` and MusicXML load fine, but saving rewrites them as `.gp`. This is a one-way conversion on first edit, hence the kept original.
-- **Detached/other windows:** the Tab panel is not detachable (`ANALYZER_PANELS`), so there is no cross-window sync problem.
+- **Detached/other windows:** the Tab panel is detachable (it loads and saves the tab file itself), so a bar correction made in its window shows in the main window after docking.
 
 ## Scope ladder
 

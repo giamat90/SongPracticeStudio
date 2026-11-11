@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { meterRuns, type BarMap } from "@giamat90/mps-core/meter";
-import { getEngine, usePlayerStore } from "../../stores/player";
+import { getPlayheadTime, usePlayerStore } from "../../stores/player";
 
 interface Props {
   map: BarMap;
@@ -47,7 +47,7 @@ export default function MeterOverview({ map, duration }: Props) {
           ctx.fillText(label, x0 + 4, H / 2 + 0.5);
         }
       }
-      const x = (getEngine().getCurrentTime() / total) * W;
+      const x = (getPlayheadTime() / total) * W;
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(x, 0, 1.5, H);
     };

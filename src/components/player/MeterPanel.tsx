@@ -54,7 +54,11 @@ function sourceLabel(source: string, edited: boolean, confidence: number | undef
   return source === "tapped" ? "Tapped in" : "Your bars";
 }
 
-export default function MeterPanel({ song }: { song: Song }) {
+/**
+ * `envelope` is for a detached window, which has no decoded stems: the main window sends the drum envelope and the
+ * panel draws that instead of reading it (null while it is on its way).
+ */
+export default function MeterPanel({ song, envelope: sent }: { song: Song; envelope?: Float32Array | null }) {
   const map = usePlayerStore((s) => s.meterMap);
   const edited = usePlayerStore((s) => s.meterEdited);
   const busy = usePlayerStore((s) => s.meterBusy);
@@ -76,7 +80,8 @@ export default function MeterPanel({ song }: { song: Song }) {
 
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [replacing, setReplacing] = useState(false);
-  const envelope = useHitEnvelope(song, prefs.envelope && map !== null && bodyOpen);
+  const own = useHitEnvelope(song, sent === undefined && prefs.envelope && map !== null && bodyOpen);
+  const envelope = sent === undefined ? own : sent;
 
   const setPref = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     const next = { ...prefs, [key]: value };

@@ -1,7 +1,11 @@
 import { toggleTake } from "@giamat90/mps-core/takes";
 import { createDetachedBridge } from "@giamat90/mps-core/windows";
+import type { BarMap, ClickDensity } from "@giamat90/mps-core/meter";
+import { ENVELOPE_FPS } from "../lib/meterView";
 import type { Take } from "../lib/types";
-import { isSharedState, type Command, type DetachablePanel, type SharedState } from "./protocol";
+import type { TapSession } from "../stores/player/types";
+import { EVT_ENVELOPE, isSharedState, type Command, type DetachablePanel, type SharedState } from "./protocol";
+import { receiveEnvelope } from "./remoteEnvelope";
 
 interface MutableStore<T> {
   getState(): T;
@@ -30,7 +34,30 @@ export interface DetachedPlayer {
   soloedStem: string | null;
   isRecording: boolean;
   takes: Take[];
+  meterMap: BarMap | null;
+  meterEdited: boolean;
+  meterSelected: number | null;
+  meterBusy: boolean;
+  meterError: string | null;
+  /** Only its length is read (Undo); the entries stay in the main window. */
+  meterHistory: { map: BarMap | null; edited: boolean }[];
+  clickDensity: ClickDensity;
+  tapSession: TapSession | null;
   seek: (time: number) => void;
+  applyMeter: (map: BarMap | null, select?: number | null) => Promise<void>;
+  undoMeter: () => Promise<void>;
+  resetMeter: () => Promise<void>;
+  detectMeter: () => Promise<void>;
+  startMeterFromGrid: () => Promise<void>;
+  finishTapping: () => Promise<void>;
+  cancelTapping: () => void;
+  clearMeterError: () => void;
+  selectBar: (index: number | null) => void;
+  setClickDensity: (density: ClickDensity) => void;
+  startTapping: (session: Omit<TapSession, "taps">) => void;
+  tapNow: () => void;
+  addTap: (time: number) => void;
+  applyLoopRegion: (start: number, end: number) => void;
   toggleTake: (id: string) => void;
   deleteTake: (id: string) => Promise<void>;
   renameTake: (id: string, name: string) => Promise<void>;
@@ -46,6 +73,10 @@ export interface DetachedBridgeDeps {
   now: () => number;
   /** The key the player store uses for the take channel's mute / solo. */
   takeTrackKey: string;
+  /** Makes the drawing code read the mirrored playhead instead of the (empty) audio engine; returns how to undo it. */
+  installPlayhead: (source: () => number) => () => void;
+  /** The playhead as the drawing code reads it, for a tap. */
+  playhead: () => number;
 }
 
 /**
@@ -63,6 +94,8 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
     emit: deps.emit,
     listen: deps.listen,
     now: deps.now,
+    installTimeSource: deps.installPlayhead,
+    listeners: { [EVT_ENVELOPE]: (payload) => receiveEnvelope(payload, ENVELOPE_FPS) },
     writeTime: (time) => player.setState({ currentTime: time }),
     applyShared(shared, transport, currentTime) {
       player.setState({
@@ -73,6 +106,14 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
         chordDetail: shared.chordDetail,
         chordsRevision: shared.chordsRevision,
         takes: shared.takes,
+        meterMap: shared.meterMap,
+        meterEdited: shared.meterEdited,
+        meterSelected: shared.meterSelected,
+        meterBusy: shared.meterBusy,
+        meterError: shared.meterError,
+        meterHistory: Array.from({ length: shared.meterUndoDepth }, () => ({ map: null, edited: false })),
+        clickDensity: shared.clickDensity,
+        tapSession: shared.tapSession,
         activeTakeId: shared.activeTakeId,
         shownTakeIds: shared.shownTakeIds,
         takePlayback: shared.takePlayback,
@@ -103,6 +144,28 @@ export async function startDetachedBridge(deps: DetachedBridgeDeps): Promise<{ d
     deleteTake: async (id) => bridge.command({ type: "deleteTake", id }),
     renameTake: async (id, name) => bridge.command({ type: "renameTake", id, name }),
     fetchTakes: async () => {},
+    applyMeter: async (map, select) => {
+      if (map) bridge.command({ type: "applyMeter", map, select });
+    },
+    undoMeter: async () => bridge.command({ type: "undoMeter" }),
+    resetMeter: async () => bridge.command({ type: "resetMeter" }),
+    detectMeter: async () => bridge.command({ type: "detectMeter" }),
+    startMeterFromGrid: async () => bridge.command({ type: "startMeterFromGrid" }),
+    finishTapping: async () => bridge.command({ type: "finishTapping" }),
+    cancelTapping: () => bridge.command({ type: "cancelTapping" }),
+    clearMeterError: () => bridge.command({ type: "clearMeterError" }),
+    selectBar: (index) => {
+      player.setState({ meterSelected: index });
+      bridge.command({ type: "selectBar", index });
+    },
+    setClickDensity: (density) => {
+      player.setState({ clickDensity: density });
+      bridge.command({ type: "setClickDensity", density });
+    },
+    startTapping: (session) => bridge.command({ type: "startTapping", session }),
+    tapNow: () => bridge.command({ type: "addTap", time: deps.playhead() }),
+    addTap: (time) => bridge.command({ type: "addTap", time }),
+    applyLoopRegion: (start, end) => bridge.command({ type: "applyLoopRegion", start, end }),
   });
 
   await bridge.start();
