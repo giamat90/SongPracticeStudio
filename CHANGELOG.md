@@ -6,6 +6,11 @@ All notable changes to SPS are recorded here, newest first. Format follows
 Every version bump must add an entry here in the same `chore: release` commit.
 Releases before 0.0.40 are not itemised; see `git log` and the tags.
 
+## [0.0.87] - 2026-11-11
+
+### Added
+- **The Meter panel can be moved into a window of its own**, like Lyrics, Takes and Tab: drag its grip past the edge of the window or press the pop-out button. In its window the bars follow the playhead, and correcting a bar, undo, tapping along, the click density and the drums' envelope work as before; the edits are made in the main window's bars, so both always agree.
+
 ## [0.0.86] - 2026-11-10
 
 ### Added
