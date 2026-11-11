@@ -90,7 +90,7 @@ async function render(
 
 const shown = (html: string) => [...html.matchAll(/data-c="(\w+)"/g)].map((m) => m[1]);
 const OPTIONAL = ["tab", "lyrics", "takes"];
-const DETACHABLE = ["chords", ...OPTIONAL];
+const DETACHABLE = ["chords", "meter", ...OPTIONAL];
 
 beforeEach(() => {
   localStorage.clear();
@@ -189,7 +189,7 @@ describe("AnalyzerPage panels", () => {
 
   it("puts a detach handle on every docked optional panel, and none on the stems", async () => {
     const html = await render();
-    expect([...html.matchAll(/data-panel="(\w+)"/g)].map((m) => m[1]).sort()).toEqual(["chords", "lyrics", "tab", "takes"]);
+    expect([...html.matchAll(/data-panel="(\w+)"/g)].map((m) => m[1]).sort()).toEqual(["chords", "lyrics", "meter", "tab", "takes"]);
   });
 
   it.each(DETACHABLE)("a detached %s leaves the page, its handle with it, and nothing else", async (id) => {
@@ -248,12 +248,12 @@ describe("AnalyzerPage panels", () => {
     ]);
   });
 
-  it("shows the meter between the chord roll and the lyrics, and cannot be detached", async () => {
+  it("shows the meter between the chord roll and the lyrics, with a detach handle", async () => {
     const html = await render();
     const at = (c: string) => html.indexOf(`data-c="${c}"`);
     expect(at("meter")).toBeGreaterThan(at("roll"));
     expect(at("meter")).toBeLessThan(at("lyrics"));
-    expect(html).not.toContain('data-panel="meter"');
+    expect(html).toContain('data-panel="meter"');
   });
 
   it("hiding the meter removes only that panel", async () => {

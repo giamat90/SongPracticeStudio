@@ -64,7 +64,7 @@ flowchart LR
 
 ## 2. Screens and panels (component view)
 
-Two pages in a route held in `App.tsx`. The analyzer is a stack of **panels**; `chords`, `lyrics`, `takes` and `tab` are in the panel store (visible, ordered, detachable), and the waveform area is collapsible but never unmounted because it owns the engine's containers.
+Two pages in a route held in `App.tsx`. The analyzer is a stack of **panels**; `chords`, `lyrics`, `takes`, `tab` and `meter` are in the panel store (visible, ordered, detachable), and the waveform area is collapsible but never unmounted because it owns the engine's containers.
 
 ```mermaid
 flowchart TB
@@ -90,6 +90,7 @@ flowchart TB
     SP --> P2["lyrics: LyricsPanel"]
     SP --> P3["takes: TakeList, TakesBar"]
     SP --> P4["tab: TabPanel (detachable; no Import in a detached window)"]
+    SP --> P5["meter: MeterPanel (detachable; edits are commands, envelope sent by the main window)"]
     PM["PanelMenu + useAnalyzerPanels (tab, roll, meter, lyrics, takes)"]
     PM -.-> SP
 ```

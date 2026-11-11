@@ -3,13 +3,15 @@ import { detachedTitle, dockSafely, useBridgeRun } from "@giamat90/mps-core/hook
 import ChordCarousel from "../components/player/ChordCarousel";
 import DockHandle from "../components/panels/DockHandle";
 import LyricsPanel from "../components/lyrics/LyricsPanel";
+import MeterPanel from "../components/player/MeterPanel";
 import TabPanel from "../components/tab/TabPanel";
 import TakeList from "../components/recording/TakeList";
 import { canSyncLyrics } from "../lib/lyrics";
 import { dockPanel } from "../lib/tauri";
 import type { Song } from "../lib/types";
-import { TAKE_TRACK_KEY, usePlayerStore } from "../stores/player";
+import { TAKE_TRACK_KEY, getPlayheadTime, installPlayheadSource, usePlayerStore } from "../stores/player";
 import { startDetachedBridge } from "./detachedBridge";
+import { useRemoteEnvelope } from "./remoteEnvelope";
 import type { DetachablePanel } from "./protocol";
 
 const TITLES: Record<DetachablePanel, string> = {
@@ -17,10 +19,17 @@ const TITLES: Record<DetachablePanel, string> = {
   lyrics: "Lyrics",
   takes: "Takes",
   tab: "Tab",
+  meter: "Meter",
 };
 
 interface DetachedHostProps {
   panel: DetachablePanel;
+}
+
+/** The Meter with the drum envelope the main window sent, since this window has no decoded stems to read it from. */
+function DetachedMeter({ song }: { song: Song }) {
+  const sent = useRemoteEnvelope((s) => (s.songId === song.id ? s.values : null));
+  return <MeterPanel song={song} envelope={sent} />;
 }
 
 function PanelBody({ panel, song }: { panel: DetachablePanel; song: Song }) {
@@ -37,6 +46,8 @@ function PanelBody({ panel, song }: { panel: DetachablePanel; song: Song }) {
       return <TakeList />;
     case "tab":
       return <TabPanel song={song} detached />;
+    case "meter":
+      return <DetachedMeter song={song} />;
   }
 }
 
@@ -56,6 +67,8 @@ function DetachedHost({ panel }: DetachedHostProps) {
         listen: (event, cb) => listen(event, (e) => cb(e.payload)),
         now: () => Date.now(),
         takeTrackKey: TAKE_TRACK_KEY,
+        installPlayhead: installPlayheadSource,
+        playhead: getPlayheadTime,
       }),
     }),
     "[detached] could not connect to the main window:",

@@ -175,7 +175,7 @@ SongPracticeStudio/
 │   │   │   ├── DownloadAllButton.tsx ← zip export of all stems + takes (rendered in AnalyzerPage header)
 │   │   │   ├── LoopButton.tsx     ← punch-loop toggle
 │   │   │   ├── ChordCarousel.tsx  ← "now/past/next" chord display (AnalyzerPage topbar)
-│   │   │   ├── MeterPanel.tsx     ← the Meter panel (Panels menu "Meter"): source and readout, overview, lane, click density; with MeterLane (bars around the playhead, drag a bar line), MeterOverview (the song by signature), MeterEditor (count, accents, split, join, repeat a pattern, shift, tap along), useHitEnvelope (drums under the bars); see wiki/meter.md
+│   │   │   ├── MeterPanel.tsx     ← the Meter panel (Panels menu "Meter", detachable): source and readout, overview, lane, click density; with MeterLane (bars around the playhead, drag a bar line), MeterOverview (the song by signature), MeterEditor (count, accents, split, join, repeat a pattern, shift, tap along), useHitEnvelope (drums under the bars); see wiki/meter.md
 │   │   │   ├── ChordRoll.tsx      ← the chord panel under the stems (Panels menu "Chord roll"): notes of each stem over time, a strip of chord buttons (click to correct, drag a handle to move a start, + to add), the spectrum section; not detachable (needs decoded audio)
 │   │   │   ├── MonitorControl.tsx ← the Monitor switch, a 🎧 pill in the input strip of the top bar between the mic and output menus (shown when the song has chords and the chord roll is on screen): listens to the chosen input and draws it in pink on the notes and the spectrum against the song; level meter; the "You play C" readout is in the spectrum panel
 │   │   │   ├── useNoteRoll.ts     ← loads the saved note strengths (`note_roll.json`) or analyses the decoded stems and saves them

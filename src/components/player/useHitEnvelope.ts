@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { getEngine } from "../../stores/player";
-import { hitEnvelope } from "../../lib/meterView";
+import { ENVELOPE_FPS, hitEnvelope } from "../../lib/meterView";
 import type { Song } from "../../lib/types";
 
-export const ENVELOPE_FPS = 100;
+export { ENVELOPE_FPS };
 const CHUNK_SECONDS = 30;
 /** How long to wait for the stems to be decoded: the player loads them one by one. */
 const DECODE_WAIT_MS = 120_000;
@@ -18,35 +18,38 @@ export function beatStems(stems: readonly string[]): string[] {
 
 /**
  * How strongly each hundredth of a second of the song's drums starts a sound, for the lane to draw under the bar
- * lines. Null until the stems are decoded and read; a song's whole length is read in pieces so the page stays live.
+ * lines: read from the decoded stems once the player has them, in pieces so the page stays live. Null when the song
+ * has nothing to read or `cancelled()` turned true.
  */
+export async function computeHitEnvelope(song: Song, cancelled: () => boolean): Promise<Float32Array | null> {
+  const names = beatStems(song.stems);
+  if (names.length === 0) return null;
+  for (let waited = 0; waited < DECODE_WAIT_MS && !cancelled(); waited += DECODE_POLL_MS) {
+    if (getEngine().getStemSamples(names, 0, 0.05)) break;
+    await sleep(DECODE_POLL_MS);
+  }
+  if (cancelled()) return null;
+  const out = new Float32Array(Math.ceil(song.duration * ENVELOPE_FPS) + 1);
+  for (let from = 0; from < song.duration && !cancelled(); from += CHUNK_SECONDS) {
+    const got = getEngine().getStemSamples(names, from, Math.min(song.duration, from + CHUNK_SECONDS));
+    if (!got) continue;
+    out.set(hitEnvelope(got.samples, got.sampleRate, ENVELOPE_FPS), Math.round(from * ENVELOPE_FPS));
+    await sleep(0);
+  }
+  return cancelled() ? null : out;
+}
+
+/** The envelope for the lane. Null until the stems are decoded and read. */
 export function useHitEnvelope(song: Song, enabled: boolean): Float32Array | null {
   const [values, setValues] = useState<Float32Array | null>(null);
 
   useEffect(() => {
     setValues(null);
     if (!enabled) return;
-    const names = beatStems(song.stems);
-    if (names.length === 0) return;
     let cancelled = false;
-
-    const read = async () => {
-      for (let waited = 0; waited < DECODE_WAIT_MS && !cancelled; waited += DECODE_POLL_MS) {
-        if (getEngine().getStemSamples(names, 0, 0.05)) break;
-        await sleep(DECODE_POLL_MS);
-      }
-      if (cancelled) return;
-      const out = new Float32Array(Math.ceil(song.duration * ENVELOPE_FPS) + 1);
-      for (let from = 0; from < song.duration && !cancelled; from += CHUNK_SECONDS) {
-        const got = getEngine().getStemSamples(names, from, Math.min(song.duration, from + CHUNK_SECONDS));
-        if (!got) continue;
-        out.set(hitEnvelope(got.samples, got.sampleRate, ENVELOPE_FPS), Math.round(from * ENVELOPE_FPS));
-        await sleep(0);
-      }
-      if (!cancelled) setValues(out);
-    };
-
-    read().catch((e: unknown) => console.error("[useHitEnvelope] reading the drums failed:", e));
+    computeHitEnvelope(song, () => cancelled)
+      .then((got) => { if (!cancelled && got) setValues(got); })
+      .catch((e: unknown) => console.error("[useHitEnvelope] reading the drums failed:", e));
     return () => { cancelled = true; };
   }, [song.id, song.duration, song.stems, enabled]);
 

@@ -111,11 +111,14 @@ export function meterShares(map: BarMap): MeterShare[] {
 /** Where the bar's end falls, for an editor that shows its stretch. */
 export const stretchOf = (map: BarMap, index: number): [number, number] => [map.bars[index].start, barEnd(map, index)];
 
+/** Frames a second in the drums' hit envelope. */
+export const ENVELOPE_FPS = 100;
+
 /**
  * How strongly each short frame of a stem starts a sound: the rise of its loudness over the loudness just before.
  * Drawn under the bar lines, it shows whether a line lands on a hit.
  */
-export function hitEnvelope(samples: Float32Array, sampleRate: number, fps = 100): Float32Array {
+export function hitEnvelope(samples: Float32Array, sampleRate: number, fps = ENVELOPE_FPS): Float32Array {
   const hop = Math.max(1, Math.round(sampleRate / fps));
   const frames = Math.floor(samples.length / hop);
   const loud = new Float32Array(frames);

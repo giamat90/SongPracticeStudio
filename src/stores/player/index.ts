@@ -13,7 +13,7 @@ import type { PlayerStore } from "./types";
 
 export { TAKE_TRACK_KEY, buildMixSources, effectiveStemGain, takesSilenced } from "./audioMix";
 export { MAX_CAPO_FRET } from "./prefs";
-export { getEngine } from "./singletons";
+export { getEngine, getPlayheadTime, installPlayheadSource } from "./singletons";
 export type { CalibrationEntry } from "./types";
 
 export const usePlayerStore = create<PlayerStore>()((...a) => ({
